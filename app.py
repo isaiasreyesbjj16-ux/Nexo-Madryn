@@ -635,6 +635,9 @@ def _init_db_body(db):
         'academy_name': 'NEXO MADRYN JIU JITSU',
         'academy_code': 'NEXO2026',
         'default_cuota': '15000',
+        'precio_act_1': '45000',
+        'precio_act_2': '60000',
+        'precio_act_3': '80000',
         'due_day': '10',
         'cargo_demora_pct': '10',
         'academy_color': '#9b5de5',
@@ -1459,7 +1462,10 @@ def index():
     if 'user_id' in session:
         return redirect(url_for('app_page'))
     return render_template('login.html', academy_name=get_setting('academy_name'),
-                           actividades=ACTIVIDADES)
+                           actividades=ACTIVIDADES,
+                           precio_1=to_float(get_setting('precio_act_1')) or 45000,
+                           precio_2=to_float(get_setting('precio_act_2')) or 60000,
+                           precio_3=to_float(get_setting('precio_act_3')) or 80000)
 
 
 @app.route('/sw.js')
@@ -1532,6 +1538,27 @@ def _actividades_csv(data):
         if x and x not in seen:
             seen.append(x)
     return ','.join(seen)
+
+
+def _cuota_por_actividades(csv_act):
+    """Cuota segun cuantas actividades entrena el alumno (1 profe=45, 2=60, 3+=80).
+
+    Usa los precios configurables precio_act_1/2/3 (en pesos) con el precio por
+    defecto como respaldo. Si hay 3 o mas actividades aplica el precio_act_3.
+    """
+    n = len([a for a in (csv_act or '').split(',') if a.strip()])
+    p1 = to_float(get_setting('precio_act_1')) or 0
+    p2 = to_float(get_setting('precio_act_2')) or 0
+    p3 = to_float(get_setting('precio_act_3')) or 0
+    if n <= 0:
+        return None
+    if n == 1 and p1:
+        return p1
+    if n == 2 and p2:
+        return p2
+    if n >= 3 and p3:
+        return p3
+    return None
 
 
 def _norm_txt(s):
@@ -1865,6 +1892,9 @@ def api_register():
         return jsonify({'error': 'Para menores (Kids/Juveniles) el padre, madre o tutor debe firmar la autorización de fotos.'}), 400
     firma_fecha = datetime.now().strftime('%d/%m/%Y %H:%M') if (firma_tyc or firma_foto) else None
     cuota_reg = to_float(data.get('cuota_mensual')) if role == 'alumno' else None
+    csv_act = _actividades_csv(data)
+    if role == 'alumno' and not cuota_reg:
+        cuota_reg = _cuota_por_actividades(csv_act)
 
     try:
         get_db().execute(
@@ -1874,7 +1904,7 @@ def api_register():
              to_int(data.get('edad')), to_float(data.get('peso')),
              data.get('cinturon'), categoria,
              data.get('gi_pref') or 'Ambas',
-             _actividades_csv(data),
+             csv_act,
              cuota_reg,
              txt_str(data.get('tel')) or None,
              txt_str(data.get('nacimiento')) or None,
@@ -2054,7 +2084,8 @@ def api_alumnos_create():
     if get_db().execute('SELECT id FROM users WHERE username=?', (username,)).fetchone():
         return jsonify({'error': 'Ese usuario ya existe'}), 400
     password = data.get('password') or 'alumno123'
-    cuota = to_float(data.get('cuota_mensual')) or (to_float(get_setting('default_cuota', '15000')) or 15000)
+    cuota_calc = data.get('cuota_mensual') or ''
+    cuota = to_float(cuota_calc) if cuota_calc not in (None, '', 'auto') else (_cuota_por_actividades(_actividades_csv(data)) or (to_float(get_setting('default_cuota', '15000')) or 15000))
     nacimiento = txt_str(data.get('nacimiento'))
     if not nacimiento:
         return jsonify({'error': 'La fecha de nacimiento es obligatoria al crear el perfil.'}), 400
@@ -2091,11 +2122,13 @@ def api_alumnos_update(uid):
         except ValueError:
             return jsonify({'error': 'Fecha de nacimiento inválida (formato AAAA-MM-DD).'}), 400
     get_db().execute(
-        """UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, activo=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, pausa_desde=?, pausa_hasta=? WHERE id=?""",
+        """UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, cuota_mensual=?, activo=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, pausa_desde=?, pausa_hasta=? WHERE id=?""",
         ((data.get('nombre') or u['nombre']), to_int(data.get('edad', u['edad'])),
          to_float(data.get('peso', u['peso'])), data.get('cinturon', u['cinturon']),
          data.get('categoria', u['categoria']), data.get('gi_pref', u['gi_pref']),
          _actividades_csv(data),
+         (to_float(data.get('cuota_mensual')) if data.get('cuota_mensual') not in (None, '', 'auto')
+          else (_cuota_por_actividades(_actividades_csv(data)) or (to_float(get_setting('default_cuota', '15000')) or 15000))),
          1 if data.get('activo', u['activo']) else 0,
          txt_str(data.get('tel', u['tel'])) or None,
          nac_upd or None,
@@ -2566,7 +2599,7 @@ def api_familia_hijo_alta():
     firma_fecha = datetime.now().strftime('%d/%m/%Y %H:%M')
 
     fam_id = _crear_grupo_familiar_si_hace_falta()
-    cuota_menor = to_float(get_setting('default_cuota', '15000')) or 15000
+    cuota_menor = _cuota_por_actividades(_actividades_csv(data)) or (to_float(get_setting('default_cuota', '15000')) or 15000)
     db = get_db()
     try:
         cur = db.execute(
@@ -4843,12 +4876,14 @@ def api_settings_get():
         keys = ['academy_name', 'default_cuota', 'due_day', 'cargo_demora_pct', 'academy_code', 'pago_link', 'pago_alias',
                 'auto_mensaje', 'auto_inact_dias', 'auto_deuda_dias', 'auto_mensaje_activo', 'logro_asist', 'logro_videos',
                 'asis_min_examen', 'mp_access_token', 'wp_numero', 'desc_familiar',
-                'desc_familiar2', 'desc_familiar3', 'desc_familiar4', 'tz_offset', 'public_url', 'academy_color']
+                'desc_familiar2', 'desc_familiar3', 'desc_familiar4', 'tz_offset', 'public_url', 'academy_color',
+                'precio_act_1', 'precio_act_2', 'precio_act_3']
         return jsonify({k: get_setting(k) for k in keys})
     # Alumno/profesor: solo lo publicable. academy_code permite registrarse como
     # profesor y mp_access_token es una credencial de MercadoPago: no se exponen.
     pub = ['academy_name', 'pago_link', 'pago_alias', 'logro_asist', 'logro_videos',
-           'desc_familiar', 'desc_familiar2', 'desc_familiar3', 'desc_familiar4']
+           'desc_familiar', 'desc_familiar2', 'desc_familiar3', 'desc_familiar4',
+           'precio_act_1', 'precio_act_2', 'precio_act_3']
     return jsonify({k: get_setting(k) for k in pub})
 
 
@@ -4868,6 +4903,9 @@ def api_settings_put():
         'logro_videos': (0, 1000),
         'asis_min_examen': (0, 1000),
         'tz_offset': (-12, 14),
+        'precio_act_1': (0, 10_000_000),
+        'precio_act_2': (0, 10_000_000),
+        'precio_act_3': (0, 10_000_000),
     }
     for k, (lo, hi) in numericos.items():
         if k not in data or data[k] is None or data[k] == '':
@@ -4887,7 +4925,8 @@ def api_settings_put():
     for k in ['academy_name', 'default_cuota', 'due_day', 'cargo_demora_pct', 'academy_code', 'academy_color', 'pago_link', 'pago_alias',
               'auto_mensaje', 'auto_inact_dias', 'auto_deuda_dias', 'auto_mensaje_activo', 'logro_asist', 'logro_videos',
               'asis_min_examen', 'mp_access_token', 'wp_numero', 'desc_familiar', 'public_url',
-              'desc_familiar2', 'desc_familiar3', 'desc_familiar4', 'tz_offset']:
+              'desc_familiar2', 'desc_familiar3', 'desc_familiar4', 'tz_offset',
+              'precio_act_1', 'precio_act_2', 'precio_act_3']:
         if k in data and data[k] is not None:
             if k in ('auto_mensaje_activo',):
                 data[k] = 1 if as_bool(data[k]) else 0

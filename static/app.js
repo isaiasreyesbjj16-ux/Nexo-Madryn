@@ -293,6 +293,19 @@ function initLogin() {
     if (s.academy_name) { $('#academyTitle').textContent = s.academy_name; document.title = s.academy_name; }
   }).catch(() => {}); } catch (e) {}
 
+  /* Preview de cuota según actividades elegidas (alumno) */
+  function actualizarCuotaPreview() {
+    const el = $('#regCuotaPreview');
+    if (!el) return;
+    const n = $$('input[name="actividad"]:checked').length;
+    const p = [0, window.NEXO_PRECIOS?.[1], window.NEXO_PRECIOS?.[2], window.NEXO_PRECIOS?.[3]];
+    const precio = n >= 3 ? p[3] : (p[n] || 0);
+    if (precio) el.textContent = 'Tu cuota será $' + Number(precio).toLocaleString('es-AR');
+    else el.textContent = 'Tildá una actividad para ver tu cuota.';
+  }
+  $$('input[name="actividad"]').forEach(cb => cb.addEventListener('change', actualizarCuotaPreview));
+  actualizarCuotaPreview();
+
   $('#tab-login').addEventListener('submit', async (e) => {
     e.preventDefault();
     const m = $('#loginMsg');
@@ -2929,6 +2942,9 @@ async function renderConfig(el) {
         <div class="field"><label>Color principal</label><input type="color" id="cColor" value="${esc(s.academy_color || '#9b5de5')}" style="padding:4px;height:42px"></div>
         <div class="field"><label>Código de la academia (para que los profes se registren)</label><input id="cCodigo" value="${esc(s.academy_code)}"></div>
         <div class="field"><label>Cuota mensual por defecto ($)</label><input id="cCuota" value="${esc(s.default_cuota)}"></div>
+        <div class="field"><label>Precio 1 actividad / 1 profe ($)</label><input type="number" id="cPrecio1" value="${esc(s.precio_act_1 ?? '45000')}" placeholder="45000"></div>
+        <div class="field"><label>Precio 2 actividades / 2 profes ($)</label><input type="number" id="cPrecio2" value="${esc(s.precio_act_2 ?? '60000')}" placeholder="60000"></div>
+        <div class="field"><label>Precio 3 o más actividades / 3+ profes ($)</label><input type="number" id="cPrecio3" value="${esc(s.precio_act_3 ?? '80000')}" placeholder="80000"><small class="hint">La cuota se calcula sola según cuántas actividades entrena el alumno.</small></div>
         <div class="field"><label>Día de vencimiento (día del mes)</label><input type="number" id="cDue" value="${esc(s.due_day)}"></div>
         <div class="field"><label>Recargo por pago con demora (%)</label><input type="number" id="cDemora" value="${esc(s.cargo_demora_pct ?? '10')}" placeholder="10"></div>
         <div class="field"><label>Descuento familiar: 2 integrantes (%)</label><input type="number" id="cDescFam2" value="${esc(s.desc_familiar2 ?? s.desc_familiar ?? '10')}" placeholder="10"></div>
@@ -2977,6 +2993,7 @@ async function renderConfig(el) {
       await api('/api/settings', { method: 'PUT', body: {
         academy_name: $('#cNombre').value, academy_color: $('#cColor').value,
         academy_code: $('#cCodigo').value, default_cuota: $('#cCuota').value,
+        precio_act_1: $('#cPrecio1').value, precio_act_2: $('#cPrecio2').value, precio_act_3: $('#cPrecio3').value,
         due_day: $('#cDue').value, cargo_demora_pct: $('#cDemora').value, desc_familiar2: $('#cDescFam2').value, desc_familiar3: $('#cDescFam3').value, desc_familiar4: $('#cDescFam4').value, pago_link: $('#cLink').value, pago_alias: $('#cAlias').value, tz_offset: $('#cTz').value,
         mp_access_token: $('#cMpTk').value, wp_numero: $('#cWp').value, logro_asist: $('#cLogroAsist').value, logro_videos: $('#cLogroVids').value, asis_min_examen: $('#cMinExamen').value } });
       toast('Configuración guardada ✓');

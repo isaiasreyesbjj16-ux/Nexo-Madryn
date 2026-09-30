@@ -3931,7 +3931,7 @@ async function agregarMiembroFamilia(fid) {
 
 
 async function renderMiDinero(el) {
-  const esAdmin = R === 'admin';
+  const esAdmin = USER.role === 'admin';
   el.innerHTML = secHeader(esAdmin ? 'Reparto de dinero' : 'Mi dinero') + '<div class="small" style="color:var(--muted);padding:0 4px 10px">Cada cuota mensual se reparte en partes iguales entre los profesores que dan las actividades del alumno.</div>';
   try {
     const d = await api('/api/mi_dinero');
@@ -3975,7 +3975,7 @@ async function renderMiDinero(el) {
 const DESTINOS_EXTRA = ['Fondo academia', 'Viaje a competencia', 'Seminario', 'Cuota de un día', 'Equipamiento', 'Otro'];
 
 async function renderIngresosExtra(el) {
-  const esAdmin = R === 'admin';
+  const esAdmin = USER.role === 'admin';
   el.innerHTML = secHeader('Ingresos extra') + `
     <div class="small" style="color:var(--muted);padding:0 4px 10px">
       Cobros puntuales que <b>no son la cuota mensual</b> y <b>no se reparten</b> entre los profesores: van al fondo de la academia.

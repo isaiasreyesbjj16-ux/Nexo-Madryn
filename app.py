@@ -299,6 +299,34 @@ CREATE TABLE IF NOT EXISTS avisos_pago (
     confirmado_fecha TEXT
 );
 
+-- Reparto 50/50: por cada pago de un alumno, una fila por profesor que se
+-- lleva su parte. PermiteLiquidar a cada profe lo que le corresponde.
+CREATE TABLE IF NOT EXISTS pago_reparto (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pago_id INTEGER NOT NULL REFERENCES pagos(id) ON DELETE CASCADE,
+    profesor_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    monto REAL NOT NULL,
+    actividad TEXT,
+    nota TEXT,
+    fecha TEXT
+);
+
+-- Ingresos extra: cobros puntuales para el fondo de la academia (cuota de un
+-- dia, ayuda a alumno que compite, seminarios, etc). NO son cuota mensual.
+CREATE TABLE IF NOT EXISTS ingresos_extra (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alumno_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    monto REAL NOT NULL,
+    concepto TEXT DEFAULT 'Ingreso extra',
+    destino TEXT,
+    mes INTEGER NOT NULL,
+    anio INTEGER NOT NULL,
+    metodo TEXT DEFAULT 'Efectivo',
+    nota TEXT,
+    fecha TEXT,
+    registrado_por INTEGER
+);
+
 CREATE TABLE IF NOT EXISTS asistencia (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     clase_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
@@ -1561,6 +1589,53 @@ def _cuota_por_actividades(csv_act):
     return None
 
 
+def _reparto_por_actividades(alumno_id, monto, profesor_manual_id=None):
+    """Divide el pago de un alumno entre los profes que dan SUS actividades.
+
+    El alumno entrena Gi+NoGi y cada actividad la da un profe distinto => 50/50.
+    Si un solo prof da todas sus actividades, se lleva el 100%. Si no hay prof que
+    den alguna actividad, cae al profe elegido a mano (o queda sin reparto).
+    Devuelve [(profesor_id, montoParte, actividad_csv)].
+    """
+    db = get_db()
+    alumno = db.execute('SELECT actividades FROM users WHERE id=?', (alumno_id,)).fetchone()
+    acts_alumno = {a.strip() for a in ((alumno['actividades'] or '') if alumno else '').split(',') if a.strip()}
+    if acts_alumno:
+        profs = db.execute(
+            "SELECT id, nombre, actividades FROM users WHERE role='profesor' AND activo=1").fetchall()
+        # profes que dan al menos una actividad que entrena el alumno
+        match = []
+        for p in profs:
+            pa = {a.strip() for a in (p['actividades'] or '').split(',') if a.strip()}
+            comunes = sorted(acts_alumno & pa)
+            if comunes:
+                match.append((p['id'], p['nombre'], ','.join(comunes)))
+        if match:
+            n = len(match)
+            base = round(monto / n, 2)
+            partes = []
+            for i, (pid, nombre, act) in enumerate(match):
+                # el ultimo-profes-absorbe-el-redondeo para que sume exacto
+                parte = round(monto - base * (n - 1), 2) if i == n - 1 else base
+                partes.append((pid, parte, act, nombre))
+            return partes
+    # fallback: profe elegido a mano al 100%
+    if profesor_manual_id:
+        prof = db.execute('SELECT nombre FROM users WHERE id=?', (profesor_manual_id,)).fetchone()
+        return [(profesor_manual_id, round(monto, 2), '', prof['nombre'] if prof else '')]
+    return []
+
+
+def _registrar_reparto(db, pago_id, alumno_id, monto, profesor_manual_id=None):
+    """Guarda el desglose del pago en pago_reparto y devuelve las partes."""
+    partes = _reparto_por_actividades(alumno_id, monto, profesor_manual_id)
+    ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    for pid, parte, act, _nombre in partes:
+        db.execute("""INSERT INTO pago_reparto(pago_id, profesor_id, monto, actividad, fecha)
+                      VALUES(?,?,?,?,?)""", (pago_id, pid, parte, act, ahora))
+    return partes
+
+
 def _norm_txt(s):
     """Compara nombres sin tildes ni mayusculas (para las fotos de los profes)."""
     import unicodedata
@@ -2770,7 +2845,8 @@ def api_pagos_create():
     mes, anio, err = validar_mes_anio(mes, anio)
     if err:
         return jsonify({'error': err}), 400
-    if profesor_id == -1 or (profesor_id is None and (data.get('profesor_id') == -1)):
+    # profesor_id 0 / -1 / ausente = reparto automático según actividades
+    if profesor_id in (None, 0, -1) or data.get('profesor_id') in (None, 0, -1, '0'):
         profesor_id = None
     base, cargo, final = calcular_demora(monto, mes, anio)
     if as_bool(data.get('aplicar_cargo')):
@@ -2785,6 +2861,10 @@ def api_pagos_create():
          data.get('nota'), datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
          current_user()['id']))
     get_db().commit()
+    pago_id = get_db().execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+    # reparto 50/50 segun las actividades del alumno
+    partes = _registrar_reparto(get_db(), pago_id, alumno_id, monto, profesor_id)
+    get_db().commit()
     alumno = get_db().execute('SELECT * FROM users WHERE id=?', (alumno_id,)).fetchone()
     who = current_user()
     nota_extra = f' (incluye ${cargo:,.0f} de recargo por demora).'.replace(',', '.') if cargo else '.'
@@ -2792,21 +2872,23 @@ def api_pagos_create():
     notify(alumno_id, 'Pago registrado',
            f'Tu pago de ${monto:,.0f} por {mes}/{anio} fue registrado por {who["nombre"]}{nota_extra}'.replace(',', '.'),
            'pago')
-    # al profesor que recibio el pago
-    if profesor_id and profesor_id != who['id']:
-        profe = get_db().execute('SELECT * FROM users WHERE id=?', (profesor_id,)).fetchone()
-        if profe:
-            notify(profesor_id, 'Recibiste un pago',
-                   f'{alumno["nombre"]} te pago ${monto:,.0f} ({data.get("metodo") or "Efectivo"}).'.replace(',', '.'),
-                   'pago')
+    # a cada profesor que se lleva su parte del reparto
+    for pid, parte, act_prof, nombre in partes:
+        if pid == who['id']:
+            continue
+        detalle = f' (reparto 50/50: {act_prof})' if len(partes) > 1 and act_prof else ''
+        notify(pid, 'Te toca parte de un pago',
+               f'{alumno["nombre"]} pagó ${monto:,.0f}: te corresponden ${parte:,.0f}{detalle}.'.replace(',', '.'),
+               'pago', link='dinero')
     # a los admins (si no es el que registro)
     admins = get_db().execute('SELECT id FROM users WHERE role="admin"').fetchall()
     for a in admins:
         if a['id'] != who['id']:
             notify(a['id'], 'Nuevo pago registrado',
-                   f'{alumno["nombre"]} pago ${monto:,.0f} registrado por {who["nombre"]}.'.replace(',', '.'),
+                   f'{alumno["nombre"]} pagó ${monto:,.0f} registrado por {who["nombre"]}.',
                    'pago')
-    return jsonify({'ok': True, 'base': base, 'cargo': cargo, 'monto': monto})
+    return jsonify({'ok': True, 'base': base, 'cargo': cargo, 'monto': monto,
+                    'reparto': [{'profesor': n, 'monto': p, 'actividad': a} for _i, p, a, n in partes]})
 
 
 @app.route('/api/pagos/familia', methods=['POST'])
@@ -2867,6 +2949,8 @@ def api_pagos_familia():
                VALUES(?,?,?,?,?,?,?,?,?,?)""",
             (m['id'], profesor_id, pago_monto, mes, anio, metodo, 'Cuota mensual',
              nota or ('Familia %s' % fam['nombre']), now, who['id']))
+        pid_pago = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+        _registrar_reparto(db, pid_pago, m['id'], pago_monto, profesor_id)
         total += pago_monto
         creados.append({'id': m['id'], 'nombre': m['nombre'], 'monto': pago_monto})
     db.commit()
@@ -3891,17 +3975,143 @@ def api_estadisticas():
         (hoy.month, hoy.year)).fetchone()['n']
     clases = get_db().execute('SELECT COUNT(*) AS n FROM classes').fetchone()['n']
     if u['role'] == 'profesor':
-        # dinero del profesor
+        # dinero del profesor: su parte del reparto (si no hay reparto legacy,
+        # cae a los pagos que tiene asignados como profesor_id).
         propio = get_db().execute(
+            """SELECT COALESCE(SUM(r.monto),0) AS n FROM pago_reparto r
+               JOIN pagos p ON p.id=r.pago_id
+               WHERE r.profesor_id=? AND p.mes=? AND p.anio=?""",
+            (u['id'], hoy.month, hoy.year)).fetchone()['n']
+        legacy_mes = get_db().execute(
             'SELECT COALESCE(SUM(monto),0) AS n FROM pagos WHERE profesor_id=? AND mes=? AND anio=?',
             (u['id'], hoy.month, hoy.year)).fetchone()['n']
+        if not propio and legacy_mes:
+            propio = legacy_mes
         total_propio = get_db().execute(
+            'SELECT COALESCE(SUM(monto),0) AS n FROM pago_reparto WHERE profesor_id=?',
+            (u['id'],)).fetchone()['n']
+        legacy_total = get_db().execute(
             'SELECT COALESCE(SUM(monto),0) AS n FROM pagos WHERE profesor_id=?',
             (u['id'],)).fetchone()['n']
+        if not total_propio and legacy_total:
+            total_propio = legacy_total
         return jsonify({
             'total_alumnos': total_alumnos, 'ingresos_mes': ingresos_mes,
             'clases': clases, 'mi_ingreso_mes': propio, 'mi_ingreso_total': total_propio})
     return jsonify({'total_alumnos': total_alumnos, 'ingresos_mes': ingresos_mes, 'clases': clases})
+
+
+@app.route('/api/mi_dinero')
+@role_required('admin', 'profesor')
+def api_mi_dinero():
+    """Detalle del dinero del profesor: cada pago y cuanto le toco (reparto 50/50)."""
+    u = current_user()
+    hoy = _hoy_academy()
+    mes = to_int(request.args.get('mes')) or hoy.month
+    anio = to_int(request.args.get('anio')) or hoy.year
+    db = get_db()
+    if u['role'] == 'admin':
+        filas = db.execute(
+            """SELECT r.monto, r.actividad, r.fecha, p.mes, p.anio, p.metodo,
+                      p.concepto, a.nombre AS alumno, pr.nombre AS profesor, r.profesor_id
+               FROM pago_reparto r
+               JOIN pagos p ON p.id=r.pago_id
+               JOIN users a ON a.id=p.alumno_id
+               LEFT JOIN users pr ON pr.id=r.profesor_id
+               ORDER BY p.fecha DESC""").fetchall()
+        tot_mes = db.execute(
+            """SELECT COALESCE(SUM(r.monto),0) AS n FROM pago_reparto r
+               JOIN pagos p ON p.id=r.pago_id WHERE p.mes=? AND p.anio=?""",
+            (mes, anio)).fetchone()['n']
+        por_profe = db.execute(
+            """SELECT pr.nombre, COALESCE(SUM(r.monto),0) AS total
+               FROM pago_reparto r
+               JOIN pagos p ON p.id=r.pago_id
+               LEFT JOIN users pr ON pr.id=r.profesor_id
+               WHERE p.mes=? AND p.anio=? GROUP BY r.profesor_id, pr.nombre
+               ORDER BY total DESC""", (mes, anio)).fetchall()
+    else:
+        filas = db.execute(
+            """SELECT r.monto, r.actividad, r.fecha, p.mes, p.anio, p.metodo,
+                      p.concepto, a.nombre AS alumno, pr.nombre AS profesor, r.profesor_id
+               FROM pago_reparto r
+               JOIN pagos p ON p.id=r.pago_id
+               JOIN users a ON a.id=p.alumno_id
+               LEFT JOIN users pr ON pr.id=r.profesor_id
+               WHERE r.profesor_id=? ORDER BY p.fecha DESC""", (u['id'],)).fetchall()
+        tot_mes = db.execute(
+            """SELECT COALESCE(SUM(r.monto),0) AS n FROM pago_reparto r
+               JOIN pagos p ON p.id=r.pago_id
+               WHERE r.profesor_id=? AND p.mes=? AND p.anio=?""",
+            (u['id'], mes, anio)).fetchone()['n']
+        por_profe = []
+    return jsonify({
+        'mes': mes, 'anio': anio, 'total_mes': tot_mes,
+        'pagos': [dict(f) for f in filas],
+        'por_profesor': [dict(x) for x in por_profe],
+    })
+
+
+@app.route('/api/ingresos_extra')
+@role_required('admin', 'profesor')
+def api_ingresos_extra_list():
+    """Cobros puntuales para el fondo de la academia (cuota de un dia, ayuda a
+    alumno que compite, seminarios). NO son cuota mensual ni se reparten."""
+    u = current_user()
+    hoy = _hoy_academy()
+    mes = to_int(request.args.get('mes')) or hoy.month
+    anio = to_int(request.args.get('anio')) or hoy.year
+    db = get_db()
+    where, args = '', []
+    if u['role'] == 'profesor':
+        where = 'WHERE ie.registrado_por=?'
+        args = [u['id']]
+    filas = db.execute(
+        """SELECT ie.*, a.nombre AS alumno FROM ingresos_extra ie
+           LEFT JOIN users a ON a.id=ie.alumno_id %s
+           ORDER BY ie.fecha DESC""" % where, args).fetchall()
+    total_mes = db.execute(
+        'SELECT COALESCE(SUM(monto),0) AS n FROM ingresos_extra WHERE mes=? AND anio=?',
+        (mes, anio)).fetchone()['n']
+    total_all = db.execute('SELECT COALESCE(SUM(monto),0) AS n FROM ingresos_extra').fetchone()['n']
+    por_destino = db.execute(
+        """SELECT COALESCE(destino,'Sin destino') AS destino, COALESCE(SUM(monto),0) AS total
+           FROM ingresos_extra GROUP BY destino ORDER BY total DESC""").fetchall()
+    return jsonify({'mes': mes, 'anio': anio, 'total_mes': total_mes, 'total_all': total_all,
+                    'ingresos': [dict(f) for f in filas],
+                    'por_destino': [dict(d) for d in por_destino]})
+
+
+@app.route('/api/ingresos_extra', methods=['POST'])
+@role_required('admin', 'profesor')
+def api_ingresos_extra_create():
+    data = parse_json()
+    monto = to_float(data.get('monto'))
+    if not monto or monto <= 0:
+        return jsonify({'error': 'El monto es obligatorio'}), 400
+    concepto = txt_str(data.get('concepto')) or 'Ingreso extra'
+    destino = txt_str(data.get('destino')) or 'Fondo academia'
+    hoy = _hoy_academy()
+    mes, anio, err = validar_mes_anio(to_int(data.get('mes')) or hoy.month,
+                                      to_int(data.get('anio')) or hoy.year)
+    if err:
+        return jsonify({'error': err}), 400
+    get_db().execute(
+        """INSERT INTO ingresos_extra(alumno_id, monto, concepto, destino, mes, anio, metodo, nota, fecha, registrado_por)
+           VALUES(?,?,?,?,?,?,?,?,?,?)""",
+        (to_int(data.get('alumno_id')) or None, monto, concepto, destino, mes, anio,
+         data.get('metodo') or 'Efectivo', txt_str(data.get('nota')) or None,
+         datetime.now().strftime('%Y-%m-%d %H:%M:%S'), current_user()['id']))
+    get_db().commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/ingresos_extra/<int:eid>', methods=['DELETE'])
+@role_required('admin')
+def api_ingresos_extra_delete(eid):
+    get_db().execute('DELETE FROM ingresos_extra WHERE id=?', (eid,))
+    get_db().commit()
+    return jsonify({'ok': True})
 
 
 @app.route('/api/metricas_pagos')

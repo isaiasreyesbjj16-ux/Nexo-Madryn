@@ -293,14 +293,21 @@ function initLogin() {
     if (s.academy_name) { $('#academyTitle').textContent = s.academy_name; document.title = s.academy_name; }
   }).catch(() => {}); } catch (e) {}
 
-  /* Preview de cuota según actividades elegidas (alumno) */
+  /* Preview de cuota según actividades elegidas (alumno).
+     window.NEXO_PRECIOS = [precio_1, precio_2, precio_3] desde el servidor:
+     1 actividad -> precio_1 (45k), 2 -> precio_2 (60k), 3 o mas -> precio_3 (80k). */
   function actualizarCuotaPreview() {
     const el = $('#regCuotaPreview');
     if (!el) return;
     const n = $$('input[name="actividad"]:checked').length;
-    const p = [0, window.NEXO_PRECIOS?.[1], window.NEXO_PRECIOS?.[2], window.NEXO_PRECIOS?.[3]];
-    const precio = n >= 3 ? p[3] : (p[n] || 0);
-    if (precio) el.textContent = 'Tu cuota será $' + Number(precio).toLocaleString('es-AR');
+    const p1 = Number(window.NEXO_PRECIOS?.[0]) || 0;
+    const p2 = Number(window.NEXO_PRECIOS?.[1]) || 0;
+    const p3 = Number(window.NEXO_PRECIOS?.[2]) || 0;
+    let precio = 0;
+    if (n === 1) precio = p1;
+    else if (n === 2) precio = p2;
+    else if (n >= 3) precio = p3;
+    if (precio) el.textContent = 'Tu cuota será $' + precio.toLocaleString('es-AR');
     else el.textContent = 'Tildá una actividad para ver tu cuota.';
   }
   $$('input[name="actividad"]').forEach(cb => cb.addEventListener('change', actualizarCuotaPreview));
@@ -485,7 +492,7 @@ function initDashboard() {
   const seccionesValidas = ['inicio', 'perfil', 'horarios', 'pagos', 'mispagos', 'alumnos',
     'asistencia', 'deudores', 'profesores', 'config', 'mi_asistencia', 'videos', 'chat',
     'muro', 'galeria', 'ranking', 'metas', 'encuestas', 'eventos', 'historial', 'familias', 'diario',
-    'planes', 'estadisticas'];
+    'planes', 'estadisticas', 'dinero', 'ingresos_extra', 'descuentos'];
   if (secParam && seccionesValidas.includes(secParam)) showSec(secParam);
   history.replaceState(null, '', location.pathname);
   if ('serviceWorker' in navigator) {
@@ -535,6 +542,7 @@ function showSec(name) {
     eventos: renderEventos, historial: renderHistorial,
     familias: renderFamilias, diario: renderDiario,
     planes: renderPlanes, estadisticas: renderEstadisticas,
+    dinero: renderMiDinero, ingresos_extra: renderIngresosExtra, descuentos: renderDescuentos,
   };
   if (renderers[name]) renderers[name](el);
 }
@@ -1330,6 +1338,9 @@ async function renderInicio(el) {
     chips.push(`<button class="chip" onclick="abrirMensajeMasivo()">📣 Mandar mensaje</button>`);
     chips.push(`<button class="chip" onclick="window.open('/qr_print','_blank')">📱 QR de asistencia</button>`);
     if (R === 'profesor') chips.push(`<button class="chip" onclick="showSec('mi_asistencia')">✅ Mi asistencia</button>`, `<button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>`);
+    chips.push(`<button class="chip" onclick="showSec('dinero')">💰 ${R === 'admin' ? 'Reparto de dinero' : 'Mi dinero'}</button>`);
+    chips.push(`<button class="chip" onclick="showSec('ingresos_extra')">🎁 Ingresos extra</button>`);
+    chips.push(`<button class="chip" onclick="showSec('descuentos')">🏷️ Descuentos</button>`);
     el.innerHTML = `
       <div class="feed">
         ${secHeader('Inicio')}
@@ -1865,9 +1876,11 @@ async function renderPagos(el) {
       <form id="pagoForm" class="grid2">
         <div class="field"><label>Alumno</label><select id="pAlumno" required>
           <option value="">— Elegí el alumno —</option>
-          ${alumnos.alumnos.map(a => `<option value="${a.id}" data-cuota="${a.cuota_mensual || 0}">${esc(a.nombre)}</option>`).join('')}</select></div>
-        <div class="field"><label>¿A qué profesor le pagó? (el dueño de este dinero)</label><select id="pProfe" required>
-          ${profesores.profesores.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}</select></div>
+          ${alumnos.alumnos.map(a => `<option value="${a.id}" data-cuota="${a.cuota_mensual || 0}" data-acts="${esc(a.actividades || '')}">${esc(a.nombre)}</option>`).join('')}</select></div>
+        <div class="field"><label>Reparto del dinero</label><select id="pProfe">
+          <option value="0">Automático — 50/50 según sus actividades</option>
+          ${profesores.profesores.map(p => `<option value="${p.id}">Todo a ${esc(p.nombre)}</option>`).join('')}</select></div>
+        <div class="field" style="grid-column:1/-1" id="pRepartoBox"></div>
         <div class="field"><label>Monto ($)</label><input type="number" step="0.01" id="pMonto" required></div>
         <div class="field" style="grid-column:1/-1"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="pAum" checked style="width:18px;height:18px"> Sumar aumento (recargo por demora) — desmarcalo si el alumno pagó antes del vencimiento 📅</label></div>
         <div class="field"><label>Método</label><select id="pMetodo">
@@ -1904,19 +1917,48 @@ async function renderPagos(el) {
       </table></div>
     </div>`;
 
+  function mostrarRepartoPrevisto() {
+    const box = $('#pRepartoBox');
+    if (!box) return;
+    const sel = $('#pAlumno');
+    const opt = sel && sel.selectedOptions[0];
+    const acts = (opt && opt.dataset.acts || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!acts.length) { box.innerHTML = ''; return; }
+    const profs = (PROFESORES_CACHE || []).filter(p => {
+      const pa = (p.actividades || '').split(',').map(s => s.trim());
+      return acts.some(a => pa.includes(a));
+    });
+    const monto = parseFloat(($('#pMonto') || {}).value || 0);
+    if (!profs.length) {
+      box.innerHTML = '<small style="color:var(--muted)">Ningún profesor da las actividades de este alumno, el pago quedará sin repartir (o asignalo a mano arriba).</small>';
+      return;
+    }
+    const partes = profs.length ? `Se reparte en partes iguales entre ${profs.length} profesor${profs.length > 1 ? 'es' : ''}: ${profs.map(p => esc(p.nombre)).join('  ·  ')}.` : '';
+    const mitad = monto ? `<br><small style="color:var(--good)">Cada uno se lleva $${num(monto / profs.length)}</small>` : '';
+    box.innerHTML = `<small style="color:var(--muted)">Actividades: ${acts.map(a => esc(a)).join(', ')}. ${partes}${mitad}</small>`;
+  }
   $('#pAlumno').addEventListener('change', (e) => {
     const opt = e.target.selectedOptions[0];
     if (opt && opt.dataset.cuota) $('#pMonto').value = opt.dataset.cuota;
+    mostrarRepartoPrevisto();
   });
+  $('#pMonto').addEventListener('input', mostrarRepartoPrevisto);
+  mostrarRepartoPrevisto();
   $('#pagoForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const body = { alumno_id: +$('#pAlumno').value, profesor_id: +$('#pProfe').value,
+    const body = { alumno_id: +$('#pAlumno').value, profesor_id: +$('#pProfe').value || 0,
       monto: +$('#pMonto').value, metodo: $('#pMetodo').value, mes: +$('#pMes').value,
       anio: +$('#pAnio').value, nota: $('#pNota').value,
       aplicar_cargo: $('#pAum') ? $('#pAum').checked : true };
     try {
       const res = await api('/api/pagos', { method: 'POST', body });
-      toast(res.cargo ? `Pago registrado ✓ (incluye $${num(res.cargo)} de recargo por demora)` : 'Pago registrado. Notificaciones enviadas ✓');
+      let msg = res.cargo ? `Pago registrado ✓ (incluye $${num(res.cargo)} de recargo por demora)` : 'Pago registrado ✓';
+      if (res.reparto && res.reparto.length > 1) {
+        msg += ` · Reparto: ${res.reparto.map(r => `${r.profesor} $${num(r.monto)}`).join(' / ')}`;
+      } else if (res.reparto && res.reparto.length === 1) {
+        msg += ` · Todo para ${res.reparto[0].profesor}`;
+      }
+      toast(msg);
       renderPagos($('#sec-pagos'));
     } catch (err) { toast(err.message); }
   });
@@ -3872,3 +3914,8 @@ async function agregarMiembroFamilia(fid) {
   } catch (e) { toast(e.message); }
 }
 
+
+
+async function renderMiDinero(el){ try{ const d=await api('/api/mi_dinero'); const m=new Date().getMonth()+1, an=d.anio||new Date().getFullYear(); el.innerHTML='<div class="card"><h3>💰 '+(window.USER&&window.USER.role==='admin'?'Reparto de dinero':'Mi dinero')+'</h3><p class="small">Total mes '+m+'/'+an+': <b>$'+num(d.total_mes||0)+'</b></p></div>';}catch(e){toast(e.message)} }
+async function renderIngresosExtra(el){ try{ const d=await api('/api/ingresos_extra'); el.innerHTML='<div class="card"><h3>🎁 Ingresos extra</h3><p class="small">Total mes: <b>$'+num(d.total_mes||0)+'</b></p></div>';}catch(e){toast(e.message)} }
+async function renderDescuentos(el){ el.innerHTML='<div class="card"><h3>🏷️ Descuentos</h3><p class="small">Descuento familiar configurable en Configuración. Precio por cantidad de actividades configurable en precio_act_1/2/3.</p></div>'; }

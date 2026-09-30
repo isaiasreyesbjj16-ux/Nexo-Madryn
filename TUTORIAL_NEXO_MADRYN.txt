@@ -1,5 +1,5 @@
 ═══════════════════════════════════════════════════════
-        TUTORIAL IKIGAI VIEDMA - PWA
+        TUTORIAL NEXO MADRYN - PWA
         Guía rápida de uso para la academia
 ═══════════════════════════════════════════════════════
 
@@ -9,11 +9,11 @@
 └─────────────────────────────────────────────────────┘
 
 Opción A - Desde la PC:
-  1. Abrí el navegador y entrá a: https://ikigai-viedma.onrender.com
+  1. Abrí el navegador y entrá a: https://nexo-madryn.onrender.com
 
 Opción B - Desde el celular:
   1. Abrí Chrome (o tu navegador) en android y safari en apple 
-  2. Entrá a: https://ikigai-viedma.onrender.com
+  2. Entrá a: https://nexo-madryn.onrender.com
   3. Tocá los 3 puntos (menú) → "Agregar a pantalla de inicio" o Descargar app en android (seccion perfil)
   4. ¡Listo! Ahora aparece como una app en tu celular
 

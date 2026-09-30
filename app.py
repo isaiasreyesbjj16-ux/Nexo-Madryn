@@ -33,7 +33,7 @@ MAX_VIDEO_BYTES = 150 * 1024 * 1024
 # ---------------------------------------------------------------------------
 SUPABASE_URL = (os.environ.get('SUPABASE_URL') or '').rstrip('/')
 SUPABASE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or ''
-SUPABASE_BUCKET = (os.environ.get('SUPABASE_BUCKET') or 'ikigai-media').strip().lower()
+SUPABASE_BUCKET = (os.environ.get('SUPABASE_BUCKET') or 'nexo-madryn-media').strip().lower()
 STORAGE_MAX = 50 * 1024 * 1024
 _storage_ready = [False]
 
@@ -149,7 +149,7 @@ def _storage_stream(url, range_hdr, ctype='video/mp4'):
 
 # Token secreto embebido en el QR físico de asistencia. Solo quien escanea
 # el QR del gimnasio (que contiene este token) puede registrar su asistencia.
-QR_SECRET = os.environ.get('QR_SECRET', 'ikigai2024-nopuedesmarcardesdecasa')
+QR_SECRET = os.environ.get('QR_SECRET', 'nexo2026-nopuedesmarcardesdecasa')
 
 BELTS_ADULT = ['Blanco', 'Azul', 'Púrpura', 'Marrón', 'Negro']
 BELTS_KIDS = ['Gris', 'Amarillo', 'Naranja', 'Verde', 'Blanco']
@@ -161,7 +161,7 @@ DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Doming
 MESES_NOMBRE = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
 # Link de pago online de la academia. Se puede overridear en Ajustes > pago_link.
-PAGO_LINK_DEFAULT = 'https://link.mercadopago.com.ar/bjjviedma'
+PAGO_LINK_DEFAULT = ''
 
 VAPID_PRIVATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vapid_private.pem')
 VAPID_PUBLIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vapid_public.pem')
@@ -629,12 +629,12 @@ def _init_db_body(db):
     if 'link' not in n_cols:
         c.execute('ALTER TABLE notificaciones ADD COLUMN link TEXT DEFAULT \'\'')
     defaults = {
-        'academy_name': 'IKIGAI VIEDMA',
-        'academy_code': 'BJJ2026',
+        'academy_name': 'NEXO MADRYN JIU JITSU',
+        'academy_code': 'NEXO2026',
         'default_cuota': '15000',
         'due_day': '10',
         'cargo_demora_pct': '10',
-        'academy_color': '#e05d13',
+        'academy_color': '#e02e2e',
         'auto_mensaje': '',
         'auto_inact_dias': '15',
         'auto_deuda_dias': '30',
@@ -1501,11 +1501,11 @@ FOTOS_PROFES = {
 }
 
 #  ####################  DATOS DEL SITIO (web + presentacion)  ####################
-#  Link de Instagram (aparece arriba, abajo y en contacto).
-INSTAGRAM_URL = 'https://www.instagram.com/ikigai_viedma/'
-INSTAGRAM_USUARIO = '@ikigai_viedma'
+# Link de Instagram (aparece arriba, abajo y en contacto).
+INSTAGRAM_URL = ''
+INSTAGRAM_USUARIO = ''
 #  Direccion de la academia.
-DIRECCION = 'Tucumán 149, Viedma, Río Negro, Argentina'
+DIRECCION = 'Puerto Madryn, Chubut, Argentina'
 #  WhatsApp para consultas: solo numeros con prefijo internacional, sin + ni espacios.
 #  Ej: '54292123456789'. Si queda vacio, el boton de WhatsApp NO se muestra.
 WHATSAPP_NUMERO = ''
@@ -1579,7 +1579,7 @@ def _web_global():
     from urllib.parse import quote
     wa = ''.join(ch for ch in (WHATSAPP_NUMERO or '') if ch.isdigit())
     return {
-        'WEB_TITULO': 'IKIGAI - Ciencia y Arte del Conocimiento - Jiu Jitsu Viedma',
+        'WEB_TITULO': 'NEXO MADRYN - Jiu Jitsu, MMA y Muay Thai',
         'instagram_url': INSTAGRAM_URL,
         'instagram_usuario': INSTAGRAM_USUARIO,
         'direccion': DIRECCION,
@@ -1593,8 +1593,8 @@ def presentacion():
     d = _datos_web()
     return render_template(
         'presentacion.html',
-        titulo='IKIGAI CIENCIA Y ARTE DEL CONOCIMIENTO - JIU JITSU VIEDMA',
-        subtitulo='Ciencia y Arte del Conocimiento',
+        titulo='NEXO MADRYN - JIU JITSU, MMA Y MUAY THAI',
+        subtitulo='Jiu Jitsu · MMA · Muay Thai',
         profes=d['profes'],
         dias_horario=d['dias_horario'],
         instagram_url=INSTAGRAM_URL,
@@ -1652,7 +1652,7 @@ def recibo(pid):
     return render_template('recibo.html', p=p,
                            mes_nombre=meses[mes - 1] if mes and 1 <= mes <= 12 else '',
                            academy=get_setting('academy_name'),
-                           color=get_setting('academy_color') or '#e05d13')
+                           color=get_setting('academy_color') or '#e02e2e')
 
 
 @app.errorhandler(404)
@@ -4517,16 +4517,18 @@ def api_checkout():
     cuota = u['cuota_mensual'] or to_float(get_setting('default_cuota')) or 0
     if cuota <= 0:
         return jsonify({'error': 'No hay un monto de cuota definido'}), 400
-    desc = 'Cuota IKIGAI VIEDMA'
+    desc = 'Cuota NEXO MADRYN'
     email = (u.get('username') or '') + '@alumno.local' if '@' not in (u.get('username') or '') else u.get('username')
+    base = (get_setting('public_url', '') or '').strip().rstrip('/')
     import urllib.request
     payload = {
         'items': [{'title': desc, 'quantity': 1, 'unit_price': float(cuota), 'currency_id': 'ARS'}],
-        'back_urls': {'success': 'https://ikigai-viedma.onrender.com/app', 'failure': 'https://ikigai-viedma.onrender.com/app'},
         'auto_return': 'approved',
-        'notification_url': 'https://ikigai-viedma.onrender.com/api/mp_webhook',
         'external_reference': 'cuota-%s-%d' % (u['id'], int(datetime.now().timestamp())),
     }
+    if base:
+        payload['back_urls'] = {'success': base + '/app', 'failure': base + '/app'}
+        payload['notification_url'] = base + '/api/mp_webhook'
     req = urllib.request.Request(
         'https://api.mercadopago.com/checkout/preferences',
         data=json.dumps(payload).encode('utf-8'),
@@ -5091,8 +5093,8 @@ def api_exportar_alumnos():
                 '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
                 'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" '
                 'xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
-                '<dc:creator>IKIGAI VIEDMA</dc:creator>'
-                '<cp:lastModifiedBy>IKIGAI VIEDMA</cp:lastModifiedBy>'
+                '<dc:creator>NEXO MADRYN</dc:creator>'
+                '<cp:lastModifiedBy>NEXO MADRYN</cp:lastModifiedBy>'
                 '<dcterms:created xsi:type="dcterms:W3CDTF">' + datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ') + '</dcterms:created>'
                 '</cp:coreProperties>')
 
@@ -5219,8 +5221,8 @@ def api_exportar_pagos():
                 '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
                 'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" '
                 'xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
-                '<dc:creator>IKIGAI VIEDMA</dc:creator>'
-                '<cp:lastModifiedBy>IKIGAI VIEDMA</cp:lastModifiedBy>'
+                '<dc:creator>NEXO MADRYN</dc:creator>'
+                '<cp:lastModifiedBy>NEXO MADRYN</cp:lastModifiedBy>'
                 '<dcterms:created xsi:type="dcterms:W3CDTF">' + datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ') + '</dcterms:created>'
                 '</cp:coreProperties>')
 

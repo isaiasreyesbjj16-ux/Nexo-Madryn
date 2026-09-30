@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}{{ WEB_TITULO }}{% endblock %}</title>
-  <meta name="description" content="{% block descripcion %}Academia de Jiu Jitsu en Viedma, Río Negro. Ciencia y Arte del Conocimiento. Horarios, profesores y contacto.{% endblock %}">
+  <meta name="description" content="{% block descripcion %}Academia de Jiu Jitsu, MMA y Muay Thai en Puerto Madryn, Chubut. Gi, NoGi, clases para niños y adultos. Horarios, profesores y contacto.{% endblock %}">
   <link rel="icon" href="/static/icons/icon-192.png">
   <link rel="stylesheet" href="/static/web.css?v=1">
 </head>
@@ -13,8 +13,8 @@
 <header class="topbar">
   <div class="wrap">
     <a class="brand" href="/web">
-      <img src="/static/icons/logo.png" alt="Ikigai">
-      <div><b>IKIGAI</b><span>JIU JITSU · VIEDMA</span></div>
+      <img src="/static/icons/logo.png" alt="Nexo Madryn">
+      <div><b>NEXO</b><span>MADRYN JIU JITSU</span></div>
     </a>
     <nav class="menu">
       <a href="/web" class="{% if seccion == 'inicio' %}on{% endif %}">Inicio</a>
@@ -31,9 +31,9 @@
 <footer>
   <div class="wrap cols">
     <div>
-      <b>Ikigai</b>
-      Ciencia y Arte del Conocimiento<br>
-      Jiu Jitsu en {{ direccion }}
+      <b>Nexo Madryn</b>
+      Jiu Jitsu, MMA y Muay Thai<br>
+      {{ direccion }}
     </div>
     <div>
       <b>Secciones</b>

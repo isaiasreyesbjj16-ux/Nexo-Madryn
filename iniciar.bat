@@ -1,9 +1,9 @@
 ﻿@echo off
 chcp 65001 >nul
-title IKIGAI VIEDMA - App
+title NEXO MADRYN - App
 echo.
 echo  ============================================
-echo    IKIGAI VIEDMA - App de la academia
+echo    NEXO MADRYN JIU JITSU - App de la academia
 echo  ============================================
 echo.
 

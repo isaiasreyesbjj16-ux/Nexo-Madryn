@@ -1,5 +1,5 @@
 /* Service worker - Academia */
-const CACHE_NAME = 'ikigai-static-v32';
+const CACHE_NAME = 'nexo-madryn-static-v1';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -36,11 +36,11 @@ self.addEventListener('fetch', (e) => {
 self.addEventListener('push', (e) => {
   let data = {};
   try { data = e.data.json(); } catch (err) {}
-  const title = data.title || 'IKIGAI VIEDMA';
+  const title = data.title || 'NEXO MADRYN JIU JITSU';
   const body = data.body || '';
   const options = {
     body: body,
-    tag: 'ikigai-' + (data.url || 'general'),
+    tag: 'nexo-madryn-' + (data.url || 'general'),
     icon: '/static/icons/icon-192.png',
     badge: '/static/icons/icon-192.png',
     vibrate: [200, 100, 200],
@@ -56,7 +56,7 @@ self.addEventListener('notificationclick', (e) => {
   e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
     for (const client of list) {
       if ('focus' in client) {
-        client.postMessage({ type: 'ikigai-nav', url: url });
+        client.postMessage({ type: 'nexo-nav', url: url });
         return client.focus();
       }
     }

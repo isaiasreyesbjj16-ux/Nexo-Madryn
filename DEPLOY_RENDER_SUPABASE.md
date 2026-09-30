@@ -5,7 +5,7 @@ Este proyecto usa **Supabase** como base de datos (Postgres gratis, no caduca) y
 soporte nativo: `DB_MODE=postgres` + `DATABASE_URL`.
 
 > IMPORTANTE: la app web y la app Android apuntan a una sola URL que Render te
-> da, ejemplo `https://ikigai-viedma.onrender.com`.
+> da, ejemplo `https://nexo-madryn.onrender.com`.
 
 ---
 
@@ -24,7 +24,7 @@ Registrate en las tres con el mismo correo. Ninguna pide tarjeta.
 ## 2) Supabase: crear la base de datos
 
 1. Entrá a https://supabase.com → "Start your project" → **New project**.
-2. Elegí un nombre (ej. `ikigai`), región cercana (ej. `South America (São Paulo)`)
+2. Elegí un nombre (ej. `nexo`), región cercana (ej. `South America (São Paulo)`)
    y una contraseña de base de datos **fuerte**. Crear el proyecto tarda ~2 min.
 3. En el menú de la izquierda: **Project Settings → Database**.
 4. Bajá a **Connection string** y copiá la del **Pooler** (Transaction). Tiene
@@ -51,7 +51,7 @@ Registrate en las tres con el mismo correo. Ninguna pide tarjeta.
 
 ## 3) Subir el código a GitHub
 
-1. Creá un repositorio en https://github.com/new → nombre `ikigai-viedma`,
+1. Creá un repositorio en https://github.com/new → nombre `nexo-madryn`,
    visibilidad **Public** (el plan gratis de Render no soporta repos privados).
    NO marques la opción de inicializarlo con README.
 2. En esta carpeta abrí una terminal y ejecutá (cambiá `TU_USUARIO`):
@@ -61,7 +61,7 @@ Registrate en las tres con el mismo correo. Ninguna pide tarjeta.
    git add .
    git commit -m "backend con soporte postgres + render"
    git branch -M main
-   git remote add origin https://github.com/TU_USUARIO/ikigai-viedma.git
+   git remote add origin https://github.com/TU_USUARIO/nexo-madryn.git
    git push -u origin main
    ```
 
@@ -75,14 +75,14 @@ Registrate en las tres con el mismo correo. Ninguna pide tarjeta.
    el correo).
 2. Aceptá que Render pueda ver tu repositorio.
 3. En el dashboard: **New + → Blueprint** y seleccioná el repo
-   `ikigai-viedma`. Render va a leer el archivo `render.yaml`.
+   `nexo-madryn`. Render va a leer el archivo `render.yaml`.
 4. Cuando pida configurar el entorno, en **Environment Variables**:
    - `DB_MODE` ya viene en `postgres` (automático).
    - `SECRET_KEY` ya viene generada (automático).
    - `DATABASE_URL`: pegá el texto del paso 2 de Supabase.
 5. **Apply / Deploy**. El primer deploy tarda unos minutos.
 6. Cuando termine, abrí la URL que muestra Render
-   (ej. `https://ikigai-viedma.onrender.com`). Deberías ver la pantalla de
+   (ej. `https://nexo-madryn.onrender.com`). Deberías ver la pantalla de
    login. Entrá con `admin` / `admin123`.
 
 > Si el deploy falla, entrá a la pestaña **Logs** del servicio para ver el error
@@ -92,15 +92,15 @@ Registrate en las tres con el mismo correo. Ninguna pide tarjeta.
 
 ## 5) App Android
 
-1. Instalá el `IKIGAI-VIEDMA.apk` en los celulares.
+1. Instalá el `NEXO-MADRYN.apk` en los celulares.
 2. En la pantalla de login, en **Servidor**, poné la URL de Render
-   (ej. `https://ikigai-viedma.onrender.com`) y logueate normal.
+   (ej. `https://nexo-madryn.onrender.com`) y logueate normal.
 
 ---
 
 ## 6) Web (PWA)
 
-- Se abre igual que la app web: `https://ikigai-viedma.onrender.com`.
+- Se abre igual que la app web: `https://nexo-madryn.onrender.com`.
 - Puede instalarse en el celular como app desde el navegador.
 
 ---

@@ -69,7 +69,7 @@ function vib(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms || 12); }
 /* =====================================================================
    MODO ACCESIBLE (personas no videntes / baja visión)
    ===================================================================== */
-const ACC_KEY = 'ikigai_acc';
+const ACC_KEY = 'nexo_acc';
 function initAcc() {
   let on = false;
   try { on = localStorage.getItem(ACC_KEY) === '1'; } catch (e) {}
@@ -93,7 +93,7 @@ function toggleAcc() {
 }
 
 function secHeader(title, sub) {
-  return `<div class="sec-head"><span class="brand">IKIGAI · VIEDMA</span>
+  return `<div class="sec-head"><span class="brand">NEXO MADRYN · JIU JITSU</span>
     <h2 class="sec-title">${title}</h2>${sub ? `<div class="sec-sub">${sub}</div>` : ''}</div>`;
 }
 
@@ -384,7 +384,7 @@ function initDashboard() {
   const R = USER.role;
   initAcc();
   $('#userRoleLabel').textContent = R === 'admin' ? 'Administrador' : R === 'profesor' ? 'Profesor' : 'Alumno';
-  $('#academyName').textContent = window.ACADEMY_NAME || 'IKIGAI VIEDMA';
+  $('#academyName').textContent = window.ACADEMY_NAME || 'NEXO MADRYN JIU JITSU';
 
   // barra de navegación inferior estilo Instagram
   const items = [
@@ -442,7 +442,7 @@ function initDashboard() {
     if (!p.hidden) loadNotifs();
   });
   // tema claro/oscuro
-  applyTheme(localStorage.getItem('ikigai_tema') || 'dark');
+  applyTheme(localStorage.getItem('nexo_tema') || 'dark');
   $('#themeBtn').addEventListener('click', () => {
     applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
   });
@@ -474,7 +474,7 @@ function initDashboard() {
   history.replaceState(null, '', location.pathname);
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', (ev) => {
-      if (ev.data && ev.data.type === 'ikigai-nav' && ev.data.url) {
+      if (ev.data && ev.data.type === 'nexo-nav' && ev.data.url) {
         const s = new URL(ev.data.url, location.origin).searchParams.get('sec');
         if (s && seccionesValidas.includes(s)) showSec(s);
       }
@@ -919,7 +919,7 @@ function videoMediaHTML(v) {
 function applyTheme(t) {
   if (t !== 'light') t = 'dark';
   document.documentElement.dataset.theme = t;
-  localStorage.setItem('ikigai_tema', t);
+  localStorage.setItem('nexo_tema', t);
   const ic = document.querySelector('#themeIcon');
   if (ic) ic.innerHTML = t === 'light'
     ? '<path fill="currentColor" d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>'
@@ -1415,7 +1415,7 @@ async function renderPerfil(el) {
           <div class="field"><label>Nombre y apellido</label><input type="text" id="pNombre" value="${esc(me.nombre)}"></div>
           <div class="field"><label>Usuario</label><input type="text" value="${esc(me.username)}" disabled></div>
           <div class="field"><label>DNI</label><input type="text" id="pDni" value="${esc(me.dni || '')}"></div>
-          <div class="field"><label>Dirección / domicilio</label><input type="text" id="pDir" placeholder="Ej: Calle 1 N° 123, Viedma" value="${esc(me.direccion || '')}"></div>
+          <div class="field"><label>Dirección / domicilio</label><input type="text" id="pDir" placeholder="Ej: Calle 1 N° 123, Madryn" value="${esc(me.direccion || '')}"></div>
           <div class="field"><label>Edad</label><input type="number" id="pEdad" value="${me.edad != null ? me.edad : ''}"></div>
           <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" id="pPeso" value="${me.peso != null ? me.peso : ''}"></div>
           <div class="field"><label>Teléfono</label><input type="tel" id="pTel" value="${esc(me.tel || '')}"></div>
@@ -2458,7 +2458,7 @@ async function formAlumno(id) {
     <form id="alForm" class="grid2">
       <div class="field"><label>Nombre y apellido</label><input id="aNombre" value="${esc(a.nombre)}" required></div>
       <div class="field"><label>DNI</label><input type="text" id="aDni" value="${esc(a.dni || '')}"></div>
-      <div class="field"><label>Dirección / domicilio</label><input type="text" id="aDir" placeholder="Ej: Calle 1 N° 123, Viedma" value="${esc(a.direccion || '')}"></div>
+      <div class="field"><label>Dirección / domicilio</label><input type="text" id="aDir" placeholder="Ej: Calle 1 N° 123, Madryn" value="${esc(a.direccion || '')}"></div>
       <div class="field"><label>Edad</label><input type="number" id="aEdad" value="${a.edad != null ? a.edad : ''}"></div>
       <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" id="aPeso" value="${a.peso != null ? a.peso : ''}"></div>
       <div class="field"><label>Teléfono</label><input type="tel" id="aTel" value="${esc(a.tel || '')}"></div>
@@ -2914,7 +2914,7 @@ async function renderConfig(el) {
       <h3>Academia</h3>
       <form id="cfgForm" class="grid2">
         <div class="field"><label>Nombre de la academia</label><input id="cNombre" value="${esc(s.academy_name)}"></div>
-        <div class="field"><label>Color principal</label><input type="color" id="cColor" value="${esc(s.academy_color || '#e05d13')}" style="padding:4px;height:42px"></div>
+        <div class="field"><label>Color principal</label><input type="color" id="cColor" value="${esc(s.academy_color || '#e02e2e')}" style="padding:4px;height:42px"></div>
         <div class="field"><label>Código de la academia (para que los profes se registren)</label><input id="cCodigo" value="${esc(s.academy_code)}"></div>
         <div class="field"><label>Cuota mensual por defecto ($)</label><input id="cCuota" value="${esc(s.default_cuota)}"></div>
         <div class="field"><label>Día de vencimiento (día del mes)</label><input type="number" id="cDue" value="${esc(s.due_day)}"></div>
@@ -2923,7 +2923,7 @@ async function renderConfig(el) {
         <div class="field"><label>Descuento familiar: 3 integrantes (%)</label><input type="number" id="cDescFam3" value="${esc(s.desc_familiar3 ?? '15')}" placeholder="15"></div>
         <div class="field"><label>Descuento familiar: 4 o más integrantes (%)</label><input type="number" id="cDescFam4" value="${esc(s.desc_familiar4 ?? '20')}" placeholder="20"><small class="hint">Con 2 o más integrantes, TODOS pagan con descuento. Cada cantidad de integrantes puede tener un % distinto y autónomamente puede quedar en 0 para no descontar.</small></div>
         <div class="field" style="grid-column:1/-1"><label>Link de pago en línea (ej: link de MercadoPago)</label><input id="cLink" value="${esc(s.pago_link || '')}" placeholder="https://link.mercadopago.com.ar/... (dejalo vacío para ocultar el botón de pago)"></div>
-        <div class="field" style="grid-column:1/-1"><label>Alias o CVU para transferencia</label><input id="cAlias" value="${esc(s.pago_alias || '')}" placeholder="ej: academia.bjj.viedma (dejalo vacío para ocultarlo)"></div>
+        <div class="field" style="grid-column:1/-1"><label>Alias o CVU para transferencia</label><input id="cAlias" value="${esc(s.pago_alias || '')}" placeholder="ej: academia.nexo.madryn (dejalo vacío para ocultarlo)"></div>
         <div class="field" style="grid-column:1/-1"><label>Desplazamiento desde UTC (zona horaria de la academia)</label><input type="number" step="0.5" id="cTz" value="${esc(s.tz_offset ?? '-3')}" placeholder="-3"><small class="hint">Argentina: -3. Sirve para que el "hoy" no se cambie a la madrugada del día siguiente por la diferencia con UTC.</small></div>
         <div class="field" style="grid-column:1/-1"><label>Access Token de MercadoPago (APP_USR-...) para el botón de pago en línea</label><input id="cMpTk" value="${esc(s.mp_access_token || '')}" placeholder="APP_USR-... (dejalo vacío para ocultar el botón de pago online)"></div>
         <div class="field"><label>Número WhatsApp de la academia (con código país)</label><input id="cWp" value="${esc(s.wp_numero || '')}" placeholder="549299..."></div>
@@ -3564,7 +3564,7 @@ async function exportarExcel() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'historial_ikigai.csv';
+    a.download = 'historial_nexo.csv';
     a.click();
     toast('Historial exportado ✓');
   } catch (e) { toast(e.message); }

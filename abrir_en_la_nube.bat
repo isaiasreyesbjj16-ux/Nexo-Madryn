@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title IKIGAI VIEDMA - Modo NUBE
+title NEXO MADRYN - Modo NUBE
 echo.
 echo  =============================================================
-echo    IKIGAI VIEDMA - Modo NUBE (HTTPS, para cualquier lugar)
+echo    NEXO MADRYN - Modo NUBE (HTTPS, para cualquier lugar)
 echo  =============================================================
 echo.
 echo  Necesitas: esta PC encendida + internet.
@@ -34,7 +34,7 @@ if not exist cloudflared.exe (
 )
 
 REM --- Arrancar la app en una ventana aparte (minimizada) ---
-start "IKIGAI App" /min cmd /k "cd /d ""%~dp0"" && py app.py"
+start "NEXO App" /min cmd /k "cd /d ""%~dp0"" && py app.py"
 timeout /t 4 /nobreak >nul
 
 echo.

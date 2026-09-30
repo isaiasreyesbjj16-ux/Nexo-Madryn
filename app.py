@@ -687,12 +687,17 @@ def _init_db_body(db):
     # admin por defecto
     row = c.execute("SELECT id FROM users WHERE role='admin' LIMIT 1").fetchone()
     if not row:
+        # La contrasena del admin NUNCA va hardcodeada: sale de la variable de
+        # entorno ADMIN_PASSWORD y, si no esta, se genera una al azar. El repo es
+        # publico, asi que una clave fija en el codigo seria un regalo para cualquiera
+        # que lo lea.
+        clave = os.environ.get('ADMIN_PASSWORD') or secrets.token_urlsafe(12)
         c.execute(
             "INSERT INTO users(username, password_hash, role, nombre) VALUES(?,?,?,?)",
-            ('admin', generate_password_hash('admin123'), 'admin', 'Administrador'))
+            ('admin', generate_password_hash(clave), 'admin', 'Administrador'))
         print('=' * 60)
-        print('  ADMIN CREADO ->  usuario: admin   contrasena: admin123')
-        print('  CAMBIA LA CONTRASENA EN MI PERFIL cuando puedas.')
+        print('  ADMIN CREADO ->  usuario: admin')
+        print('  CONTRASENA (se muestra una sola vez, guardala):', clave)
         print('=' * 60)
     db.commit()
 

@@ -2213,7 +2213,7 @@ def api_alumnos_create():
 @role_required('admin', 'profesor')
 def api_alumnos_update(uid):
     data = parse_json()
-    u = get_db().execute('SELECT * FROM users WHERE id=? AND role="alumno"', (uid,)).fetchone()
+    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     nac_upd = txt_str(data.get('nacimiento', u['nacimiento']))
@@ -2255,7 +2255,7 @@ def api_alumnos_update(uid):
 @app.route('/api/alumnos/<int:uid>', methods=['DELETE'])
 @role_required('admin', 'profesor')
 def api_alumnos_delete(uid):
-    get_db().execute('DELETE FROM users WHERE id=? AND role="alumno"', (uid,))
+    get_db().execute("DELETE FROM users WHERE id=? AND role='alumno'", (uid,))
     get_db().commit()
     return jsonify({'ok': True})
 
@@ -2267,7 +2267,7 @@ def api_alumnos_cuota(uid):
     cuota = to_float(data.get('cuota_mensual'))
     if not cuota or cuota <= 0:
         return jsonify({'error': 'Monto de cuota invalido'}), 400
-    u = get_db().execute('SELECT * FROM users WHERE id=? AND role="alumno"', (uid,)).fetchone()
+    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     get_db().execute('UPDATE users SET cuota_mensual=? WHERE id=?', (cuota, uid))
@@ -2319,10 +2319,10 @@ def api_profesores_create():
 @app.route('/api/profesores/<int:uid>', methods=['DELETE'])
 @role_required('admin')
 def api_profesores_delete(uid):
-    u = get_db().execute('SELECT * FROM users WHERE id=? AND role="profesor"', (uid,)).fetchone()
+    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='profesor'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Profesor no encontrado'}), 404
-    admin = get_db().execute('SELECT id FROM users WHERE role="admin" LIMIT 1').fetchone()
+    admin = get_db().execute("SELECT id FROM users WHERE role='admin' LIMIT 1").fetchone()
     # quita las clases del profesor
     get_db().execute('UPDATE classes SET profesor_id=NULL WHERE profesor_id=?', (uid,))
     # conserva pagos: profesor_id queda con SET NULL
@@ -2334,7 +2334,7 @@ def api_profesores_delete(uid):
 @app.route('/api/alumnos/<int:uid>/profesor', methods=['POST'])
 @role_required('admin')
 def api_alumnos_promover(uid):
-    u = get_db().execute('SELECT * FROM users WHERE id=? AND role="alumno"', (uid,)).fetchone()
+    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     get_db().execute(
@@ -2349,7 +2349,7 @@ def api_alumnos_promover(uid):
 @app.route('/api/alumnos/<int:uid>/beca', methods=['POST'])
 @role_required('admin', 'profesor')
 def api_alumnos_beca(uid):
-    u = get_db().execute('SELECT * FROM users WHERE id=? AND role="alumno"', (uid,)).fetchone()
+    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     nueva = 0 if (int(u['beca']) if 'beca' in u.keys() else 0) else 1
@@ -2362,7 +2362,7 @@ def api_alumnos_beca(uid):
 @role_required('admin', 'profesor')
 def api_alumno_notas(uid):
     data = parse_json()
-    u = get_db().execute('SELECT * FROM users WHERE id=? AND role="alumno"', (uid,)).fetchone()
+    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     notas = txt_str(data.get('notas'))
@@ -2376,7 +2376,7 @@ def api_alumno_notas(uid):
 def api_alumno_ficha(uid):
     """El staff puede cargar/editar la ficha medica de un alumno (menores suelen no hacerlo solos)."""
     data = parse_json()
-    u = get_db().execute('SELECT * FROM users WHERE id=? AND role="alumno"', (uid,)).fetchone()
+    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     db = get_db()
@@ -2492,7 +2492,7 @@ def api_familia_crear():
                      (nombre, datetime.now().strftime('%Y-%m-%d %H:%M')))
     fam_id = cur.lastrowid
     if titular_id:
-        u = db.execute('SELECT * FROM users WHERE id=? AND role="alumno"', (titular_id,)).fetchone()
+        u = db.execute("SELECT * FROM users WHERE id=? AND role='alumno'", (titular_id,)).fetchone()
         if u:
             db.execute('INSERT INTO familia_miembros(familia_id, user_id, relacion) VALUES(?,?,?)',
                        (fam_id, titular_id, 'Titular'))
@@ -2518,7 +2518,7 @@ def api_familia_agregar(fam_id):
     f = db.execute('SELECT * FROM familias WHERE id=?', (fam_id,)).fetchone()
     if not f:
         return jsonify({'error': 'Grupo no encontrado'}), 404
-    u = db.execute('SELECT * FROM users WHERE id=? AND role="alumno"', (uid,)).fetchone()
+    u = db.execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     # si el alumno ya está en otra familia, se la cambia
@@ -2908,7 +2908,7 @@ def api_pagos_create():
                f'{alumno["nombre"]} pagó ${monto:,.0f}: te corresponden ${parte:,.0f}{detalle}.'.replace(',', '.'),
                'pago', link='dinero')
     # a los admins (si no es el que registro)
-    admins = get_db().execute('SELECT id FROM users WHERE role="admin"').fetchall()
+    admins = get_db().execute("SELECT id FROM users WHERE role='admin'").fetchall()
     for a in admins:
         if a['id'] != who['id']:
             notify(a['id'], 'Nuevo pago registrado',
@@ -4497,7 +4497,7 @@ def api_mis_grados():
 @role_required('admin', 'profesor')
 def api_alumno_grado(uid):
     data = parse_json()
-    u = get_db().execute('SELECT * FROM users WHERE id=? AND role="alumno"', (uid,)).fetchone()
+    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     cinturon = txt_str(data.get('cinturon'))
@@ -4525,7 +4525,7 @@ def api_alumno_grado(uid):
 @role_required('admin', 'profesor')
 def api_alumno_proximo_examen(uid):
     data = parse_json()
-    u = get_db().execute('SELECT * FROM users WHERE id=? AND role="alumno"', (uid,)).fetchone()
+    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     fecha = txt_str(data.get('fecha')) or None

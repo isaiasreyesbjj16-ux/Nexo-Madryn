@@ -2,9 +2,9 @@
    SITIO WEB DE LA ACADEMIA (/web) - estilos compartidos
    ============================================================= */
 :root {
-  --bg: #160d0f; --bg2: #221315; --card: #271619; --card2: #311b1f;
+  --bg: #140d18; --bg2: #1e1526; --card: #24182f; --card2: #2d1f3a;
   --line: #3d2226; --txt: #f6eded; --muted: #b39a9d;
-  --accent: #d92b3a; --accent2: #ff5a4d; --good: #4ec98a;
+  --accent: #9b5de5; --accent2: #c084fc; --good: #4ec98a;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -52,7 +52,7 @@ a { color: var(--accent2); }
 /* ---------------- HERO ---------------- */
 .hero {
   text-align: center; padding: 54px 18px 46px; border-bottom: 1px solid var(--line);
-  background: radial-gradient(ellipse 90% 62% at 50% 0%, rgba(217,43,58,.30), rgba(22,13,15,0) 70%);
+  background: radial-gradient(ellipse 90% 62% at 50% 0%, rgba(155,93,229,.30), rgba(20,13,24,0) 70%);
 }
 .hero img.logo { width: 104px; height: 104px; object-fit: contain; }
 .hero h1 { margin: 8px 0 0; font-size: 30px; font-weight: 900; text-transform: uppercase; line-height: 1.2; }
@@ -90,7 +90,7 @@ section.bloque { margin: 46px 0; }
 
 /* ---------------- PROFESORES ---------------- */
 .profes { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
-.profe { background: linear-gradient(180deg, var(--card), rgba(39,22,25,.72)); border: 1px solid var(--line); border-radius: 18px; padding: 18px; text-align: center; }
+.profe { background: linear-gradient(180deg, var(--card), rgba(36,24,47,.72)); border: 1px solid var(--line); border-radius: 18px; padding: 18px; text-align: center; }
 .profe .foto, .profe .ini { width: 118px; height: 118px; margin: 0 auto 12px; border-radius: 50%; }
 .profe .foto { object-fit: cover; border: 3px solid var(--accent); background: var(--card2); }
 .profe .ini {
@@ -117,7 +117,7 @@ section.bloque { margin: 46px 0; }
 .clase .profe { color: var(--accent2); font-weight: 600; margin-left: auto; }
 
 /* ---------------- CTA / INSTAGRAM / FOOTER ---------------- */
-.cta-final { text-align: center; margin: 48px 0; padding: 32px 22px; border-radius: 22px; border: 1px solid var(--line); background: linear-gradient(135deg, rgba(217,43,58,.20), rgba(49,27,31,.9)); }
+.cta-final { text-align: center; margin: 48px 0; padding: 32px 22px; border-radius: 22px; border: 1px solid var(--line); background: linear-gradient(135deg, rgba(155,93,229,.20), rgba(45,35,58,.9)); }
 .cta-final h3 { margin: 0 0 6px; font-size: 21px; font-weight: 800; }
 .cta-final p { color: var(--muted); margin: 0 0 18px; }
 .ig-btn { display: inline-block; padding: 13px 26px; border-radius: 12px; background: linear-gradient(90deg, #f9ce34, #ee2a7b 45%, #6228d7); color: #fff; font-weight: 800; text-decoration: none; font-size: 15px; }

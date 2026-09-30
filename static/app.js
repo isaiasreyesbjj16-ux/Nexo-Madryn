@@ -2925,7 +2925,7 @@ async function renderConfig(el) {
       <h3>Academia</h3>
       <form id="cfgForm" class="grid2">
         <div class="field"><label>Nombre de la academia</label><input id="cNombre" value="${esc(s.academy_name)}"></div>
-        <div class="field"><label>Color principal</label><input type="color" id="cColor" value="${esc(s.academy_color || '#e02e2e')}" style="padding:4px;height:42px"></div>
+        <div class="field"><label>Color principal</label><input type="color" id="cColor" value="${esc(s.academy_color || '#9b5de5')}" style="padding:4px;height:42px"></div>
         <div class="field"><label>Código de la academia (para que los profes se registren)</label><input id="cCodigo" value="${esc(s.academy_code)}"></div>
         <div class="field"><label>Cuota mensual por defecto ($)</label><input id="cCuota" value="${esc(s.default_cuota)}"></div>
         <div class="field"><label>Día de vencimiento (día del mes)</label><input type="number" id="cDue" value="${esc(s.due_day)}"></div>
@@ -3620,7 +3620,7 @@ function overlayRecup(markup) {
   const ov = document.createElement('div');
   ov.id = 'recupOverlay';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  ov.innerHTML = `<div style="width:100%;max-width:400px;background:var(--card,#271619);border:1px solid var(--line,#421f24);border-radius:16px;padding:22px">${markup}</div>`;
+  ov.innerHTML = `<div style="width:100%;max-width:400px;background:var(--card,#24182f);border:1px solid var(--line,#3c2a4f);border-radius:16px;padding:22px">${markup}</div>`;
   ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
   return ov;
@@ -3634,7 +3634,7 @@ function overlayRecupCerrar() {
 function abrirModalRecuperar() {
   overlayRecup(`
     <h3 style="color:#fff;margin:0 0 14px">Recuperar contraseña</h3>
-    <p class="small" style="color:var(--muted,#b0969b)">Escribí tu usuario. Si configuraste la pregunta de seguridad, la respondes para cambiar la clave. Si no, pedile al profe/admin que la reinicie.</p>
+    <p class="small" style="color:var(--muted,#b59cc9)">Escribí tu usuario. Si configuraste la pregunta de seguridad, la respondes para cambiar la clave. Si no, pedile al profe/admin que la reinicie.</p>
     <div class="field"><label>Tu usuario</label><input id="recUser" placeholder="Tu usuario"></div>
     <div id="recPasso"></div>
     <button type="button" class="btn primary btn-block" onclick="recPaso1()">Continuar</button>
@@ -3658,7 +3658,7 @@ async function recPaso1() {
     } else {
       if (passo) passo.innerHTML = `
         <p style="color:var(--warn,#f1c40f)">${esc(d.error || 'No tiene pregunta de seguridad configurada.')}</p>
-        <p class="small" style="color:var(--muted,#b0969b)">Pedile al profe/admin que reinicie tu contraseña desde la pantalla de Alumnos.</p>`;
+        <p class="small" style="color:var(--muted,#b59cc9)">Pedile al profe/admin que reinicie tu contraseña desde la pantalla de Alumnos.</p>`;
     }
   } catch (e) {
     const passo = document.getElementById('recPasso');

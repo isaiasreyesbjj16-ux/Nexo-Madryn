@@ -637,7 +637,7 @@ def _init_db_body(db):
         'default_cuota': '15000',
         'due_day': '10',
         'cargo_demora_pct': '10',
-        'academy_color': '#e02e2e',
+        'academy_color': '#9b5de5',
         'auto_mensaje': '',
         'auto_inact_dias': '15',
         'auto_deuda_dias': '30',
@@ -1674,7 +1674,7 @@ def recibo(pid):
     return render_template('recibo.html', p=p,
                            mes_nombre=meses[mes - 1] if mes and 1 <= mes <= 12 else '',
                            academy=get_setting('academy_name'),
-                           color=get_setting('academy_color') or '#e02e2e')
+                           color=get_setting('academy_color') or '#9b5de5')
 
 
 @app.errorhandler(404)

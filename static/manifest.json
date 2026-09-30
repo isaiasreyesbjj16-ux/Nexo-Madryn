@@ -4,8 +4,8 @@
   "description": "App de la academia: pagos de cuota, horarios, profesores y asistencia.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#11151c",
-  "theme_color": "#11151c",
+  "background_color": "#140d18",
+  "theme_color": "#140d18",
   "permissions": ["camera"],
   "orientation": "portrait",
   "icons": [

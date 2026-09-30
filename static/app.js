@@ -1030,7 +1030,7 @@ function videoCardHTML(v, isStaff) {
       ${avatarHTML('', v.subidor_nombre || 'Profesor', 'sm')}
       <div style="flex:1">
         <b>${esc(v.subidor_nombre || 'Profesor')}</b>
-        <div class="small">${esc(v.fecha || '')} · <span class="${beltCls}">${esc(v.belt)}</span> ${v.categoria ? '<span class="tag alumno">' + catLabel(v.categoria) + '</span>' : ''}</div>
+        <div class="small">${esc(v.fecha || '')} · <span class="${beltCls}">${esc(v.belt)}</span> ${v.categoria ? '<span class="tag alumno">' + catLabel(v.categoria) + '</span>' : ''} ${v.actividad ? '<span class="tag nogi">' + esc(v.actividad) + '</span>' : ''}</div>
       </div>
       ${isStaff && v.subido_por === USER.id || USER.role === 'admin' ? `<button class="btn bad small" onclick="borrarVideo(${v.id})">🗑</button>` : ''}
     </div>
@@ -1052,28 +1052,36 @@ async function renderVideos(el) {
   const isStaff = R !== 'alumno';
   const qCat = isStaff ? (($('#videoCat') && $('#videoCat').value) || 'Todas') : '';
   const qBelt = isStaff ? (($('#videoBelt') && $('#videoBelt').value) || 'Todos') : '';
-  const all = await api('/api/videos' + (isStaff ? '?categoria=' + encodeURIComponent(qCat) + '&belt=' + encodeURIComponent(qBelt) : ''));
+  const qAct = isStaff ? (($('#videoAct') && $('#videoAct').value) || 'Todas') : '';
+  const all = await api('/api/videos' + (isStaff
+    ? '?categoria=' + encodeURIComponent(qCat) + '&belt=' + encodeURIComponent(qBelt) + '&actividad=' + encodeURIComponent(qAct)
+    : ''));
   const videos = all.videos;
+  const ACTS_VIDEOS = (window.ACTIVIDADES || []).slice();
   const filtros = isStaff ? `
-    <div class="flex space-between mb" style="gap:6px">
-      <select id="videoCat" class="search" style="max-width:130px;padding:9px">
+    <div class="flex space-between mb" style="gap:6px;flex-wrap:wrap">
+      <select id="videoCat" class="search" style="max-width:120px;padding:9px">
         <option value="Todas">Todas</option>
         ${CATS_VIDEOS.map(c => `<option value="${c}" ${qCat === c ? 'selected' : ''}>${catLabel(c)}</option>`).join('')}
       </select>
-      <select id="videoBelt" class="search" style="max-width:180px;padding:9px">
+      <select id="videoBelt" class="search" style="max-width:150px;padding:9px">
         <option value="Todos">Todos los cinturones</option>
         ${(BELTS_POR_CAT[qCat] || []).map(b => `<option ${b === qBelt ? 'selected' : ''}>${esc(b)}</option>`).join('')}
+      </select>
+      <select id="videoAct" class="search" style="max-width:150px;padding:9px">
+        <option value="Todas">Todas las clases</option>
+        ${ACTS_VIDEOS.map(a => `<option ${a === qAct ? 'selected' : ''}>${esc(a)}</option>`).join('')}
       </select>
       <button class="btn primary small" onclick="subirVideo()">＋ Subir video</button>
     </div>` : '<span></span>';
   el.innerHTML = `
-    ${secHeader('Videos', isStaff ? 'Subí técnicas para cada cinturón y mirá quién las vio.' : 'Técnicas para tu cinturón. Mirá y marcá las que viste.')}
+    ${secHeader('Videos', isStaff ? 'Subí técnicas para cada cinturón y mirá quién las vio.' : 'Técnicas de las clases que entrenás.')}
     ${filtros}
     <div class="feed" id="videoFeed">
       ${videos.length ? videos.map(v => videoCardHTML(v, isStaff)).join('') : '<div class="feed-card empty">Todavía no hay videos para esta categoría.</div>'}
     </div>`;
   if (isStaff) {
-    const catSel = $('#videoCat'), beltSel = $('#videoBelt');
+    const catSel = $('#videoCat'), beltSel = $('#videoBelt'), actSel = $('#videoAct');
     catSel.addEventListener('change', () => {
       const c = catSel.value;
       beltSel.innerHTML = `<option value="Todos">Todos los cinturones</option>` +
@@ -1082,6 +1090,7 @@ async function renderVideos(el) {
       renderVideos(el);
     });
     beltSel.addEventListener('change', () => renderVideos(el));
+    if (actSel) actSel.addEventListener('change', () => renderVideos(el));
   }
 }
 
@@ -1121,6 +1130,9 @@ function subirVideo() {
       <div class="field"><label>Categoría</label><select id="vCat">
         ${CATS_VIDEOS.map(c => `<option value="${c}">${catLabel(c)}</option>`).join('')}</select></div>
       <div class="field"><label>Cinturón para el que es</label><select id="vBelt"></select></div>
+      <div class="field"><label>Clase (actividad)</label><select id="vAct">
+        <option value="">— Todas las clases —</option>
+        ${(window.ACTIVIDADES || []).map(a => `<option>${esc(a)}</option>`).join('')}</select></div>
       <div class="field" style="grid-column:1/-1"><label>O link de YouTube</label><input id="vLink" placeholder="https://youtube.com/watch?v=..."></div>
       <div class="field" style="grid-column:1/-1"><label>O subí un archivo (MP4)</label>
         <input type="file" id="vFile" accept="video/mp4,video/webm,video/ogg,video/quicktime"></div>
@@ -1138,6 +1150,7 @@ function subirVideo() {
     const desc = $('#vDesc').value.trim();
     const belt = $('#vBelt').value;
     const categoria = $('#vCat').value;
+    const actividad = $('#vAct') ? $('#vAct').value : '';
     const file = $('#vFile').files && $('#vFile').files[0];
     const link = $('#vLink').value.trim();
     if (!file && !link) { toast('Subí un archivo o pegá un link'); return; }
@@ -1148,6 +1161,7 @@ function subirVideo() {
         if (file.size > 150 * 1024 * 1024) { toast('El video es muy grande (máx 150MB). Para videos largos usá un link de YouTube.'); btn.disabled = false; btn.textContent = 'Publicar video'; return; }
         const fd = new FormData();
         fd.append('video', file); fd.append('titulo', titulo); fd.append('descripcion', desc); fd.append('belt', belt); fd.append('categoria', categoria);
+        if (actividad) fd.append('actividad', actividad);
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 5 * 60 * 1000);
         let res;
@@ -1162,7 +1176,7 @@ function subirVideo() {
         try { d = await res.json(); } catch (e) { d = {}; }
         if (!res.ok) throw new Error(d.error || ('Error al subir (código ' + res.status + '). Probá con un video más chico o un link de YouTube.'));
       } else {
-        await api('/api/videos', { method: 'POST', body: { titulo, descripcion: desc, belt, categoria, url: link } });
+        await api('/api/videos', { method: 'POST', body: { titulo, descripcion: desc, belt, categoria, url: link, actividad } });
       }
       closeModal(); toast('Video publicado ✓');
       renderVideos($('#sec-videos'));
@@ -3916,6 +3930,182 @@ async function agregarMiembroFamilia(fid) {
 
 
 
-async function renderMiDinero(el){ try{ const d=await api('/api/mi_dinero'); const m=new Date().getMonth()+1, an=d.anio||new Date().getFullYear(); el.innerHTML='<div class="card"><h3>💰 '+(window.USER&&window.USER.role==='admin'?'Reparto de dinero':'Mi dinero')+'</h3><p class="small">Total mes '+m+'/'+an+': <b>$'+num(d.total_mes||0)+'</b></p></div>';}catch(e){toast(e.message)} }
-async function renderIngresosExtra(el){ try{ const d=await api('/api/ingresos_extra'); el.innerHTML='<div class="card"><h3>🎁 Ingresos extra</h3><p class="small">Total mes: <b>$'+num(d.total_mes||0)+'</b></p></div>';}catch(e){toast(e.message)} }
-async function renderDescuentos(el){ el.innerHTML='<div class="card"><h3>🏷️ Descuentos</h3><p class="small">Descuento familiar configurable en Configuración. Precio por cantidad de actividades configurable en precio_act_1/2/3.</p></div>'; }
+async function renderMiDinero(el) {
+  const esAdmin = R === 'admin';
+  el.innerHTML = secHeader(esAdmin ? 'Reparto de dinero' : 'Mi dinero') + '<div class="small" style="color:var(--muted);padding:0 4px 10px">Cada cuota mensual se reparte en partes iguales entre los profesores que dan las actividades del alumno.</div>';
+  try {
+    const d = await api('/api/mi_dinero');
+    const tot = d.total_mes || 0;
+    let html = `
+    <div class="card">
+      <div class="home-grid">
+        <div class="stat-card"><div class="num" style="color:var(--good)">$${num(tot)}</div><div class="lbl">${d.mes}/${d.anio}</div></div>
+        ${esAdmin ? `<div class="stat-card"><div class="num">${(d.pagos || []).length}</div><div class="lbl">Partes generadas</div></div>` : ''}
+      </div>
+    </div>`;
+    if (esAdmin && (d.por_profesor || []).length) {
+      html += `<div class="card"><h3>👥 Cuánto le tocó a cada profesor</h3>
+        <div style="overflow:auto"><table>
+          <tr><th>Profesor</th><th>Total ${d.mes}/${d.anio}</th><th>Barra</th></tr>
+          ${d.por_profesor.map(p => {
+            const pct = tot > 0 ? Math.round((p.total / tot) * 100) : 0;
+            return `<tr><td>${esc(p.nombre || 'Sin nombre')}</td><td><b>$${num(p.total)}</b></td>
+              <td style="min-width:120px"><div style="background:rgba(255,255,255,.08);border-radius:6px;height:10px;overflow:hidden">
+                <div style="background:var(--good);height:100%;width:${pct}%"></div></div>
+                <span class="small" style="color:var(--muted)">${pct}%</span></td></tr>`;
+          }).join('')}
+        </table></div></div>`;
+    }
+    html += `<div class="card"><h3>🧾 Detalle de pagos</h3>
+      <div style="overflow:auto"><table>
+        <tr><th>Fecha</th><th>Alumno</th><th>Actividad</th>${esAdmin ? '<th>Profesor</th>' : ''}<th>Mes</th><th>Método</th><th>Mi parte</th></tr>
+        ${(d.pagos || []).length ? d.pagos.map(p => `<tr>
+          <td>${esc(p.fecha)}</td>
+          <td>${esc(p.alumno || '—')}</td>
+          <td>${p.actividad ? `<span class="tag">${esc(p.actividad)}</span>` : '—'}</td>
+          ${esAdmin ? `<td>${esc(p.profesor || '—')}</td>` : ''}
+          <td>${p.mes}/${p.anio}</td><td>${esc(p.metodo || '')}</td>
+          <td><b style="color:var(--good)">$${num(p.monto)}</b></td></tr>`).join('')
+          : '<tr><td colspan="7" class="empty">Todavía no hay pagos repartidos</td></tr>'}
+      </table></div></div>`;
+    el.innerHTML = el.innerHTML + html;
+  } catch (e) { toast(e.message); }
+}
+
+const DESTINOS_EXTRA = ['Fondo academia', 'Viaje a competencia', 'Seminario', 'Cuota de un día', 'Equipamiento', 'Otro'];
+
+async function renderIngresosExtra(el) {
+  const esAdmin = R === 'admin';
+  el.innerHTML = secHeader('Ingresos extra') + `
+    <div class="small" style="color:var(--muted);padding:0 4px 10px">
+      Cobros puntuales que <b>no son la cuota mensual</b> y <b>no se reparten</b> entre los profesores: van al fondo de la academia.
+    </div>
+    <div class="card">
+      <form id="ieForm" class="grid2">
+        <div class="field"><label>Monto ($)</label><input type="number" step="0.01" id="ieMonto" required placeholder="0"></div>
+        <div class="field"><label>Concepto</label><input type="text" id="ieConcepto" required placeholder="Ej: Cuota de un día"></div>
+        <div class="field"><label>Destino del dinero</label><select id="ieDestino">${DESTINOS_EXTRA.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>
+        <div class="field"><label>Alumno (opcional)</label><select id="ieAlumno"><option value="">— ninguno —</option></select></div>
+        <div class="field"><label>Método</label><select id="ieMetodo">${METODOS.map(m => `<option>${esc(m)}</option>`).join('')}</select></div>
+        <div class="field"><label>Nota (opcional)</label><input type="text" id="ieNota" placeholder="Ej: viaje a Bs.As."></div>
+        <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">🎁 Registrar ingreso al fondo</button></div>
+      </form>
+    </div>
+    <div id="ieResumen"></div>`;
+
+  try {
+    const d = await api('/api/ingresos_extra');
+    const P = window.NEXO_PRECIOS || [0, 0, 0];
+    document.getElementById('ieResumen').innerHTML = `
+      <div class="card">
+        <div class="home-grid">
+          <div class="stat-card"><div class="num" style="color:var(--accent2)">$${num(d.total_mes || 0)}</div><div class="lbl">Fondo ${d.mes}/${d.anio}</div></div>
+          <div class="stat-card"><div class="num" style="color:var(--accent2)">$${num(d.total_all || 0)}</div><div class="lbl">Fondo acumulado</div></div>
+        </div>
+      </div>
+      ${(d.por_destino || []).length ? `<div class="card"><h3>🎯 Por destino</h3>
+        <div style="overflow:auto"><table><tr><th>Destino</th><th>Total</th></tr>
+        ${d.por_destino.map(x => `<tr><td>${esc(x.destino)}</td><td><b>$${num(x.total)}</b></td></tr>`).join('')}
+        </table></div></div>` : ''}
+      <div class="card"><h3>📋 Historial</h3>
+        <div style="overflow:auto"><table>
+          <tr><th>Fecha</th><th>Concepto</th><th>Destino</th><th>Alumno</th><th>Mes</th><th>Método</th><th>Monto</th>${esAdmin ? '<th></th>' : ''}</tr>
+          ${(d.ingresos || []).length ? d.ingresos.map(x => `<tr>
+            <td>${esc(x.fecha)}</td><td>${esc(x.concepto)}</td>
+            <td>${esc(x.destino || '—')}</td><td>${esc(x.alumno || '—')}</td>
+            <td>${x.mes}/${x.anio}</td><td>${esc(x.metodo || '')}</td>
+            <td><b>$${num(x.monto)}</b></td>
+            ${esAdmin ? `<td><button class="btn bad small" onclick="borrarIngresoExtra(${x.id})">🗑</button></td>` : ''}
+          </tr>`).join('') : '<tr><td colspan="8" class="empty">Todavía no hay ingresos extra</td></tr>'}
+        </table></div></div>`;
+
+    const sel = document.getElementById('ieAlumno');
+    if (sel && sel.options.length <= 1) {
+      try {
+        const a = await api('/api/alumnos');
+        sel.innerHTML = '<option value="">— ninguno —</option>' +
+          (a.alumnos || []).map(x => `<option value="${x.id}">${esc(x.nombre)}</option>`).join('');
+      } catch (e) {}
+    }
+  } catch (e) { toast(e.message); }
+
+  const f = document.getElementById('ieForm');
+  if (f) f.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    try {
+      await api('/api/ingresos_extra', { method: 'POST', body: {
+        monto: +document.getElementById('ieMonto').value,
+        concepto: document.getElementById('ieConcepto').value,
+        destino: document.getElementById('ieDestino').value,
+        alumno_id: document.getElementById('ieAlumno').value || null,
+        metodo: document.getElementById('ieMetodo').value,
+        nota: document.getElementById('ieNota').value
+      } });
+      toast('Ingreso registrado en el fondo ✓');
+      renderIngresosExtra(el);
+    } catch (e) { toast(e.message); }
+  });
+}
+
+async function borrarIngresoExtra(id) {
+  if (!confirm('¿Borrar este ingreso del fondo?')) return;
+  try {
+    await api('/api/ingresos_extra/' + id, { method: 'DELETE' });
+    toast('Borrado');
+    renderIngresosExtra(document.getElementById('sec-ingresos_extra'));
+  } catch (e) { toast(e.message); }
+}
+
+async function renderDescuentos(el) {
+  el.innerHTML = secHeader('Descuentos') + '<div class="small" style="color:var(--muted);padding:0 4px 10px">Cuánto paga cada alumno: precio por cantidad de actividades y descuento del grupo familiar.</div>';
+  try {
+    const P = window.NEXO_PRECIOS || [0, 0, 0];
+    const cfg = await api('/api/settings').catch(() => ({}));
+    const d2 = Number((cfg.desc_familiar2 || 0)) || 0;
+    const d3 = Number((cfg.desc_familiar3 || 0)) || 0;
+    const d4 = Number((cfg.desc_familiar4 || 0)) || 0;
+
+    let html = `
+    <div class="card">
+      <h3>📐 Precio según actividades</h3>
+      <div class="home-grid">
+        <div class="stat-card"><div class="num">$${num(P[0])}</div><div class="lbl">1 actividad</div></div>
+        <div class="stat-card"><div class="num">$${num(P[1])}</div><div class="lbl">2 actividades</div></div>
+        <div class="stat-card"><div class="num">$${num(P[2])}</div><div class="lbl">3 o más</div></div>
+      </div>
+      <p class="small" style="color:var(--muted)">Se cobra por la cantidad de actividades en las que entrena el alumno, no por la cantidad de profesores.</p>
+    </div>
+    <div class="card">
+      <h3>👨‍👩‍👧 Descuento familiar</h3>
+      <p class="small" style="color:var(--muted)">2 integrantes: ${d2}% · 3: ${d3}% · 4 o más: ${d4}% (se cambian en Configuración)</p>
+    </div>`;
+
+    let fam = { familias: [] };
+    try { fam = await api('/api/familias'); } catch (e) {}
+    const fams = (fam.familias || []).filter(f => (f.miembros || []).length > 1);
+    if (fams.length) {
+      html += `<div class="card"><h3>👨‍👩‍👧 Quién está en cada familia</h3>` + fams.map(f => {
+        const n = (f.miembros || []).length;
+        const pct = n >= 4 ? d4 : n === 3 ? d3 : n === 2 ? d2 : 0;
+        const miembros = (f.miembros || []).map(m => {
+          const acts = (m.actividades || '').split(',').map(s => s.trim()).filter(Boolean);
+          const precio = acts.length >= 3 ? P[2] : acts.length === 2 ? P[1] : acts.length === 1 ? P[0] : 0;
+          const final = pct > 0 ? Math.round(precio * (100 - pct) / 100) : precio;
+          return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
+            <div class="flex space-between"><b>${esc(m.nombre)}</b>
+              <span class="small">${precio ? 'paga' : 'sin cuota'}${precio ? ` <s style="color:var(--muted)">$${num(precio)}</s> <b style="color:var(--good)">$${num(final)}</b>` : ''}</span></div>
+            <div class="small" style="color:var(--muted);margin-top:4px">${acts.length ? acts.map(a => `<span class="tag">${esc(a)}</span>`).join(' ') : '<i>sin actividades cargadas</i>'}</div>
+          </div>`;
+        }).join('');
+        return `<div style="margin-bottom:18px">
+          <div class="flex space-between" style="margin-bottom:6px">
+            <b>${esc(f.nombre || 'Familia')}</b>
+            <span class="small" style="color:var(--accent2)">${n} integrantes${pct ? ` · ${pct}% de descuento` : ' · sin descuento'}</span>
+          </div>${miembros}</div>`;
+      }).join('') + `</div>`;
+    } else {
+      html += `<div class="card"><div class="empty">Todavía no hay grupos familiares con más de un integrante</div></div>`;
+    }
+    el.innerHTML = el.innerHTML + html;
+  } catch (e) { toast(e.message); }
+}

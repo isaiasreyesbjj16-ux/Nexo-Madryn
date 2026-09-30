@@ -365,7 +365,8 @@ CREATE TABLE IF NOT EXISTS videos (
     tipo TEXT DEFAULT 'upload',
     subido_por INTEGER REFERENCES users(id) ON DELETE SET NULL,
     fecha TEXT,
-    data TEXT DEFAULT ''
+    data TEXT DEFAULT '',
+    actividad TEXT
 );
 
 CREATE TABLE IF NOT EXISTS video_views (
@@ -637,6 +638,8 @@ def _init_db_body(db):
         c.execute('ALTER TABLE videos ADD COLUMN data TEXT')
     if 'categoria' not in v_cols:
         c.execute('ALTER TABLE videos ADD COLUMN categoria TEXT DEFAULT \'adulto\'')
+    if 'actividad' not in v_cols:
+        c.execute('ALTER TABLE videos ADD COLUMN actividad TEXT')
     if DB_MODE == 'postgres':
         cm_cols = [r[0] for r in c.execute(
             "SELECT column_name AS name FROM information_schema.columns "
@@ -1520,7 +1523,9 @@ def app_page():
                            belts_kids=BELTS_KIDS, belts_juveniles=BELTS_JUV, categorias=CATEGORIAS,
                            tipos_clase=TIPOS_CLASE, metodos=METODOS_PAGO,
                            dias=DIAS, academy_name=get_setting('academy_name'),
-                           actividades=ACTIVIDADES)
+                           actividades=ACTIVIDADES,
+                           precio_1=_precio_actividad(1), precio_2=_precio_actividad(2),
+                           precio_3=_precio_actividad(3))
 
 
 # =============================================================================
@@ -1592,6 +1597,23 @@ def _cuota_por_actividades(csv_act):
     if n >= 3 and p3:
         return p3
     return None
+
+
+def _precio_actividad(n):
+    """Precio de la cuota segun la cantidad de actividades (1, 2 o 3+).
+
+    Mismo criterio que _cuota_por_actividades pero devolviendo siempre un numero
+    (sin None), para poder mostrarlo en pantallas aunque el alumno no tenga
+    actividades cargadas.
+    """
+    p1 = to_float(get_setting('precio_act_1')) or 45000
+    p2 = to_float(get_setting('precio_act_2')) or 60000
+    p3 = to_float(get_setting('precio_act_3')) or 80000
+    if n >= 3:
+        return p3
+    if n == 2:
+        return p2
+    return p1
 
 
 def _reparto_por_actividades(alumno_id, monto, profesor_manual_id=None):
@@ -3734,6 +3756,7 @@ def _video_public(v, u):
         'id': v['id'], 'titulo': v['titulo'], 'descripcion': v['descripcion'],
         'belt': v['belt'], 'categoria': v['categoria'], 'url': v['url'], 'tipo': v['tipo'],
         'subido_por': v['subido_por'], 'fecha': v['fecha'],
+        'actividad': v.get('actividad') if hasattr(v, 'get') else v['actividad'],
         'subidor_nombre': v['subidor_nombre'], 'vistas': vistas, 'visto': visto,
     }
     if _is_storage_url(v['url']):
@@ -3750,10 +3773,10 @@ def _video_public(v, u):
     return out
 
 
-def _list_videos(u, belt=None, categoria=None):
+def _list_videos(u, belt=None, categoria=None, actividad=None):
     db = get_db()
     q = ('SELECT v.id, v.titulo, v.descripcion, v.belt, v.categoria, v.url, v.tipo, v.subido_por, v.fecha, '
-         's.nombre AS subidor_nombre FROM videos v '
+         'v.actividad, s.nombre AS subidor_nombre FROM videos v '
          'LEFT JOIN users s ON s.id = v.subido_por ')
     args = []
     where = []
@@ -3762,6 +3785,12 @@ def _list_videos(u, belt=None, categoria=None):
         args.append(u['categoria'])
         where.append("(v.belt = 'Todos' OR v.belt = ?)")
         args.append(u['cinturon'])
+        # el alumno solo ve videos de las actividades que entrena (o los generales)
+        acts = [a.strip() for a in (u.get('actividades') or '').split(',') if a.strip()]
+        if acts:
+            marks = ','.join('?' * len(acts))
+            where.append("(v.actividad IS NULL OR v.actividad = '' OR v.actividad IN (%s))" % marks)
+            args.extend(acts)
     else:
         if belt and belt != 'Todos':
             where.append('v.belt = ?')
@@ -3769,6 +3798,9 @@ def _list_videos(u, belt=None, categoria=None):
         if categoria and categoria != 'Todas':
             where.append('v.categoria = ?')
             args.append(categoria)
+        if actividad and actividad != 'Todas':
+            where.append('v.actividad = ?')
+            args.append(actividad)
     if where:
         q += ' WHERE ' + ' AND '.join(where)
     q += ' ORDER BY v.id DESC'
@@ -3780,7 +3812,8 @@ def _list_videos(u, belt=None, categoria=None):
 @login_required
 def api_videos_list():
     u = current_user()
-    return jsonify({'videos': _list_videos(u, request.args.get('belt'), request.args.get('categoria'))})
+    return jsonify({'videos': _list_videos(u, request.args.get('belt'), request.args.get('categoria'),
+                                           request.args.get('actividad'))})
 
 
 @app.route('/api/videos', methods=['POST'])
@@ -3797,9 +3830,10 @@ def api_videos_create():
     now = datetime.now().strftime('%Y-%m-%d %H:%M')
     db = get_db()
     cur = db.execute(
-        'INSERT INTO videos(titulo, descripcion, belt, categoria, url, tipo, subido_por, fecha) VALUES(?,?,?,?,?,?,?,?)',
+        'INSERT INTO videos(titulo, descripcion, belt, categoria, url, tipo, subido_por, fecha, actividad) VALUES(?,?,?,?,?,?,?,?,?)',
         (titulo, txt_str(data.get('descripcion')), (data.get('belt') or 'Todos'),
-         (data.get('categoria') or 'adulto'), url, 'link', u['id'], now))
+         (data.get('categoria') or 'adulto'), url, 'link', u['id'], now,
+         txt_str(data.get('actividad')) or None))
     db.commit()
     return jsonify({'ok': True, 'id': cur.lastrowid})
 
@@ -3825,6 +3859,7 @@ def api_videos_upload():
     belt = (request.form.get('belt') or 'Todos').strip()
     categoria = (request.form.get('categoria') or 'adulto').strip()
     desc = (request.form.get('descripcion') or '').strip()
+    actividad = (request.form.get('actividad') or '').strip() or None
     now = datetime.now().strftime('%Y-%m-%d %H:%M')
     db = get_db()
     # Videos cortos (≤ STORAGE_MAX) con Storage configurado → Supabase Storage,
@@ -3835,16 +3870,16 @@ def api_videos_upload():
                               raw, EXT_MIME.get(ext, 'video/mp4'))
         if pub:
             cur = db.execute(
-                'INSERT INTO videos(titulo, descripcion, belt, categoria, url, tipo, subido_por, fecha, data) VALUES(?,?,?,?,?,?,?,?,?)',
-                (titulo, desc, belt, categoria, pub, 'upload', u['id'], now, ''))
+                'INSERT INTO videos(titulo, descripcion, belt, categoria, url, tipo, subido_por, fecha, data, actividad) VALUES(?,?,?,?,?,?,?,?,?,?)',
+                (titulo, desc, belt, categoria, pub, 'upload', u['id'], now, '', actividad))
             db.commit()
             return jsonify({'ok': True, 'id': cur.lastrowid})
         f.stream.seek(0)
     raw = f.read()
     data_b64 = base64.b64encode(raw).decode('ascii')
     cur = db.execute(
-        'INSERT INTO videos(titulo, descripcion, belt, categoria, url, tipo, subido_por, fecha, data) VALUES(?,?,?,?,?,?,?,?,?)',
-        (titulo, desc, belt, categoria, '/api/video/0/archivo', 'upload', u['id'], now, data_b64))
+        'INSERT INTO videos(titulo, descripcion, belt, categoria, url, tipo, subido_por, fecha, data, actividad) VALUES(?,?,?,?,?,?,?,?,?,?)',
+        (titulo, desc, belt, categoria, '/api/video/0/archivo', 'upload', u['id'], now, data_b64, actividad))
     vid = cur.lastrowid
     db.execute('UPDATE videos SET url=? WHERE id=?', ('/api/video/%d/archivo' % vid, vid))
     db.commit()

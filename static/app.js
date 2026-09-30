@@ -1896,7 +1896,7 @@ async function renderPagos(el) {
           ${profesores.profesores.map(p => `<option value="${p.id}">Todo a ${esc(p.nombre)}</option>`).join('')}</select></div>
         <div class="field" style="grid-column:1/-1" id="pRepartoBox"></div>
         <div class="field"><label>Monto ($)</label><input type="number" step="0.01" id="pMonto" required></div>
-        <div class="field" style="grid-column:1/-1"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="pAum" checked style="width:18px;height:18px"> Sumar aumento (recargo por demora) — desmarcalo si el alumno pagó antes del vencimiento 📅</label></div>
+        <div class="field" style="grid-column:1/-1"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="pAum" style="width:18px;height:18px"> Sumar aumento (recargo por demora) — desmarcalo si el alumno pagó antes del vencimiento 📅</label></div>
         <div class="field"><label>Método</label><select id="pMetodo">
           ${METODOS.map(m => `<option>${m}</option>`).join('')}</select></div>
         <div class="field"><label>Mes</label><select id="pMes">
@@ -1965,7 +1965,7 @@ async function renderPagos(el) {
     const body = { alumno_id: +$('#pAlumno').value, profesor_id: +$('#pProfe').value || 0,
       monto: +$('#pMonto').value, metodo: $('#pMetodo').value, mes: +$('#pMes').value,
       anio: +$('#pAnio').value, nota: $('#pNota').value,
-      aplicar_cargo: $('#pAum') ? $('#pAum').checked : true };
+      aplicar_cargo: $('#pAum') ? $('#pAum').checked : false };
     try {
       const res = await api('/api/pagos', { method: 'POST', body });
       let msg = res.cargo ? `Pago registrado ✓ (incluye $${num(res.cargo)} de recargo por demora)` : 'Pago registrado ✓';
@@ -2005,7 +2005,7 @@ async function abrirPagoFamilia() {
       <div class="field"><label>Mes</label><select id="pfMes">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${i + 1 === mes ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></div>
     </div>
     <div class="field"><label>Año</label><input type="number" id="pfAnio" value="${new Date().getFullYear()}"></div>
-    <div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="pfAum" checked style="width:18px;height:18px"> Sumar aumento (recargo por demora) — desmarcalo si pagaron antes del vencimiento 📅</label></div>
+    <div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="pfAum" style="width:18px;height:18px"> Sumar aumento (recargo por demora) — desmarcalo si pagaron antes del vencimiento 📅</label></div>
     <div class="field"><label>Nota (opcional)</label><input type="text" id="pfNota" placeholder="Ej: cuota familiar agosto"></div>
     <button class="btn primary btn-block mt" onclick="pagarFamilia()">💳 Registrar pago de toda la familia</button>
     <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
@@ -2021,7 +2021,7 @@ async function pagarFamilia() {
       anio: +$('#pfAnio').value,
       metodo: $('#pfMetodo').value,
       nota: $('#pfNota').value,
-      aplicar_cargo: $('#pfAum') ? $('#pfAum').checked : true } });
+      aplicar_cargo: $('#pfAum') ? $('#pfAum').checked : false } });
     toast(`💳 ${res.cantidad} pagos registrados de ${esc(res.familia)} por $${num(res.total)}`);
     closeModal();
     renderPagos($('#sec-pagos'));

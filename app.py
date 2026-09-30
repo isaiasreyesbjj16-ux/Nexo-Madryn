@@ -2881,7 +2881,8 @@ def api_pagos_create():
     if profesor_id in (None, 0, -1) or data.get('profesor_id') in (None, 0, -1, '0'):
         profesor_id = None
     base, cargo, final = calcular_demora(monto, mes, anio)
-    if as_bool(data.get('aplicar_cargo')):
+    # Opt-in: si no viene el campo o no es explicito, NO se cobra recargo.
+    if as_bool(data.get('aplicar_cargo'), default=False):
         monto = final
     else:
         cargo = 0
@@ -2982,7 +2983,7 @@ def api_pagos_familia():
         if monto <= 0:
             continue
         _, cargo, monto_final = calcular_demora(monto, mes, anio)
-        if not as_bool(data.get('aplicar_cargo')):
+        if not as_bool(data.get('aplicar_cargo'), default=False):
             monto_final = monto
         pago_monto = int(round(monto_final))
         db.execute(
@@ -3420,7 +3421,7 @@ def api_avisos_confirmar(aid):
     # anterior) y decidir si se suma el aumento/recargo por demora (por defecto
     # se suma como antes; se desactiva si el alumno pagó antes del vencimiento).
     monto_base = to_float(data.get('monto')) or (a['monto'] or 0)
-    aplicar_cargo = as_bool(data.get('aplicar_cargo'))
+    aplicar_cargo = as_bool(data.get('aplicar_cargo'), default=False)
     base, cargo, final = calcular_demora(monto_base, a['mes'], a['anio'])
     if not aplicar_cargo:
         cargo, final = 0, base

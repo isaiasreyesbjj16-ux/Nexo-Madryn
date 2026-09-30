@@ -1,0 +1,49 @@
+{% extends "web_base.html" %}
+{% block titulo %}Horarios | IKIGAI Jiu Jitsu Viedma{% endblock %}
+{% block descripcion %}Horarios de clases de Jiu Jitsu en la academia Ikigai, Viedma, Río Negro. Lunes a domingo.{% endblock %}
+{% block cuerpo %}
+
+<section class="hero" style="padding:40px 18px 34px">
+  <img class="logo" src="/static/icons/logo.png" alt="Ikigai">
+  <h1 style="font-size:26px">Horarios de clases</h1>
+  <div class="jj" style="font-size:16px">{{ total_clases }} clases por semana en {{ dias_con_clase }} días</div>
+</section>
+
+<div class="wrap">
+  <section class="bloque">
+    {% if dias_horario %}
+      {% for d in dias_horario %}
+      <div class="dia">
+        <h4>{{ d.dia_nombre }}</h4>
+        {% for c in d.clases %}
+        <div class="clase">
+          <span class="hora">{{ c.hora }}</span>
+          <span>{{ c.tipo }}</span>
+          {% if c.nivel and c.nivel != 'Todos' %}<span class="tag {{ 'gi' if 'gi' in c.nivel|lower else 'nogi' }}">{{ c.nivel }}</span>{% endif %}
+          {% if c.duracion %}<span class="nivel">{{ c.duracion }}</span>{% endif %}
+          <span class="profe">{{ c.profesor }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+      <p class="sin" style="text-align:center;margin-top:18px">
+        Los horarios pueden cambiar. Confirmá tu horario por Instagram o en la app.
+      </p>
+    {% else %}
+      <p class="sin">Todavía no cargamos los horarios. Escribinos y te los pasamos.</p>
+    {% endif %}
+  </section>
+
+  <section class="bloque centrado">
+    <h2 class="sec-title">Reservá tu lugar</h2>
+    <div class="sec-line"></div>
+    <p class="sec-sub">La primera clase es gratis y no hace falta inscripción previa: mandanos un mensaje.</p>
+    <div class="cta">
+      <a class="ig-btn" href="{{ instagram_url }}" target="_blank" rel="noopener">{{ instagram_usuario }}</a>
+      <a class="btn ghost" href="/web/contacto">Ver datos de contacto</a>
+    </div>
+  </section>
+</div>
+
+{% include "web_cta_final.html" %}
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "web_base.html" %}
+{% block titulo %}Contacto | IKIGAI Jiu Jitsu Viedma{% endblock %}
+{% block descripcion %}Contactanos: {{ direccion }}. Seguinos en {{ instagram_usuario }}.{% endblock %}
+{% block cuerpo %}
+
+<section class="hero" style="padding:40px 18px 34px">
+  <img class="logo" src="/static/icons/logo.png" alt="Ikigai">
+  <h1 style="font-size:26px">Contacto</h1>
+  <div class="jj" style="font-size:16px">Ciencia y Arte del Conocimiento</div>
+</section>
+
+<div class="wrap">
+  <section class="bloque">
+    <div class="card">
+      <h2 class="sec-title">Dónde estamos</h2>
+      <div class="sec-line"></div>
+      <p style="font-size:18px;font-weight:700;margin:0 0 4px">{{ direccion }}</p>
+      <p class="sec-sub" style="margin-bottom:14px">Jiu Jitsu en Viedma, Río Negro.</p>
+      <a class="btn primary" href="{{ maps_url }}" target="_blank" rel="noopener">Abrir en Google Maps</a>
+    </div>
+  </section>
+
+  <section class="bloque">
+    <h2 class="sec-title">Escribinos</h2>
+    <div class="sec-line"></div>
+    <div class="stats" style="margin-top:0">
+      <div class="stat">
+        <div class="l" style="margin-bottom:10px">Instagram</div>
+        <a class="ig-btn" href="{{ instagram_url }}" target="_blank" rel="noopener">{{ instagram_usuario }}</a>
+      </div>
+      {% if whatsapp_url %}
+      <div class="stat">
+        <div class="l" style="margin-bottom:10px">WhatsApp</div>
+        <a class="btn primary" href="{{ whatsapp_url }}" target="_blank" rel="noopener">Escribinos por WhatsApp</a>
+      </div>
+      {% endif %}
+    </div>
+    <p class="sec-sub" style="text-align:center">
+      Consultas, horarios, clases para grupos, cinturones e información general.
+    </p>
+  </section>
+
+  {% if dias_horario %}
+  <section class="bloque">
+    <h2 class="sec-title">Horarios de atención</h2>
+    <div class="sec-line"></div>
+    {% for d in dias_horario %}
+    <div class="dia">
+      <h4>{{ d.dia_nombre }}</h4>
+      <div class="clase">
+        <span class="hora">{{ d.clases[0].hora }}</span>
+        <span class="nivel">a</span>
+        <span class="hora">{{ d.clases[-1].hora }}</span>
+        <span class="profe">{{ d.clases|length }} clases</span>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <section class="bloque centrado">
+    <h2 class="sec-title">Ya sos alumno</h2>
+    <div class="sec-line"></div>
+    <p class="sec-sub">Ingresá a la app de la academia para ver tus pagos, clases, notas y más.</p>
+    <a class="btn primary" href="/app">Entrar a la app</a>
+  </section>
+</div>
+
+{% include "web_cta_final.html" %}
+{% endblock %}

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}{{ WEB_TITULO }}{% endblock %}</title>
+  <meta name="description" content="{% block descripcion %}Academia de Jiu Jitsu en Viedma, Río Negro. Ciencia y Arte del Conocimiento. Horarios, profesores y contacto.{% endblock %}">
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/web.css?v=1">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="/web">
+      <img src="/static/icons/logo.png" alt="Ikigai">
+      <div><b>IKIGAI</b><span>JIU JITSU · VIEDMA</span></div>
+    </a>
+    <nav class="menu">
+      <a href="/web" class="{% if seccion == 'inicio' %}on{% endif %}">Inicio</a>
+      <a href="/web/profesores" class="{% if seccion == 'profesores' %}on{% endif %}">Profesores</a>
+      <a href="/web/horarios" class="{% if seccion == 'horarios' %}on{% endif %}">Horarios</a>
+      <a href="/web/contacto" class="{% if seccion == 'contacto' %}on{% endif %}">Contacto</a>
+      <a class="menu-cta" href="/app">Entrar a la app</a>
+    </nav>
+  </div>
+</header>
+
+{% block cuerpo %}{% endblock %}
+
+<footer>
+  <div class="wrap cols">
+    <div>
+      <b>Ikigai</b>
+      Ciencia y Arte del Conocimiento<br>
+      Jiu Jitsu en {{ direccion }}
+    </div>
+    <div>
+      <b>Secciones</b>
+      <a href="/web/profesores">Profesores</a><br>
+      <a href="/web/horarios">Horarios</a><br>
+      <a href="/web/contacto">Contacto</a><br>
+      <a href="/app">Ingresar a la app</a>
+    </div>
+    <div>
+      <b>Seguinos</b>
+      <a href="{{ instagram_url }}" target="_blank" rel="noopener">{{ instagram_usuario }}</a><br>
+      <a href="{{ maps_url }}" target="_blank" rel="noopener">Ver ubicación en el mapa</a>
+      {% if whatsapp_url %}<a href="{{ whatsapp_url }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

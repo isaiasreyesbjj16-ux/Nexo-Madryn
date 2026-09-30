@@ -1,0 +1,128 @@
+/* =============================================================
+   SITIO WEB DE LA ACADEMIA (/web) - estilos compartidos
+   ============================================================= */
+:root {
+  --bg: #160d0f; --bg2: #221315; --card: #271619; --card2: #311b1f;
+  --line: #3d2226; --txt: #f6eded; --muted: #b39a9d;
+  --accent: #d92b3a; --accent2: #ff5a4d; --good: #4ec98a;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--txt);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  line-height: 1.55; -webkit-text-size-adjust: 100%;
+}
+img { max-width: 100%; }
+a { color: var(--accent2); }
+.wrap { max-width: 1060px; margin: 0 auto; padding: 0 18px; }
+
+/* ---------------- HEADER / MENU ---------------- */
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  background: rgba(22,13,15,.94); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar .wrap { display: flex; align-items: center; gap: 14px; padding: 10px 18px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--txt); }
+.brand img { width: 42px; height: 42px; object-fit: contain; }
+.brand b { font-size: 17px; font-weight: 900; letter-spacing: .5px; line-height: 1.1; }
+.brand span { display: block; font-size: 10.5px; font-weight: 700; color: var(--accent2); letter-spacing: 1.6px; }
+.menu { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
+.menu a {
+  padding: 9px 13px; border-radius: 10px; text-decoration: none;
+  color: var(--muted); font-size: 14.5px; font-weight: 700;
+}
+.menu a:hover { color: var(--txt); background: var(--card2); }
+.menu a.on { color: #fff; background: var(--accent); }
+.menu-cta {
+  padding: 9px 14px; border-radius: 10px; background: var(--card2);
+  border: 1px solid var(--line); color: var(--txt) !important; font-size: 14px; font-weight: 800;
+  text-decoration: none; white-space: nowrap;
+}
+.menu-cta:hover { border-color: var(--accent); color: var(--accent2) !important; }
+@media (max-width: 720px) {
+  .topbar .wrap { padding: 8px 12px; gap: 8px; }
+  .brand b { font-size: 15px; }
+  .brand img { width: 36px; height: 36px; }
+  .menu { gap: 2px; }
+  .menu a, .menu-cta { padding: 7px 9px; font-size: 13px; }
+}
+
+/* ---------------- HERO ---------------- */
+.hero {
+  text-align: center; padding: 54px 18px 46px; border-bottom: 1px solid var(--line);
+  background: radial-gradient(ellipse 90% 62% at 50% 0%, rgba(217,43,58,.30), rgba(22,13,15,0) 70%);
+}
+.hero img.logo { width: 104px; height: 104px; object-fit: contain; }
+.hero h1 { margin: 8px 0 0; font-size: 30px; font-weight: 900; text-transform: uppercase; line-height: 1.2; }
+.hero h1 .de { display: block; font-size: 18px; color: var(--accent2); letter-spacing: 2px; margin-top: 8px; }
+.hero .jj { font-size: 21px; font-weight: 900; margin-top: 12px; letter-spacing: 1px; }
+.hero .place {
+  display: inline-block; margin-top: 14px; padding: 6px 14px; border-radius: 999px;
+  background: var(--card2); border: 1px solid var(--line); color: var(--muted);
+  font-size: 13px; font-weight: 600;
+}
+.hero .cta { margin-top: 22px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-block; padding: 12px 20px; border-radius: 12px; text-decoration: none;
+  font-weight: 700; font-size: 15px; border: 1px solid transparent;
+}
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent2); }
+.btn.ghost { background: var(--card2); color: var(--txt); border-color: var(--line); }
+.btn.ghost:hover { border-color: var(--accent); color: var(--accent2); }
+
+/* ---------------- SECCIONES ---------------- */
+section.bloque { margin: 46px 0; }
+.sec-title { font-size: 13px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: var(--accent2); margin: 0 0 4px; }
+.sec-line { height: 2px; width: 60px; background: var(--accent); margin: 0 0 16px; border-radius: 2px; }
+.sec-sub { color: var(--muted); font-size: 14.5px; margin: 0 0 22px; }
+.centrado { text-align: center; }
+.centrado .sec-line { margin: 0 auto 16px; }
+
+/* ---------------- TARJETAS / STATS ---------------- */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 26px 0; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; text-align: center; }
+.stat .n { font-size: 26px; font-weight: 900; color: var(--accent2); }
+.stat .l { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
+
+/* ---------------- PROFESORES ---------------- */
+.profes { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.profe { background: linear-gradient(180deg, var(--card), rgba(39,22,25,.72)); border: 1px solid var(--line); border-radius: 18px; padding: 18px; text-align: center; }
+.profe .foto, .profe .ini { width: 118px; height: 118px; margin: 0 auto 12px; border-radius: 50%; }
+.profe .foto { object-fit: cover; border: 3px solid var(--accent); background: var(--card2); }
+.profe .ini {
+  display: flex; align-items: center; justify-content: center; background: var(--card2);
+  border: 3px dashed var(--line); color: var(--muted); font-size: 34px; font-weight: 900;
+}
+.profe h3 { margin: 0 0 2px; font-size: 18px; font-weight: 800; }
+.profe .cinto { color: var(--accent2); font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+.profe .horarios { text-align: left; border-top: 1px dashed var(--line); padding-top: 10px; }
+.profe .horarios .h { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 0; }
+.profe .horarios .h .d { color: var(--muted); }
+.sin { color: var(--muted); font-size: 13.5px; font-style: italic; }
+
+/* ---------------- HORARIOS ---------------- */
+.dia { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
+.dia h4 { margin: 0 0 8px; font-size: 16px; font-weight: 800; color: var(--accent2); text-transform: uppercase; letter-spacing: 1px; }
+.clase { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.clase:last-child { border-bottom: 0; }
+.clase .hora { font-weight: 800; min-width: 62px; }
+.tag { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--card2); border: 1px solid var(--line); color: var(--muted); }
+.tag.gi { color: #ff8a80; border-color: rgba(255,138,128,.4); }
+.tag.nogi { color: #7fc8ff; border-color: rgba(127,200,255,.4); }
+.clase .nivel { color: var(--muted); }
+.clase .profe { color: var(--accent2); font-weight: 600; margin-left: auto; }
+
+/* ---------------- CTA / INSTAGRAM / FOOTER ---------------- */
+.cta-final { text-align: center; margin: 48px 0; padding: 32px 22px; border-radius: 22px; border: 1px solid var(--line); background: linear-gradient(135deg, rgba(217,43,58,.20), rgba(49,27,31,.9)); }
+.cta-final h3 { margin: 0 0 6px; font-size: 21px; font-weight: 800; }
+.cta-final p { color: var(--muted); margin: 0 0 18px; }
+.ig-btn { display: inline-block; padding: 13px 26px; border-radius: 12px; background: linear-gradient(90deg, #f9ce34, #ee2a7b 45%, #6228d7); color: #fff; font-weight: 800; text-decoration: none; font-size: 15px; }
+footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 26px 0 34px; color: var(--muted); font-size: 13px; }
+footer .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+footer b { color: var(--txt); display: block; margin-bottom: 5px; font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent2); }

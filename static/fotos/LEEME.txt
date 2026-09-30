@@ -1,0 +1,39 @@
+═══════════════════════════════════════════════════════════
+   FOTOS DE LOS PROFESORES — PAGINA DE PRESENTACION
+═══════════════════════════════════════════════════════════
+
+1) Copiá cada foto en ESTA carpeta (static/fotos).
+   Ejemplo: juan.jpg, maria.png, carlos.jpg
+
+2) Después abrí el archivo  app.py  y buscá  FOTOS_PROFES
+   (está arriba de la ruta /presentacion, con un cartel
+   que dice "DONDE PONER LAS FOTOS DE LOS PROFESORES").
+
+   Quedaría así:
+
+        FOTOS_PROFES = {
+            'Juan Perez': 'juan.jpg',
+            'Maria Lopez': 'maria.png',
+        }
+
+   - El nombre del profe se escribe como figura en la app.
+     Podés ponerlo con o sin tilde y con o sin ñ: el sistema
+     lo reconoce igual.
+   - El nombre del archivo es el de la foto que copiaste acá.
+
+3) Guardá, subí los cambios con  subir_a_github.bat  y listo:
+   la página /presentacion muestra esa foto.
+
+═══════════════════════════════════════════════════════════
+   RECOMENDACIONES
+═══════════════════════════════════════════════════════════
+   - Formato: JPG o PNG.
+   - Tamaño ideal: 600 x 600 px (cuadrada).
+   - Peso: menos de 300 KB por foto (si pesa mucho, tardan en cargar).
+   - La foto se muestra redonda (tipo avatar).
+
+   Si a un profe NO lo ponés en FOTOS_PROFES, la página usa
+   la foto de perfil que tenga cargada dentro de la app; y si
+   tampoco tiene, muestra sus iniciales.
+
+═══════════════════════════════════════════════════════════

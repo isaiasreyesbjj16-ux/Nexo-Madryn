@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bienvenido - {{ academy_name }}</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#11151c">
+<link rel="icon" href="/static/icons/icon-192.png">
+<link rel="stylesheet" href="/static/style.css?v=31">
+</head>
+<body class="login-body">
+
+<div class="login-wrap">
+  <div class="login-card">
+    <img src="/static/icons/logo.png" alt="Logo" class="login-logo" id="loginLogo">
+    <h1 class="login-title" id="academyTitle">{{ academy_name or 'IKIGAI VIEDMA' }}</h1>
+    <div class="login-slogan">CIENCIA Y ARTE DEL CONOCIMIENTO</div>
+
+    <div class="tabs" role="tablist" aria-label="Acceso">
+      <button class="tab active" data-tab="login" role="tab" aria-selected="true">Ingresar</button>
+      <button class="tab" data-tab="reg-alumno" role="tab" aria-selected="false">Soy alumno</button>
+      <button class="tab" data-tab="reg-profesor" role="tab" aria-selected="false">Soy profesor</button>
+    </div>
+
+    <!-- LOGIN -->
+    <form class="tabpanel active" id="tab-login">
+      <div class="field"><label>Usuario</label>
+        <input type="text" id="loginUser" placeholder="Tu usuario" autocomplete="username"></div>
+      <div class="field"><label>Contraseña</label>
+        <input type="password" id="loginPass" placeholder="Tu contraseña" autocomplete="current-password"></div>
+      <button type="submit" class="btn primary btn-block">Entrar</button>
+      <button type="button" class="link-btn" id="btnOlvidada" style="width:100%;text-align:center;margin-top:12px">¿Olvidaste tu contraseña?</button>
+    </form>
+
+    <!-- REGISTRO ALUMNO -->
+    <form class="tabpanel" id="tab-reg-alumno">
+      <div class="field"><label>Nombre y apellido</label>
+        <input type="text" id="regAlumnoNombre" placeholder="Ej: Juan Pérez"></div>
+      <div class="field"><label>Usuario</label>
+        <input type="text" id="regAlumnoUser" placeholder="Elegí tu usuario"></div>
+      <div class="field"><label>Contraseña</label>
+        <input type="password" id="regAlumnoPass" placeholder="Mínimo 4 caracteres"></div>
+      <div class="grid2">
+        <div class="field"><label>DNI</label>
+          <input type="text" id="regAlumnoDni" placeholder="Ej: 35123456" required></div>
+        <div class="field"><label>Dirección / domicilio</label>
+          <input type="text" id="regAlumnoDir" placeholder="Ej: Calle 1 N° 123, Viedma" required></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Edad</label>
+          <input type="number" id="regAlumnoEdad" placeholder="Ej: 25"></div>
+        <div class="field"><label>Fecha de nacimiento <span style="color:#ff9b8f">*</span></label>
+          <input type="date" id="regAlumnoNac" required></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Peso (kg)</label>
+          <input type="number" step="0.1" id="regAlumnoPeso" placeholder="Ej: 78.5"></div>
+        <div class="field"><label>Categoría</label>
+          <select id="regAlumnoCat">
+            <option value="adulto">Adulto</option>
+            <option value="juveniles">Juveniles</option>
+            <option value="kids">Kids</option>
+          </select></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Cinturón / Faixa</label>
+          <select id="regAlumnoCinturon"></select></div>
+      </div>
+      <div class="field"><label>Modalidad</label>
+        <select id="regAlumnoGi">
+          <option value="Ambas">Ambas (Gi y NoGi)</option>
+          <option value="Gi">Solo Gi</option>
+          <option value="NoGi">Solo NoGi</option>
+        </select></div>
+      <div class="field"><label>📱 Tu teléfono (opcional)</label>
+        <input type="tel" id="regAlumnoTel" placeholder="Ej: 299 1234567"></div>
+      <div id="tutorFields" style="display:none">
+        <div class="field"><label>📞 Teléfono del padre/madre/tutor responsable <span style="color:#ff9b8f">(obligatorio para menores)</span></label>
+          <input type="tel" id="regAlumnoTelTutor" placeholder="Ej: 299 1234567"></div>
+        <div class="field"><label>📞 Segundo teléfono (opcional)</label>
+          <input type="tel" id="regAlumnoTel2" placeholder="Otro teléfono de contacto (opcional)"></div>
+        <div class="field" style="grid-column:1/-1">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="regAlumnoFoto" style="width:18px;height:18px">
+            <span>Autorizo como mayor/padre/madre/tutor que <b>las fotos de este/a menor puedan ser expuestas</b> (redes y muro del gimnasio). <span style="color:#ff9b8f">(obligatorio para menores)</span></span>
+          </label>
+        </div>
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="regAlumnoTyC" style="width:18px;height:18px" required>
+          <span>He leído y <b>acepto los <a href="javascript:void(0)" onclick="verTerminos()" style="color:var(--accent);text-decoration:underline">Términos y Condiciones y la Política de Privacidad</a></b>.</span>
+        </label>
+        <p class="small" style="color:var(--muted)">Al tildar la casilla, el registro de tu aceptación (fecha y hora) queda guardado en la plataforma.</p>
+      </div>
+
+      <div class="field" style="grid-column:1/-1">
+        <label>✍️ Firmá en el recuadro (firma en Términos y Condiciones) <span style="color:#ff9b8f" id="firmaTyCReq">(obligatorio para menores)</span></label>
+        <div class="firma-box">
+          <canvas id="firmaCanvasTyC" class="firma-canvas" width="600" height="160" aria-label="Recuadro para firmar los Términos y Condiciones"></canvas>
+          <button type="button" class="btn ghost small" onclick="limpiarFirma('TyC')">🧹 Limpiar</button>
+        </div>
+        <div class="firma-acc" hidden>
+          <input type="text" id="firmaTyCNombre" placeholder="Escribí tu nombre y apellido para firmar" aria-label="Escribí tu nombre y apellido para firmar los Términos y Condiciones">
+          <button type="button" class="btn ghost small" onclick="firmaPorNombre('TyC')">Firmar con nombre</button>
+        </div>
+        <p class="small" style="color:var(--muted)">La firma digital es obligatoria para menores; para adultos es opcional (el tilde de aceptación es obligatorio para todos).</p>
+        <input type="hidden" id="regFirmaTyC" value="">
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <label>✍️ Autorización de fotos <span style="color:#ff9b8f" id="firmaFotoReq">(obligatorio para menores)</span></label>
+        <div class="firma-box">
+          <canvas id="firmaCanvasFoto" class="firma-canvas" width="600" height="160" aria-label="Recuadro para firmar la autorización de uso de fotos"></canvas>
+          <button type="button" class="btn ghost small" onclick="limpiarFirma('Foto')">🧹 Limpiar</button>
+        </div>
+        <div class="firma-acc" hidden>
+          <input type="text" id="firmaFotoNombre" placeholder="Escribí tu nombre y apellido para firmar" aria-label="Escribí tu nombre y apellido para firmar la autorización de fotos">
+          <button type="button" class="btn ghost small" onclick="firmaPorNombre('Foto')">Firmar con nombre</button>
+        </div>
+        <p class="small" style="color:var(--muted)">Firma el padre, madre o tutor para menores; para adultos es opcional. Autoriza que las fotos del entrenamiento puedan publicarse en redes y muro del gimnasio.</p>
+        <input type="hidden" id="regFirmaFoto" value="">
+      </div>
+      <button type="submit" class="btn primary btn-block">Crear mi cuenta</button>
+    </form>
+
+    <!-- REGISTRO PROFESOR -->
+    <form class="tabpanel" id="tab-reg-profesor">
+      <div class="field"><label>Nombre y apellido</label>
+        <input type="text" id="regProfeNombre" placeholder="Ej: Carlos Rocha"></div>
+      <div class="field"><label>Usuario</label>
+        <input type="text" id="regProfeUser" placeholder="Elegí tu usuario"></div>
+      <div class="field"><label>Contraseña</label>
+        <input type="password" id="regProfePass" placeholder="Mínimo 4 caracteres"></div>
+      <div class="field"><label>Código de la academia</label>
+        <input type="text" id="regProfeCodigo" placeholder="Pedíselo al administrador"></div>
+      <div class="grid2">
+        <div class="field"><label>Edad</label>
+          <input type="number" id="regProfeEdad" placeholder="Ej: 35"></div>
+        <div class="field"><label>Fecha de nacimiento <span style="color:#ff9b8f">*</span></label>
+          <input type="date" id="regProfeNac" required></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Peso (kg)</label>
+          <input type="number" step="0.1" id="regProfePeso" placeholder="Ej: 85"></div>
+        <div class="field"><label>Cinturón / Faixa</label>
+          <select id="regProfeCinturon"></select></div>
+      </div>
+      <div class="field" style="grid-column:1/-1">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="regProfeTyC" style="width:18px;height:18px" required>
+          <span>He leído y <b>acepto los <a href="javascript:void(0)" onclick="verTerminos()" style="color:var(--accent);text-decoration:underline">Términos y Condiciones y la Política de Privacidad</a></b>.</span>
+        </label>
+        <p class="small" style="color:var(--muted)">Al tildar la casilla, el registro de tu aceptación (fecha y hora) queda guardado en la plataforma.</p>
+      </div>
+      <button type="submit" class="btn primary btn-block">Crear mi cuenta de profesor</button>
+    </form>
+
+    <div class="msg" id="loginMsg"></div>
+    <button type="button" class="acc-toggle btn ghost btn-block" style="margin-top:14px" onclick="toggleAcc()" aria-pressed="false">♿ Modo accesible</button>
+  </div>
+</div>
+
+<!-- MODAL TÉRMINOS Y CONDICIONES -->
+<div id="tycModal" style="display:none;position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:16px">
+  <div style="background:#171d26;border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
+      <b style="font-size:16px">Términos y Condiciones de Uso y Política de Privacidad</b>
+      <button type="button" onclick="cerrarTerminos()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer" aria-label="Cerrar">✕</button>
+    </div>
+    <div style="padding:18px 22px;overflow:auto;font-size:14px;line-height:1.55" id="tycTexto">
+      <p><b>1. Aceptación de los Términos</b><br>Al acceder, registrarse o utilizar esta aplicación, el usuario (en adelante, "el Usuario") acepta expresamente y sin reservas cumplir con los presentes Términos y Condiciones, así como con la Política de Privacidad aquí descrita. Si no está de acuerdo con estos términos, deberá abstenerse de utilizar la aplicación.</p>
+      <p><b>2. Contenido y Publicación de Fotografía Deportiva</b><br>La aplicación es una plataforma destinada a la publicación y difusión de fotografías e imágenes capturadas durante la práctica de entrenamientos y disciplinas deportivas.</p>
+      <p><b>Imágenes de Adultos:</b> Toda persona mayor de edad que aparezca o publique contenido en la plataforma declara hacerlo de forma voluntaria y otorga su consentimiento implícito para la visualización de dicho contenido dentro de la aplicación.</p>
+      <p><b>Imágenes de Menores de Edad (Jóvenes y Niños):</b></p>
+      <p>• La publicación de imágenes, fotografías o videos donde aparezcan menores de edad está estrictamente condicionada a la autorización previa y expresa de su padre, madre, tutor legal o representante legal.</p>
+      <p>• La responsabilidad sobre los derechos de imagen del menor recae exclusiva y totalmente en el adulto registrado que realiza la carga de dicho material.</p>
+      <p>• La aplicación se reserva el derecho de retirar de manera inmediata cualquier imagen de un menor si es solicitada por su tutor legal o si se presume una infracción a las leyes de protección a la infancia.</p>
+      <p><b>3. Exención de Responsabilidad por Deportes de Riesgo</b><br>La práctica de deportes y entrenamientos físicos —especialmente aquellos de contacto, alto rendimiento o deportes de riesgo— conlleva la posibilidad inherente de sufrir lesiones corporales, daños físicos o inconvenientes de salud.</p>
+      <p><b>Asunción de Riesgo:</b> El Usuario reconoce y acepta que las actividades exhibidas en la aplicación involucran riesgos físicos inherentes.</p>
+      <p><b>Deslinde de Responsabilidad:</b> La aplicación, sus desarrolladores, administradores y afiliados no asumen ninguna responsabilidad por lesiones, accidentes, incapacidades o perjuicios directos o indirectos que puedan sufrir los deportistas o usuarios antes, durante o después de las sesiones de entrenamiento.</p>
+      <p><b>Responsabilidad del Deportista o Tutor:</b><br>• En el caso de deportistas mayores de edad, la responsabilidad de su integridad física, aptitud médica y preparación recae de manera 100% individual en la persona.<br>• En el caso de deportistas menores de edad, la entera responsabilidad respecto a su salud, aptitud física, participación en la actividad y supervisión recae exclusivamente en su padre, madre o tutor legal.</p>
+      <p><b>4. Uso Aceptable y Normas de la Comunidad</b><br>Queda estrictamente prohibido:</p>
+      <p>• Cargar contenido difamatorio, explícito, inapropiado o que vulnera la intimidad y dignidad de las personas.<br>• Utilizar las fotografías con fines comerciales no autorizados o fuera del ámbito deportivo.<br>• Cargar imágenes de terceros o menores sin contar con las autorizaciones o cesión de derechos de imagen correspondientes.</p>
+      <p><b>5. Modificaciones de los Términos</b><br>La aplicación se reserva la facultad de modificar, actualizar o reformar estos Términos y Condiciones en cualquier momento. La continuidad en el uso de la aplicación tras la publicación de los cambios implica la aceptación automática de las nuevas condiciones.</p>
+    </div>
+    <div style="padding:16px 22px;border-top:1px solid var(--line)">
+      <button type="button" class="btn primary btn-block" onclick="cerrarTerminos()">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center;padding:18px 0 8px">
+  <a href="/web" style="color:var(--accent2);font-size:14px;font-weight:600;text-decoration:none">🥋 Conocé la academia</a>
+  <span style="color:var(--muted);font-size:13px"> · </span>
+  <a href="/presentacion" style="color:var(--muted);font-size:13.5px;text-decoration:none">presentación</a>
+</div>
+
+<script src="/static/app.js?v=36"></script>
+</body>
+</html>

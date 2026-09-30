@@ -1,0 +1,54 @@
+{% extends "web_base.html" %}
+{% block titulo %}Profesores | IKIGAI Jiu Jitsu Viedma{% endblock %}
+{% block descripcion %}Conocé a los profesores de la academia Ikigai de Jiu Jitsu en Viedma, Río Negro.{% endblock %}
+{% block cuerpo %}
+
+<section class="hero" style="padding:40px 18px 34px">
+  <img class="logo" src="/static/icons/logo.png" alt="Ikigai">
+  <h1 style="font-size:26px">Nuestros profesores</h1>
+  <div class="jj" style="font-size:16px">Ciencia y Arte del Conocimiento</div>
+</section>
+
+<div class="wrap">
+  <section class="bloque">
+    {% if profes %}
+    <div class="profes">
+      {% for p in profes %}
+      <article class="profe">
+        {% if p.foto %}
+        <img class="foto" src="{{ p.foto }}" alt="{{ p.nombre }}" loading="lazy">
+        {% else %}
+        <div class="ini">{{ p.iniciales }}</div>
+        {% endif %}
+        <h3>{{ p.nombre }}</h3>
+        {% if p.cinturon %}<div class="cinto">{{ p.cinturon }}</div>{% endif %}
+        {% if p.horarios %}
+        <div class="horarios">
+          {% for h in p.horarios %}
+          <div class="h"><span class="d">{{ h.dia_nombre }}</span><span>{{ h.hora }} · {{ h.tipo }}</span></div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="sin" style="text-align:center">Horario a confirmar</div>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="sin">Todavía no cargamos los profesores. Escribinos y te contamos.</p>
+    {% endif %}
+  </section>
+
+  <section class="bloque centrado">
+    <h2 class="sec-title">¿Querés probar?</h2>
+    <div class="sec-line"></div>
+    <p class="sec-sub">La primera clase es gratis. Mirá los horarios y vení a probar.</p>
+    <div class="cta">
+      <a class="btn primary" href="/web/horarios">Ver horarios</a>
+      <a class="btn ghost" href="/web/contacto">Contactanos</a>
+    </div>
+  </section>
+</div>
+
+{% include "web_cta_final.html" %}
+{% endblock %}

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ academy_name }}</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#11151c">
+<link rel="icon" href="/static/icons/icon-192.png">
+<link rel="stylesheet" href="/static/style.css?v=31">
+</head>
+<body class="dash-body">
+<a href="#content" class="skip-link" style="position:absolute;left:-9999px;top:0;background:#e05d13;color:#fff;padding:10px 16px;font-weight:700;z-index:99999">
+  Saltar al contenido
+</a>
+<header class="topbar">
+  <img src="/static/icons/logo.png" alt="Logo" class="top-logo">
+  <div class="top-title">
+    <strong id="academyName">{{ academy_name }}</strong>
+    <small id="userRoleLabel"></small>
+  </div>
+  <div class="top-actions">
+    <button class="icon-btn acc-toggle" type="button" onclick="toggleAcc()" title="Modo accesible" aria-pressed="false" aria-label="Modo accesible">♿</button>
+    <button class="icon-btn" id="themeBtn" title="Cambiar tema" aria-label="Cambiar tema">
+      <svg id="themeIcon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+    </button>
+    <button class="icon-btn" id="bellBtn" title="Notificaciones" aria-label="Notificaciones">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5S10.5 3.17 10.5 4v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+      <span class="badge" id="bellBadge" hidden></span>
+    </button>
+    <button class="icon-btn" id="logoutBtn" title="Salir" aria-label="Cerrar sesión">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- Panel de notificaciones -->
+<div class="notif-panel" id="notifPanel" hidden role="region" aria-label="Notificaciones">
+  <div class="notif-head">
+    <strong>Notificaciones</strong>
+    <button class="link-btn" id="markAllRead">Marcar todas leídas</button>
+  </div>
+  <div id="notifList"></div>
+</div>
+
+<main class="content" id="content">
+  <!-- inyectado por JS -->
+</main>
+
+<!-- Barra de navegación estilo Instagram -->
+<nav class="bottombar" id="bottombar" aria-label="Navegación principal"></nav>
+
+<div id="modal" class="modal" hidden role="dialog" aria-modal="true" aria-label="Ventana de la aplicación">
+  <div class="modal-box">
+    <button class="modal-close" id="modalClose" aria-label="Cerrar">×</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- MODAL TÉRMINOS Y CONDICIONES -->
+<div id="tycModal" style="display:none;position:fixed;inset:0;z-index:30000;background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:16px">
+  <div style="background:#171d26;border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
+      <b style="font-size:16px">Términos y Condiciones de Uso y Política de Privacidad</b>
+      <button type="button" onclick="cerrarTerminos()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer" aria-label="Cerrar">✕</button>
+    </div>
+    <div style="padding:18px 22px;overflow:auto;font-size:14px;line-height:1.55">
+      <p><b>1. Aceptación de los Términos</b><br>Al acceder, registrarse o utilizar esta aplicación, el usuario (en adelante, "el Usuario") acepta expresamente y sin reservas cumplir con los presentes Términos y Condiciones, así como con la Política de Privacidad aquí descrita. Si no está de acuerdo con estos términos, deberá abstenerse de utilizar la aplicación.</p>
+      <p><b>2. Contenido y Publicación de Fotografía Deportiva</b><br>La aplicación es una plataforma destinada a la publicación y difusión de fotografías e imágenes capturadas durante la práctica de entrenamientos y disciplinas deportivas.</p>
+      <p><b>Imágenes de Adultos:</b> Toda persona mayor de edad que aparezca o publique contenido en la plataforma declara hacerlo de forma voluntaria y otorga su consentimiento implícito para la visualización de dicho contenido dentro de la aplicación.</p>
+      <p><b>Imágenes de Menores de Edad (Jóvenes y Niños):</b></p>
+      <p>• La publicación de imágenes, fotografías o videos donde aparezcan menores de edad está estrictamente condicionada a la autorización previa y expresa de su padre, madre, tutor legal o representante legal.<br>• La responsabilidad sobre los derechos de imagen del menor recae exclusiva y totalmente en el adulto registrado que realiza la carga de dicho material.<br>• La aplicación se reserva el derecho de retirar de manera inmediata cualquier imagen de un menor si es solicitada por su tutor legal o si se presume una infracción a las leyes de protección a la infancia.</p>
+      <p><b>3. Exención de Responsabilidad por Deportes de Riesgo</b><br>La práctica de deportes y entrenamientos físicos —especialmente aquellos de contacto, alto rendimiento o deportes de riesgo— conlleva la posibilidad inherente de sufrir lesiones corporales, daños físicos o inconvenientes de salud.</p>
+      <p><b>Asunción de Riesgo:</b> El Usuario reconoce y acepta que las actividades exhibidas en la aplicación involucran riesgos físicos inherentes.</p>
+      <p><b>Deslinde de Responsabilidad:</b> La aplicación, sus desarrolladores, administradores y afiliados no asumen ninguna responsabilidad por lesiones, accidentes, incapacidades o perjuicios directos o indirectos que puedan sufrir los deportistas o usuarios antes, durante o después de las sesiones de entrenamiento.</p>
+      <p><b>Responsabilidad del Deportista o Tutor:</b><br>• En el caso de deportistas mayores de edad, la responsabilidad de su integridad física, aptitud médica y preparación recae de manera 100% individual en la persona.<br>• En el caso de deportistas menores de edad, la entera responsabilidad respecto a su salud, aptitud física, participación en la actividad y supervisión recae exclusivamente en su padre, madre o tutor legal.</p>
+      <p><b>4. Uso Aceptable y Normas de la Comunidad</b><br>Queda estrictamente prohibido:<br>• Cargar contenido difamatorio, explícito, inapropiado o que vulnera la intimidad y dignidad de las personas.<br>• Utilizar las fotografías con fines comerciales no autorizados o fuera del ámbito deportivo.<br>• Cargar imágenes de terceros o menores sin contar con las autorizaciones o cesión de derechos de imagen correspondientes.</p>
+      <p><b>5. Modificaciones de los Términos</b><br>La aplicación se reserva la facultad de modificar, actualizar o reformar estos Términos y Condiciones en cualquier momento. La continuidad en el uso de la aplicación tras la publicación de los cambios implica la aceptación automática de las nuevas condiciones.</p>
+    </div>
+    <div style="padding:16px 22px;border-top:1px solid var(--line)">
+      <button type="button" class="btn primary btn-block" onclick="aceptarTerminosHoy()">✔ Acepto los Términos y Condiciones</button>
+      <button type="button" class="btn ghost btn-block mt" onclick="cerrarTerminos()">Cerrar sin aceptar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.USER = {{ user | tojson }};
+window.BELTS_ADULT = {{ belts_adult | tojson }};
+window.BELTS_KIDS = {{ belts_kids | tojson }};
+window.BELTS_JUV = {{ belts_juveniles | tojson }};
+window.CATEGORIAS = {{ categorias | tojson }};
+window.TIPOS_CLASE = {{ tipos_clase | tojson }};
+window.METODOS = {{ metodos | tojson }};
+window.DIAS = {{ dias | tojson }};
+</script>
+<script src="/static/jsQR.js"></script>
+<script src="/static/app.js?v=36"></script>
+</body>
+</html>

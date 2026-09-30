@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Recibo #{{ p.id }} - {{ academy }}</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 24px; background: #f2f2f2; }
+  .recibo { max-width: 520px; margin: 0 auto; background: #fff; border: 1px solid #ddd;
+            border-radius: 12px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  .head { display: flex; justify-content: space-between; align-items: center;
+          border-bottom: 3px solid {{ color }}; padding-bottom: 14px; margin-bottom: 18px; }
+  .logo { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; }
+  h1 { margin: 0; font-size: 22px; }
+  .sub { color: #666; font-size: 13px; margin-top: 2px; }
+  .titulo { text-align: center; font-size: 15px; letter-spacing: 2px; color: {{ color }};
+            font-weight: 700; margin-bottom: 16px; }
+  .fila { display: flex; justify-content: space-between; padding: 8px 0;
+          border-bottom: 1px dashed #ddd; font-size: 14px; }
+  .fila b { text-align: right; }
+  .total { display: flex; justify-content: space-between; padding: 14px 0; font-size: 20px;
+           font-weight: 700; color: {{ color }}; }
+  .pie { margin-top: 22px; font-size: 12px; color: #888; text-align: center; line-height: 1.5; }
+  .btn { display: block; margin: 18px auto 0; background: {{ color }}; color: #fff; border: 0;
+         border-radius: 8px; padding: 12px 22px; font-size: 15px; cursor: pointer; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .recibo { border: 0; box-shadow: none; max-width: 100%; }
+    .btn { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="recibo">
+    <div class="head">
+      <div>
+        <h1>{{ academy }}</h1>
+        <div class="sub">CIENCIA Y ARTE DEL CONOCIMIENTO</div>
+      </div>
+      <img class="logo" src="/static/icons/logo.png" alt="Logo" onerror="this.style.display='none'">
+    </div>
+    <div class="titulo">RECIBO DE PAGO N° {{ p.id }}</div>
+
+    <div class="fila"><span>Alumno</span><b>{{ p.alumno_nombre }}</b></div>
+    <div class="fila"><span>Concepto</span><b>{{ p.concepto }} ({{ mes_nombre }} {{ p.anio }})</b></div>
+    <div class="fila"><span>Método de pago</span><b>{{ p.metodo }}</b></div>
+    <div class="fila"><span>Fecha de pago</span><b>{{ p.fecha }}</b></div>
+    {% if p.profe_nombre %}
+    <div class="fila"><span>Recibió</span><b>{{ p.profe_nombre }}</b></div>
+    {% endif %}
+    {% if p.nota and p.nota != 'Cuota mensual' %}
+    <div class="fila"><span>Nota</span><b>{{ p.nota }}</b></div>
+    {% endif %}
+
+    <div class="total"><span>TOTAL</span><span>${{ '{:,.0f}'.format(p.monto).replace(',', '.') }}</span></div>
+
+    <div class="pie">
+      Gracias por tu pago. Este recibo confirma la cuota de {{ mes_nombre }} {{ p.anio }}.<br>
+      {{ academy }}
+    </div>
+    <button class="btn" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
+  </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "IKIGAI VIEDMA",
+  "short_name": "IKIGAI",
+  "description": "App de la academia: pagos de cuota, horarios, profesores y asistencia.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#11151c",
+  "theme_color": "#11151c",
+  "permissions": ["camera"],
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

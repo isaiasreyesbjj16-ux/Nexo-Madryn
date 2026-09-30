@@ -1,0 +1,95 @@
+{% extends "web_base.html" %}
+{% block titulo %}IKIGAI | Jiu Jitsu en Viedma{% endblock %}
+{% block descripcion %}Academia de Jiu Jitsu en Viedma, Río Negro. Ciencia y Arte del Conocimiento. Conocé a los profesores, mirá los horarios y contactanos.{% endblock %}
+{% block cuerpo %}
+
+<section class="hero">
+  <img class="logo" src="/static/icons/logo.png" alt="Ikigai">
+  <h1>Ikigai <span class="de">Ciencia y Arte del Conocimiento</span></h1>
+  <div class="jj">JIU JITSU · VIEDMA</div>
+  <span class="place">{{ direccion }}</span>
+  <div class="cta">
+    <a class="btn primary" href="/web/horarios">Ver horarios</a>
+    <a class="btn ghost" href="/web/contacto">Quiero información</a>
+  </div>
+</section>
+
+<div class="wrap">
+
+  {% if total_clases %}
+  <div class="stats">
+    <div class="stat"><div class="n">{{ total_clases }}</div><div class="l">Clases por semana</div></div>
+    <div class="stat"><div class="n">{{ dias_con_clase }}</div><div class="l">Días con clases</div></div>
+    <div class="stat"><div class="n">{{ profes|length }}</div><div class="l">Profesores en la lista</div></div>
+    <div class="stat"><div class="n">{{ tipos|length }}</div><div class="l">Tipos de clase</div></div>
+  </div>
+  {% endif %}
+
+  <section class="bloque centrado">
+    <h2 class="sec-title">Nuestra academia</h2>
+    <div class="sec-line"></div>
+    <p class="sec-sub">
+      En Ikigai enseñamos Jiu Jitsu como ciencia y arte: técnica, disciplina y respeto.
+      Todos los días de la semana tenemos clases para todas las edades, desde los más
+      chicos hasta adultos. Vení a probar tu primera clase gratis.
+    </p>
+    <a class="btn primary" href="/web/contacto">Quiero inscribirme</a>
+  </section>
+
+  {% if profes %}
+  <section class="bloque">
+    <h2 class="sec-title">Profesores</h2>
+    <div class="sec-line"></div>
+    <p class="sec-sub">Estos son algunos de los profesores de la academia.</p>
+    <div class="profes">
+      {% for p in profes %}
+      <article class="profe">
+        {% if p.foto %}
+        <img class="foto" src="{{ p.foto }}" alt="{{ p.nombre }}" loading="lazy">
+        {% else %}
+        <div class="ini">{{ p.iniciales }}</div>
+        {% endif %}
+        <h3>{{ p.nombre }}</h3>
+        {% if p.cinturon %}<div class="cinto">{{ p.cinturon }}</div>{% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    <p style="text-align:center;margin-top:18px"><a class="btn ghost" href="/web/profesores">Ver todos los profesores</a></p>
+  </section>
+  {% endif %}
+
+  {% if dias_horario %}
+  <section class="bloque">
+    <h2 class="sec-title">Horarios</h2>
+    <div class="sec-line"></div>
+    <p class="sec-sub">Algunas clases de la semana. Mirá el detalle completo con niveles y profesores.</p>
+    {% for d in dias_horario %}
+    <div class="dia">
+      <h4>{{ d.dia_nombre }}</h4>
+      {% for c in d.clases %}
+      <div class="clase">
+        <span class="hora">{{ c.hora }}</span>
+        <span>{{ c.tipo }}</span>
+        {% if c.nivel and c.nivel != 'Todos' %}<span class="tag {{ 'gi' if 'gi' in c.nivel|lower else 'nogi' }}">{{ c.nivel }}</span>{% endif %}
+        <span class="profe">{{ c.profesor }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <p style="text-align:center"><a class="btn primary" href="/web/horarios">Ver horarios completos</a></p>
+  </section>
+  {% endif %}
+
+  <section class="bloque centrado">
+    <h2 class="sec-title">¿Tenés dudas?</h2>
+    <div class="sec-line"></div>
+    <p class="sec-sub">Escribinos por Instagram o mandanos un WhatsApp. La primera clase es gratis.</p>
+    <div class="cta">
+      <a class="ig-btn" href="{{ instagram_url }}" target="_blank" rel="noopener">{{ instagram_usuario }}</a>
+    </div>
+  </section>
+
+</div>
+
+{% include "web_cta_final.html" %}
+{% endblock %}

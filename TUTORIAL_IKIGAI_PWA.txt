@@ -1,0 +1,198 @@
+═══════════════════════════════════════════════════════
+        TUTORIAL IKIGAI VIEDMA - PWA
+        Guía rápida de uso para la academia
+═══════════════════════════════════════════════════════
+
+
+┌─────────────────────────────────────────────────────┐
+│  1. CÓMO ENTRAR A LA APP                            │
+└─────────────────────────────────────────────────────┘
+
+Opción A - Desde la PC:
+  1. Abrí el navegador y entrá a: https://ikigai-viedma.onrender.com
+
+Opción B - Desde el celular:
+  1. Abrí Chrome (o tu navegador) en android y safari en apple 
+  2. Entrá a: https://ikigai-viedma.onrender.com
+  3. Tocá los 3 puntos (menú) → "Agregar a pantalla de inicio" o Descargar app en android (seccion perfil)
+  4. ¡Listo! Ahora aparece como una app en tu celular
+
+
+┌─────────────────────────────────────────────────────┐
+│  2. CREAR TU CUENTA                                 │
+└─────────────────────────────────────────────────────┘
+
+Si sos ALUMNO:
+  1. Tocá la pestaña "Soy alumno"
+  2. Completá tus datos:
+     - Nombre y apellido
+     - Usuario (elegí uno) y contraseña
+     - DNI y dirección
+     - Edad y peso
+     - Categoría: Adulto / Juveniles / Kids
+     - Cinturón/faixa que tenés
+     - Modalidad: Ambas / Solo Gi / Solo NoGi
+     - Teléfono (opcional)
+  3. Si sos menor (Kids/Juveniles): ingresá el teléfono del padre/tutor
+  4. Tildá que aceptás los Términos y Condiciones
+  5. Tocá "Crear mi cuenta"
+
+Si sos PROFESOR:
+  1. Tocá la pestaña "Soy profesor"
+  2. Ingresá el código de la academia (pedilo al admin)
+  3. Completá tus datos: nombre, usuario, contraseña, cinturón
+  4. Tildá los Términos y Condiciones
+  5. Tocá "Crear mi cuenta"
+
+Si ya tenés cuenta:
+  1. Ingresá tu usuario y contraseña
+  2. Tocá "Entrar"
+
+
+┌─────────────────────────────────────────────────────┐
+│  3. NAVEGACIÓN EN LA APP                            │
+└─────────────────────────────────────────────────────┘
+
+La app tiene un menú inferior con 5 secciones:
+
+  🏠 INICIO     → Resumen general, novedades, muro
+  📅 HORARIOS   → Clases disponibles por día y hora
+  💳 PAGOS/CUOTA → Estado de tu cuota y comprobantes
+  🎥 VIDEOS     → Biblioteca de técnicas por cinturón
+  👤 PERFIL     → Tus datos, configuración y logout
+
+💡 Tip: podés deslizar el dedo hacia la izquierda o derecha para cambiar entre secciones.
+
+
+┌─────────────────────────────────────────────────────┐
+│  4. ESTADO DE TU CUOTA (ALUMNOS)                    │
+└─────────────────────────────────────────────────────┘
+
+Para ver si tenés la cuota al día:
+  1. Tocá "Cuota" en el menú inferior
+  2. Ahí ves si estás al día o si debes
+
+Para pagar:
+  1. Pedile al admin o profesor el alias/CVU para transferir
+  2. Hacé la transferencia por tu banco
+  3. Subí el comprobante desde la app (foto o captura)
+  4. El profesor o admin lo revisa y confirma
+  5. ¡Recibís una notificación cuando se confirme!
+
+⚠️ Si pagás después del día de vencimiento, se aplica recargo automático.
+
+
+┌─────────────────────────────────────────────────────┐
+│  5. ASISTENCIA CON QR                               │
+└─────────────────────────────────────────────────────┘
+
+En el gimnasio hay un código QR para marcar asistencia:
+
+  1. Cuando llegás a entrenar, escaneá el QR con la app
+  2. Tu asistencia se marca automáticamente para todas las clases del día
+  3. Podés ver tu historial de asistencias en tu perfil
+
+También podés marcar asistencia desde la cámara web de la PC.
+
+
+┌─────────────────────────────────────────────────────┐
+│  6. VIDEOS DE TÉCNICAS                              │
+└─────────────────────────────────────────────────────┘
+
+En la sección "Videos":
+  - Filtrá por cinturón y categoría (Kids/Juveniles/Adulto)
+  - Solo ves videos correspondientes a tu nivel
+  - Cada video muestra si ya lo viste o no
+  - Los profesores ven todos los videos sin filtro
+
+Tipos de videos:
+  - Subidos desde YouTube (link)
+  - Subidos desde el celular o PC (MP4/MOV, hasta 25MB)
+
+
+┌─────────────────────────────────────────────────────┐
+│  7. NOTIFICACIONES                                  │
+└─────────────────────────────────────────────────────┘
+
+La campanita 🔔 en la esquina superior derecha muestra tus notificaciones:
+  - Cuando se confirma tu pago
+  - Cuando vence tu cuota
+  - Mensajes del admin o profesores
+  - Recordatorios de asistencia
+
+Para activar notificaciones push en el celular:
+  1. Cuando entrés a la app, aceptá permitir notificaciones
+  2. Así recibís avisos aunque no estés en la app
+
+
+┌─────────────────────────────────────────────────────┐
+│  8. TU PERFIL                                       │
+└─────────────────────────────────────────────────────┘
+
+En la sección "Perfil" podés:
+  - Ver y editar tus datos personales
+  - Cambiar tu foto de perfil
+  - Ver tu cinturón y categoría
+  - Cambiar tu contraseña
+  - Cambiar entre tema claro/oscuro
+  - Cerrar sesión
+
+Para recuperar contraseña olvidada:
+  1. En la pantalla de login, tocá "¿Olvidaste tu contraseña?"
+  2. Seguí los pasos para restablecerla
+
+
+┌─────────────────────────────────────────────────────┐
+│  9. MODO OSCURO / CLARO                             │
+└─────────────────────────────────────────────────────┘
+
+Para cambiar el tema de la app:
+  1. Andá a Perfil
+  2. Tocá el botón de tema (🌙/☀️)
+  3. Se cambia automáticamente
+
+
+┌─────────────────────────────────────────────────────┐
+│  10. FUNCIONES ESPECIALES                           │
+└─────────────────────────────────────────────────────┘
+
+📱 Muro de la academia:
+  - Publicá fotos y mensajes
+  - Comentá las publicaciones de otros
+
+🎯 Metas de entrenamiento:
+  - Seteá objetivos de asistencia semanal
+  - Seguí tu progreso
+
+📊 Tu dinero (Profesores):
+  - Ve cuánto cobraste este mes y en total
+  - Historial de pagos recibidos
+
+📋 Ranking:
+  - Ve el ranking de asistencia de todos los alumnos
+
+
+┌─────────────────────────────────────────────────────┐
+│  11. SOLUCIÓN DE PROBLEMAS                          │
+└─────────────────────────────────────────────────────┘
+
+"No me puedo registrar":
+  - Verificá que todos los campos obligatorios estén completos
+  - Si sos menor, es obligatorio el teléfono del tutor
+
+"No me puedo loguear":
+  - Revisá que usuario y contraseña sean correctos
+  - Usá "¿Olvidaste tu contraseña?" si es necesario
+
+"No llegan las notificaciones":
+  - Revisá que hayas aceptado permitir notificaciones
+  - Verificá que la app tenga permisos en tu celular
+
+"El video no carga":
+  - Verificá tu conexión a internet
+  - Si es un link de YouTube, revisá que esté público
+
+
+═══════════════════════════════════════════════════════
+  ¿NECESITÁS AYUDA? Contactá al admin de la academia
+═══════════════════════════════════════════════════════

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ titulo }}</title>
+<meta name="description" content="Academia de Jiu Jitsu en Viedma, Río Negro. Ciencia y Arte del Conocimiento. Profesores, horarios e información.">
+<meta property="og:title" content="{{ titulo }}">
+<meta property="og:description" content="Academia de Jiu Jitsu en Viedma. Profesores, horarios y más.">
+<link rel="icon" href="/static/icons/icon-192.png">
+<meta name="theme-color" content="#160d0f">
+<style>
+  :root {
+    --bg: #160d0f; --bg2: #221315; --card: #271619; --card2: #311b1f;
+    --line: #3d2226; --txt: #f6eded; --muted: #b39a9d;
+    --accent: #d92b3a; --accent2: #ff5a4d; --good: #4ec98a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--txt);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 16px 60px; }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    position: relative; text-align: center; padding: 54px 16px 46px;
+    background: radial-gradient(ellipse 90% 60% at 50% 0%, rgba(217,43,58,.30), rgba(22,13,15,0) 70%), var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  .hero img.logo { width: 108px; height: 108px; object-fit: contain; margin-bottom: 10px; }
+  .hero h1 {
+    margin: 0; font-size: 30px; font-weight: 900; letter-spacing: .5px; line-height: 1.2;
+    text-transform: uppercase;
+  }
+  .hero h1 .de { display: block; font-size: 19px; font-weight: 700; color: var(--accent2); margin-top: 8px; letter-spacing: 2px; }
+  .hero .place {
+    display: inline-block; margin-top: 14px; padding: 6px 14px; border-radius: 999px;
+    background: var(--card2); border: 1px solid var(--line); color: var(--muted);
+    font-size: 13px; font-weight: 600;
+  }
+  .hero .cta { margin-top: 22px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 12px 20px; border-radius: 12px; text-decoration: none;
+    font-weight: 700; font-size: 15px; border: 1px solid transparent; cursor: pointer;
+  }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent2); }
+  .btn.ghost { background: var(--card2); color: var(--txt); border-color: var(--line); }
+  .btn.ghost:hover { border-color: var(--accent); color: var(--accent2); }
+
+  /* ---------- SECCIONES ---------- */
+  section { margin-top: 42px; }
+  .sec-title {
+    font-size: 13px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--accent2); margin: 0 0 4px; text-align: center;
+  }
+  .sec-line { height: 2px; width: 60px; background: var(--accent); margin: 0 auto 20px; border-radius: 2px; }
+  .sec-sub { text-align: center; color: var(--muted); font-size: 14px; margin: 0 0 22px; }
+
+  /* ---------- PROFESORES ---------- */
+  .profes { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+  .profe {
+    background: linear-gradient(180deg, var(--card), rgba(39,22,25,.7));
+    border: 1px solid var(--line); border-radius: 18px; padding: 18px; text-align: center;
+  }
+  .profe .foto {
+    width: 118px; height: 118px; margin: 0 auto 12px; border-radius: 50%;
+    object-fit: cover; border: 3px solid var(--accent); background: var(--card2);
+  }
+  .profe .ini {
+    width: 118px; height: 118px; margin: 0 auto 12px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--card2); border: 3px dashed var(--line);
+    color: var(--muted); font-size: 34px; font-weight: 900;
+  }
+  .profe h3 { margin: 0 0 2px; font-size: 18px; font-weight: 800; }
+  .profe .cinto { color: var(--accent2); font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+  .profe .horarios { text-align: left; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .profe .horarios .h {
+    display: flex; justify-content: space-between; gap: 8px;
+    font-size: 13px; padding: 3px 0; color: var(--txt);
+  }
+  .profe .horarios .h .d { color: var(--muted); }
+  .profe .sin { color: var(--muted); font-size: 13px; font-style: italic; }
+
+  /* ---------- HORARIOS ---------- */
+  .dia {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 14px 16px; margin-bottom: 12px;
+  }
+  .dia h4 {
+    margin: 0 0 8px; font-size: 16px; font-weight: 800; color: var(--accent2);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .clase {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 14px;
+  }
+  .clase:last-child { border-bottom: 0; }
+  .clase .hora { font-weight: 800; min-width: 62px; }
+  .tag {
+    font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px;
+    background: var(--card2); border: 1px solid var(--line); color: var(--muted);
+  }
+  .tag.gi { color: #ff8a80; border-color: rgba(255,138,128,.4); }
+  .tag.nogi { color: #7fc8ff; border-color: rgba(127,200,255,.4); }
+  .clase .nivel { color: var(--muted); }
+  .clase .profe { color: var(--accent2); font-weight: 600; margin-left: auto; }
+
+  /* ---------- INSTAGRAM ---------- */
+  .ig {
+    margin-top: 46px; text-align: center; padding: 34px 20px;
+    background: linear-gradient(135deg, rgba(217,43,58,.22), rgba(49,27,31,.9));
+    border: 1px solid var(--line); border-radius: 22px;
+  }
+  .ig .iglogo { font-size: 42px; line-height: 1; }
+  .ig h3 { margin: 10px 0 4px; font-size: 20px; font-weight: 800; }
+  .ig p { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+  .ig a.ig-btn {
+    display: inline-block; padding: 13px 26px; border-radius: 12px;
+    background: linear-gradient(90deg, #f9ce34, #ee2a7b 45%, #6228d7);
+    color: #fff; font-weight: 800; text-decoration: none; font-size: 15px;
+  }
+  footer { margin-top: 40px; text-align: center; color: var(--muted); font-size: 12.5px; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <img class="logo" src="/static/icons/logo.png" alt="Logo Ikigai">
+    <h1>Ikigai<span class="de">Ciencia y Arte del Conocimiento</span></h1>
+    <h1 style="font-size:22px; margin-top:14px;">JIU JITSU VIEDMA</h1>
+    <div class="place">📍 Viedma, Río Negro</div>
+    <div class="cta">
+      <a class="btn primary" href="#profes">Nuestros profesores</a>
+      <a class="btn ghost" href="#horarios">Ver horarios</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= PROFESORES =================
+       Las fotos salen de lo que cargaste en FOTOS_PROFES (app.py) o, si no,
+       de la foto de perfil del profe en la app. -->
+  <section id="profes">
+    <h2 class="sec-title">Nuestros profesores</h2>
+    <div class="sec-line"></div>
+    <p class="sec-sub">Profesores titulados y con amplia experiencia en el arte marcial.</p>
+    <div class="profes">
+      {% for p in profes %}
+      <div class="profe">
+        {% if p.foto %}
+          <img class="foto" src="{{ p.foto }}" alt="{{ p.nombre }}" loading="lazy">
+        {% else %}
+          <div class="ini">{{ p.iniciales }}</div>
+        {% endif %}
+        <h3>{{ p.nombre }}</h3>
+        {% if p.cinturon %}<div class="cinto">🥋 {{ p.cinturon }}</div>{% endif %}
+        <div class="horarios">
+          {% if p.horarios %}
+            {% for h in p.horarios %}
+            <div class="h"><span class="d">{{ h.dia_nombre }}</span><span>{{ h.hora }} · {{ h.tipo }} · {{ h.nivel }}</span></div>
+            {% endfor %}
+          {% else %}
+            <div class="sin">Horarios a confirmar</div>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="sin">Próximamente cargamos el equipo de profesores.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- ================= HORARIOS ================= -->
+  <section id="horarios">
+    <h2 class="sec-title">Horarios</h2>
+    <div class="sec-line"></div>
+    <p class="sec-sub">Todas las clases con su horario y profesor. ¡Consultá por lugares disponibles!</p>
+    {% for d in dias_horario %}
+    <div class="dia">
+      <h4>{{ d.dia_nombre }}</h4>
+      {% for c in d.clases %}
+      <div class="clase">
+        <span class="hora">{{ c.hora }}</span>
+        <span class="tag {{ 'gi' if c.tipo|lower == 'gi' else ('nogi' if 'nogi' in c.tipo|lower else '') }}">{{ c.tipo }}</span>
+        <span class="nivel">{{ c.nivel }}</span>
+        <span class="profe">{{ c.profesor }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="dia">Los horarios se están actualizando. Escribinos por Instagram para consultarlos.</div>
+    {% endfor %}
+  </section>
+
+  <!-- ================= INSTAGRAM (al final) ================= -->
+  <div class="ig">
+    <div class="iglogo">📷</div>
+    <h3>Seguinos en Instagram</h3>
+    <p>{{ instagram_usuario }} · noticias, clases y más</p>
+    <a class="ig-btn" href="{{ instagram_url }}" target="_blank" rel="noopener">@{{ instagram_usuario|replace('@','') }} en Instagram</a>
+  </div>
+
+  <footer>
+    <p>{{ titulo }} — Viedma, Río Negro</p>
+    <p><a href="/">Ingresar a la app</a></p>
+  </footer>
+</div>
+
+</body>
+</html>

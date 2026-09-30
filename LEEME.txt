@@ -1,0 +1,50 @@
+# IKIGAI VIEDMA - App de pagos, horarios y profesores
+
+App web (PWA) para tu academia de jiu jitsu. Incluye login para **alumnos**, **profesores** y **admin**, cobro de cuota por mes, horarios Gi/NoGi, seguimiento de pagos por profesor y asistencia con marcador.
+
+## Cómo arrancar
+
+1. Doble clic en **`iniciar.bat`**
+2. Se abre el navegador en `http://localhost:5000`
+3. Entrá con el admin: **usuario `admin` · contraseña `admin123`** (cambiala en "Mi perfil")
+
+> Necesitás tener instalado Python 3.10+. El bat instala las dependencias la primera vez.
+
+## Usuarios del sistema
+
+| Rol | Qué puede hacer |
+|-----|-----------------|
+| **Admin** | Todo: crear/eliminar alumnos y profesores, cambiar cuotas, configurar horarios, registrar pagos, ver deudas, notificaciones, configuración de la academia |
+| **Profesor** | Registra su propia cuenta con el **código de la academia** (está en Configuración → admin). Ve sus horarios, alumnos, toma asistencia, registra pagos, **cambia cuotas** y ve **su dinero** (lo que cobró ese mes y en total) |
+| **Alumno** | Se registra solo. Ve su perfil (peso, cinturón/faixa, edad), el **estado de su cuota**, sus pagos y sus asistencias |
+
+## Reglas de negocio implementadas
+
+- **Cuota mensual fija**: se paga una cuota y se puede ir a todos los horarios (Gi y NoGi). Cuando quieras pasarlo a pago por clase, el modelo ya lo soporta (los pagos tienen "concepto").
+- **Cuota**: solo la pueden cambiar **admin o profesor**. Al cambiarla, el alumno recibe una notificación.
+- **Pago**: al registrar un pago se elige **a qué profesor se le pagó**. El profesor recibe una notificación y puede ver su plata (Inicio → "TU dinero").
+- **Deuda**: la app marca quién debe la cuota del mes y permite enviar recordatorios (por alumno o a todos).
+- **Asistencia**: botón para marcar presentes por clase y fecha. Cada alumno lleva su **marcador** (contador de asistencias).
+- **Faixas/cinturones**: adultos (blanco, azul, rosa, púrpura, marrón, negro) y **kids** (gris, amarillo, naranja, verde, blanco).
+- **Notificaciones push**: al pagar o al vencer una cuota se notifica. Hay un **centro de notificaciones** dentro de la app (campana) + notificaciones del navegador.
+
+## Acceso desde el celular (misma red WiFi)
+
+1. Con la app corriendo, desde el celular entrá a `http://192.168.1.26:5000` (o la IP que muestre el bat).
+2. En Chrome/Edge del celular: menú → **"Agregar a pantalla de inicio"** → se instala como app.
+
+> **Importante:** las notificaciones **push reales** y la instalación PWA funcionan a pleno en `localhost` (tu PC). Para que las notificaciones funcionen en el **celular**, la app necesita estar publicada con HTTPS (servicio de hosting). Sin internet/HTTPS, **igual funcionan** todas las notificaciones **dentro de la app** (campana).
+
+## Archivos
+
+- `app.py` — servidor y API (Flask + SQLite)
+- `data.db` — base de datos (se crea sola la primera vez)
+- `templates/` — pantallas
+- `static/` — estilos, scripts, service worker (PWA), iconos con tu logo
+- `iniciar.bat` — lanzador de la app en Windows
+
+## Notas
+
+- Las contraseñas se guardan con hash seguro.
+- Si perdés la contraseña del admin, borrá `data.db` y reiniciá (se recrea admin/admin123).
+- Código de la academia por defecto para que los profes se registren: **BJJ2026** (cambiable en Configuración).

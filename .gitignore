@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Base de datos local (la de producción está en Postgres)
+data.db
+*.db-journal
+
+# Material de la facultad: no es parte de la app
+intro progra/
+TP_Biblioteca/
+
+# APK compilado de otra academia
+*.apk
+
+# Claves (NUNCA subir la clave privada de VAPID a GitHub)
+*.pem
+
+# Credenciales
+.env
+
+# Datos personales / material de trabajo: nunca subirlos al repo.
+# El repo es público: comprobantes de pago con nombre, listados de alumnos,
+# fotos y videos de prueba no tienen que estar en GitHub.
+*.xlsx
+*.xls
+*.docx
+*.mp4
+*.mov
+*.zip
+.DS_Store
+comprobante*.pdf
+comprobante*.jpg
+comprobante*.png
+comprobante*.webp
+
+# Archivos temporales / locales
+cloudflared.exe
+static/uploads/

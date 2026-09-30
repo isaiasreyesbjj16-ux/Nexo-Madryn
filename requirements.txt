@@ -1,0 +1,9 @@
+flask>=3.0
+pymysql
+pillow
+pywebpush
+py-vapid
+cryptography
+psycopg[binary]
+gunicorn
+qrcode

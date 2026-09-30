@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ikigai-viedma
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --workers 1 --threads 4 --timeout 900 --access-logfile -
+    healthCheckPath: /api/vapid_public_key
+    envVars:
+      - key: DB_MODE
+        value: postgres
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false

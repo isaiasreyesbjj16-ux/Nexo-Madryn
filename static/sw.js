@@ -1,5 +1,5 @@
 /* Service worker - Academia */
-const CACHE_NAME = 'nexo-madryn-static-v5';
+const CACHE_NAME = 'nexo-madryn-static-v6';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -41,8 +41,8 @@ self.addEventListener('push', (e) => {
   const options = {
     body: body,
     tag: 'nexo-madryn-' + (data.url || 'general'),
-    icon: '/static/icons/icon-192.png',
-    badge: '/static/icons/icon-192.png',
+    icon: '/static/icons/icon-192.png?v=2',
+    badge: '/static/icons/icon-192.png?v=2',
     vibrate: [200, 100, 200],
     renotify: true,
     data: { url: data.url || '/app' },

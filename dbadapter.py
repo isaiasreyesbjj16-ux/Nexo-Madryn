@@ -14,7 +14,18 @@ try:
 except ImportError:
     HAVE_PG = False
 
-DB_MODE = os.environ.get('DB_MODE', 'sqlite').strip().lower()
+_DB_MODE_ENV = os.environ.get('DB_MODE', '').strip().lower()
+_DB_URL_ENV = os.environ.get('DATABASE_URL', '').strip()
+
+if _DB_MODE_ENV:
+    DB_MODE = _DB_MODE_ENV
+elif _DB_URL_ENV.startswith(('postgres://', 'postgresql://')):
+    # Fallback a prueba de fallos: si hay DATABASE_URL de Postgres pero nadie
+    # seteo DB_MODE, asumimos postgres. Antes caia a sqlite en silencio y los
+    # datos quedaban en el disco efimero de Render (se perdian en cada deploy).
+    DB_MODE = 'postgres'
+else:
+    DB_MODE = 'sqlite'
 
 
 class IntegrityError(Exception):

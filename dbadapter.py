@@ -136,15 +136,23 @@ def _split(script):
 
 
 class Cursor:
-    def __init__(self, cur, sqlite_rows):
+    def __init__(self, cur, sqlite_rows, db=None):
         self._cur = cur
         self._sqlite_rows = sqlite_rows
         self._lastrowid = None
+        self._db = db
+        self._lid = False
 
     def __getattr__(self, name):
         return getattr(self._cur, name)
 
     def execute(self, sql, params=()):
+        # En Postgres, SELECT last_insert_rowid() se traduce a lastval(), que
+        # revienta si todavia no se ejecuto un INSERT ... RETURNING en la sesion.
+        # Se responde con el id cacheado en la conexion para que sea estable.
+        if not self._sqlite_rows and 'last_insert_rowid' in sql and sql.lstrip().upper().startswith('SELECT'):
+            self._lid = True
+            return self
         try:
             if self._sqlite_rows:
                 self._cur.execute(sql, params if params is not None else ())
@@ -184,15 +192,21 @@ class Cursor:
             if HAVE_PG and isinstance(e, psycopg.errors.IntegrityError):
                 raise IntegrityError()
             raise
+        if self._lastrowid is not None and self._db is not None:
+            self._db._last_id = self._lastrowid
         return self
 
     def fetchone(self):
+        if self._lid:
+            return Row({'id': getattr(self._db, '_last_id', None)}, ['id'])
         r = self._cur.fetchone()
         if r is None or self._sqlite_rows:
             return r
         return Row(dict(r), list(r.keys()))
 
     def fetchall(self):
+        if self._lid:
+            return []
         rs = self._cur.fetchall()
         if self._sqlite_rows:
             return rs
@@ -209,9 +223,10 @@ class DB:
     def __init__(self, raw, sqlite_rows):
         self._raw = raw
         self._sqlite_rows = sqlite_rows
+        self._last_id = None
 
     def cursor(self):
-        return Cursor(self._raw.cursor(), self._sqlite_rows)
+        return Cursor(self._raw.cursor(), self._sqlite_rows, self)
 
     def execute(self, sql, params=()):
         return self.cursor().execute(sql, params)

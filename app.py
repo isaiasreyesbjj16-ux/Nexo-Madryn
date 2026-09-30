@@ -2872,6 +2872,11 @@ def api_pagos_create():
     mes, anio, err = validar_mes_anio(mes, anio)
     if err:
         return jsonify({'error': err}), 400
+    who = current_user()
+    # Un profesor no puede registrarse un pago a si mismo: si lo hacia, cada
+    # reenvio del formulario le generaba ingreso de profesor duplicado.
+    if who['role'] != 'admin' and alumno_id == who['id']:
+        return jsonify({'error': 'No podes registrarte un pago a vos mismo. Pedile al administrador que lo cargue.'}), 403
     # profesor_id 0 / -1 / ausente = reparto automático según actividades
     if profesor_id in (None, 0, -1) or data.get('profesor_id') in (None, 0, -1, '0'):
         profesor_id = None
@@ -2880,6 +2885,16 @@ def api_pagos_create():
         monto = final
     else:
         cargo = 0
+    # Doble clic o reenvio del formulario: mismo alumno, mismo mes, mismo monto
+    # final y casi misma hora. Se compara sobre el monto ya ajustado porque es lo
+    # que queda guardado. No bloquea pagos legitimos cargados mas tarde.
+    dup = get_db().execute(
+        "SELECT id FROM pagos WHERE alumno_id=? AND mes=? AND anio=? AND monto=? "
+        "AND registrado_por=? AND fecha >= ? LIMIT 1",
+        (alumno_id, mes, anio, monto, who['id'],
+         (datetime.now() - timedelta(seconds=90)).strftime('%Y-%m-%d %H:%M:%S'))).fetchone()
+    if dup:
+        return jsonify({'error': 'Ese pago recien fue registrado. Mirá el historial antes de volver a cargar.'}), 409
     get_db().execute(
         """INSERT INTO pagos(alumno_id, profesor_id, monto, mes, anio, metodo, concepto, nota, fecha, registrado_por)
            VALUES(?,?,?,?,?,?,?,?,?,?)""",
@@ -2893,7 +2908,6 @@ def api_pagos_create():
     partes = _registrar_reparto(get_db(), pago_id, alumno_id, monto, profesor_id)
     get_db().commit()
     alumno = get_db().execute('SELECT * FROM users WHERE id=?', (alumno_id,)).fetchone()
-    who = current_user()
     nota_extra = f' (incluye ${cargo:,.0f} de recargo por demora).'.replace(',', '.') if cargo else '.'
     # notificaciones: al alumno
     notify(alumno_id, 'Pago registrado',

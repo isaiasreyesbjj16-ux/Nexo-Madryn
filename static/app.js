@@ -1960,6 +1960,8 @@ async function renderPagos(el) {
   mostrarRepartoPrevisto();
   $('#pagoForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) { if (btn.disabled) return; btn.disabled = true; btn.textContent = 'Guardando...'; }
     const body = { alumno_id: +$('#pAlumno').value, profesor_id: +$('#pProfe').value || 0,
       monto: +$('#pMonto').value, metodo: $('#pMetodo').value, mes: +$('#pMes').value,
       anio: +$('#pAnio').value, nota: $('#pNota').value,
@@ -1974,7 +1976,10 @@ async function renderPagos(el) {
       }
       toast(msg);
       renderPagos($('#sec-pagos'));
-    } catch (err) { toast(err.message); }
+    } catch (err) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Registrar pago'; }
+      toast(err.message);
+    }
   });
 }
 async function abrirPagoFamilia() {

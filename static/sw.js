@@ -1,5 +1,5 @@
 /* Service worker - Academia */
-const CACHE_NAME = 'nexo-madryn-static-v1';
+const CACHE_NAME = 'nexo-madryn-static-v2';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();

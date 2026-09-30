@@ -156,6 +156,7 @@ BELTS_KIDS = ['Gris', 'Amarillo', 'Naranja', 'Verde', 'Blanco']
 BELTS_JUV = ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde']
 CATEGORIAS = ['adulto', 'juveniles', 'kids']
 TIPOS_CLASE = ['Gi', 'NoGi', 'Kids', 'Juveniles', 'Abierto']
+ACTIVIDADES = ['Gi', 'NoGi', 'JJ Kids', 'MMA', 'Muay Thai']
 METODOS_PAGO = ['Efectivo', 'Transferencia', 'Débito', 'Crédito', 'Otro']
 DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 MESES_NOMBRE = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
@@ -231,6 +232,7 @@ CREATE TABLE IF NOT EXISTS users (
     cinturon TEXT,
     categoria TEXT DEFAULT 'adulto',
     gi_pref TEXT DEFAULT 'Ambas',
+    actividades TEXT,
     cuota_mensual REAL,
     tel TEXT,
     nacimiento TEXT,
@@ -567,7 +569,8 @@ def _init_db_body(db):
                      ('medic_enfermedades', 'TEXT'), ('medic_alergias', 'TEXT'), ('medic_medicacion', 'TEXT'),
                      ('medic_lesiones', 'TEXT'), ('ficha_fecha', 'TEXT'),
                      ('firma_tyc', 'TEXT'), ('firma_foto', 'TEXT'), ('firma_fecha', 'TEXT'),
-                     ('pausa_desde', 'TEXT'), ('pausa_hasta', 'TEXT'), ('beca', 'INTEGER DEFAULT 0')]:
+                     ('pausa_desde', 'TEXT'), ('pausa_hasta', 'TEXT'), ('beca', 'INTEGER DEFAULT 0'),
+                     ('actividades', 'TEXT')]:
         if col not in cols:
             c.execute('ALTER TABLE users ADD COLUMN %s %s' % (col, ddl))
     try:
@@ -1179,6 +1182,7 @@ def user_public(u):
         'cinturon': u['cinturon'],
         'categoria': u['categoria'],
         'gi_pref': u['gi_pref'],
+        'actividades': (u['actividades'] or '') if 'actividades' in u.keys() else '',
         'cuota_mensual': u['cuota_mensual'],
         'foto': u['foto'] if 'foto' in u.keys() else None,
         'tel': u['tel'] if 'tel' in u.keys() else None,
@@ -1454,7 +1458,8 @@ def api_perfil_desactivar():
 def index():
     if 'user_id' in session:
         return redirect(url_for('app_page'))
-    return render_template('login.html', academy_name=get_setting('academy_name'))
+    return render_template('login.html', academy_name=get_setting('academy_name'),
+                           actividades=ACTIVIDADES)
 
 
 @app.route('/sw.js')
@@ -1475,7 +1480,8 @@ def app_page():
     return render_template('dashboard.html', user=user_public(u), belts_adult=BELTS_ADULT,
                            belts_kids=BELTS_KIDS, belts_juveniles=BELTS_JUV, categorias=CATEGORIAS,
                            tipos_clase=TIPOS_CLASE, metodos=METODOS_PAGO,
-                           dias=DIAS, academy_name=get_setting('academy_name'))
+                           dias=DIAS, academy_name=get_setting('academy_name'),
+                           actividades=ACTIVIDADES)
 
 
 # =============================================================================
@@ -1510,6 +1516,22 @@ DIRECCION = 'Puerto Madryn, Chubut, Argentina'
 #  Ej: '54292123456789'. Si queda vacio, el boton de WhatsApp NO se muestra.
 WHATSAPP_NUMERO = ''
 #  ###############################################################################
+
+
+def _actividades_csv(data):
+    """Convierte actividades (lista JSON o 'a,b,c' o None) en CSV sin duplicados."""
+    raw = data.get('actividades')
+    items = []
+    if isinstance(raw, list):
+        items = raw
+    elif isinstance(raw, str) and raw.strip():
+        items = [x.strip() for x in raw.split(',')]
+    seen = []
+    for x in items:
+        x = x.strip()
+        if x and x not in seen:
+            seen.append(x)
+    return ','.join(seen)
 
 
 def _norm_txt(s):
@@ -1846,12 +1868,13 @@ def api_register():
 
     try:
         get_db().execute(
-            """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, cuota_mensual, tel, nacimiento, medic_info, emergency_contact, tel_tutor, tel_2, direccion, dni, foto_ok, acepto_tyc, firma_tyc, firma_foto, firma_fecha, creado)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, actividades, cuota_mensual, tel, nacimiento, medic_info, emergency_contact, tel_tutor, tel_2, direccion, dni, foto_ok, acepto_tyc, firma_tyc, firma_foto, firma_fecha, creado)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (username, generate_password_hash(password), role, nombre,
              to_int(data.get('edad')), to_float(data.get('peso')),
              data.get('cinturon'), categoria,
              data.get('gi_pref') or 'Ambas',
+             _actividades_csv(data),
              cuota_reg,
              txt_str(data.get('tel')) or None,
              txt_str(data.get('nacimiento')) or None,
@@ -2041,12 +2064,12 @@ def api_alumnos_create():
     except ValueError:
         return jsonify({'error': 'Fecha de nacimiento inválida (formato AAAA-MM-DD).'}), 400
     get_db().execute(
-        """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, cuota_mensual, nacimiento, creado)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+        """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, actividades, cuota_mensual, nacimiento, creado)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (username, generate_password_hash(password), 'alumno', nombre,
          to_int(data.get('edad')), to_float(data.get('peso')),
          data.get('cinturon'), data.get('categoria') or 'adulto',
-         data.get('gi_pref') or 'Ambas', cuota, nacimiento,
+         data.get('gi_pref') or 'Ambas', _actividades_csv(data), cuota, nacimiento,
          datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     get_db().commit()
     new_id = get_db().execute('SELECT last_insert_rowid() AS id').fetchone()['id']
@@ -2068,10 +2091,11 @@ def api_alumnos_update(uid):
         except ValueError:
             return jsonify({'error': 'Fecha de nacimiento inválida (formato AAAA-MM-DD).'}), 400
     get_db().execute(
-        """UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, activo=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, pausa_desde=?, pausa_hasta=? WHERE id=?""",
+        """UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, activo=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, pausa_desde=?, pausa_hasta=? WHERE id=?""",
         ((data.get('nombre') or u['nombre']), to_int(data.get('edad', u['edad'])),
          to_float(data.get('peso', u['peso'])), data.get('cinturon', u['cinturon']),
          data.get('categoria', u['categoria']), data.get('gi_pref', u['gi_pref']),
+         _actividades_csv(data),
          1 if data.get('activo', u['activo']) else 0,
          txt_str(data.get('tel', u['tel'])) or None,
          nac_upd or None,
@@ -2546,12 +2570,12 @@ def api_familia_hijo_alta():
     db = get_db()
     try:
         cur = db.execute(
-            """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, cuota_mensual, tel, nacimiento, medic_info, emergency_contact, tel_tutor, tel_2, direccion, dni, foto_ok, acepto_tyc, firma_tyc, firma_foto, firma_fecha, creado)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, actividades, cuota_mensual, tel, nacimiento, medic_info, emergency_contact, tel_tutor, tel_2, direccion, dni, foto_ok, acepto_tyc, firma_tyc, firma_foto, firma_fecha, creado)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (username, generate_password_hash(password), 'alumno', nombre,
              to_int(data.get('edad')), to_float(data.get('peso')),
              data.get('cinturon') or 'Blanco', categoria,
-             data.get('gi_pref') or 'Ambas', cuota_menor,
+             data.get('gi_pref') or 'Ambas', _actividades_csv(data), cuota_menor,
              None, nacimiento,
              txt_str(data.get('medic_info')) or None,
              txt_str(data.get('emergency_contact')) or None,
@@ -3476,10 +3500,10 @@ def api_perfil_update():
         except ValueError:
             return jsonify({'error': 'Fecha de nacimiento inválida (formato AAAA-MM-DD).'}), 400
     get_db().execute(
-        'UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, medic_enfermedades=?, medic_alergias=?, medic_medicacion=?, medic_lesiones=?, ficha_fecha=? WHERE id=?',
+        'UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, medic_enfermedades=?, medic_alergias=?, medic_medicacion=?, medic_lesiones=?, ficha_fecha=? WHERE id=?',
         ((data.get('nombre') or u['nombre']), to_int(data.get('edad', u['edad'])),
          to_float(data.get('peso', u['peso'])), data.get('cinturon', u['cinturon']),
-         cat, data.get('gi_pref', u['gi_pref']),
+         cat, data.get('gi_pref', u['gi_pref']), _actividades_csv(data),
          txt_str(data.get('tel', u['tel'])) or None,
          nac_upd or None,
          data.get('medic_info', u['medic_info']),

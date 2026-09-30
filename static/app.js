@@ -1,5 +1,6 @@
 /* Academia BJJ - app.js */
 const BELTS_ADULT = window.BELTS_ADULT || ['Blanco', 'Azul', 'Púrpura', 'Marrón', 'Negro'];
+const TIPOS_ACTIVIDAD = window.ACTIVIDADES || ['Gi', 'NoGi', 'JJ Kids', 'MMA', 'Muay Thai'];
 const BELTS_KIDS = window.BELTS_KIDS || ['Gris', 'Amarillo', 'Naranja', 'Verde', 'Blanco'];
 const BELTS_JUV = window.BELTS_JUV || ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde'];
 const catLabel = (c) => esc({ adulto: 'Adulto', juveniles: 'Juveniles', kids: 'Kids' })[c] || esc(c);
@@ -319,7 +320,8 @@ function initLogin() {
         password: $('#regAlumnoPass').value, nombre: $('#regAlumnoNombre').value.trim(),
         edad: $('#regAlumnoEdad').value, peso: $('#regAlumnoPeso').value, nacimiento: $('#regAlumnoNac').value,
         categoria: cat, cinturon: $('#regAlumnoCinturon').value,
-        gi_pref: $('#regAlumnoGi').value, tel: $('#regAlumnoTel')?.value || '',
+        actividades: $$('input[name="actividad"]:checked').map(x => x.value),
+        tel: $('#regAlumnoTel')?.value || '',
         dni: $('#regAlumnoDni')?.value.trim() || '', direccion: $('#regAlumnoDir')?.value.trim() || '',
         tel_tutor: $('#regAlumnoTelTutor')?.value || '', tel_2: $('#regAlumnoTel2')?.value || '',
         foto_ok: !!($('#regAlumnoFoto')?.checked || false),
@@ -1426,10 +1428,10 @@ async function renderPerfil(el) {
             ${CATEGORIAS.map(c => `<option value="${c}" ${c === cat ? 'selected' : ''}>${catLabel(c)}</option>`).join('')}</select></div>
           <div class="field"><label>Cinturón / Faixa</label><select id="pCinturon">
             ${belts.map(b => `<option ${b === me.cinturon ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
-          <div class="field"><label>Modalidad</label><select id="pGi">
-            <option ${me.gi_pref === 'Ambas' ? 'selected' : ''}>Ambas</option>
-            <option ${me.gi_pref === 'Gi' ? 'selected' : ''}>Gi</option>
-            <option ${me.gi_pref === 'NoGi' ? 'selected' : ''}>NoGi</option></select></div>
+          <div class="field" style="grid-column:1/-1"><label>Actividades</label>
+            <div class="chips">
+              ${TIPOS_ACTIVIDAD.map(ac => `<label class="chip"><input type="checkbox" name="pAct" value="${ac}" ${(me.actividades || '').split(',').map(s => s.trim()).includes(ac) ? 'checked' : ''}><span>${ac}</span></label>`).join('')}
+            </div>
           <div class="field"><label>Cambiar contraseña (opcional)</label><input type="password" id="pPass" placeholder="Nueva contraseña"></div>
           <div class="field" style="grid-column:1/-1"><label>🩺 Ficha médica (opcional)</label><textarea id="pMedic" rows="2" placeholder="Lesiones, alergias, medicación, operaciones...">${esc(me.medic_info || '')}</textarea></div>
           ${cat === 'kids' || cat === 'juveniles' ? `<div class="field" style="grid-column:1/-1"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -1524,7 +1526,8 @@ async function renderPerfil(el) {
       await api('/api/perfil', { method: 'PUT', body: {
         nombre: $('#pNombre').value.trim(), edad: $('#pEdad').value,
         peso: $('#pPeso').value, cinturon: $('#pCinturon').value,
-        categoria: $('#pCat').value, gi_pref: $('#pGi').value,
+        categoria: $('#pCat').value,
+        actividades: $$('input[name="pAct"]:checked').map(x => x.value),
         tel: $('#pTel').value, nacimiento: $('#pNac').value,
         medic_info: $('#pMedic')?.value || '', emergency_contact: $('#pEmer').value,
         medic_enfermedades: $('#pMedEnf')?.value || '', medic_alergias: $('#pMedAlergias')?.value || '',
@@ -1621,6 +1624,10 @@ function abrirAltaHijo() {
         <option value="juveniles">Juveniles</option></select></div>
       <div class="field"><label>Cinturón / Faixa</label><select id="hBelt">
         ${BELTS_ADULT.map(b => `<option>${esc(b)}</option>`).join('')}</select></div>
+      <div class="field" style="grid-column:1/-1"><label>Actividades</label>
+        <div class="chips">
+          ${TIPOS_ACTIVIDAD.map(ac => `<label class="chip"><input type="checkbox" name="hAct" value="${ac}"><span>${ac}</span></label>`).join('')}
+        </div>
       <div class="field" style="grid-column:1/-1"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
         <input type="checkbox" id="hFotoOk" style="width:18px;height:18px">
         <span>Autorizo como mayor/padre/madre que <b>las fotos de este/a menor puedan ser expuestas</b> (redes y muro). <span style="color:#ff9b8f">(obligatorio)</span></span></label></div>
@@ -1651,7 +1658,8 @@ function abrirAltaHijo() {
         categoria: $('#hCat').value, cinturon: $('#hBelt').value,
         nacimiento: $('#hNac').value,
         foto_ok: $('#hFotoOk').checked, firma_tyc: $('#hFirmaTyC').value.trim(),
-        firma_foto: $('#hFirmaFoto').value.trim() } });
+        firma_foto: $('#hFirmaFoto').value.trim(),
+        actividades: $$('input[name="hAct"]:checked').map(x => x.value) } });
       closeModal(); toast('Cuenta del menor creada y vinculada ✓');
       renderMiFamilia($('#miFamiliaCard'));
     } catch (err) { toast(err.message); }
@@ -2269,7 +2277,7 @@ async function renderAlumnos(el) {
       <div class="al-nombre">${esc(a.nombre)}${a.role === 'profesor' ? '<span class="tag profesor">🧑‍🏫 Profesor</span>' : ''}${a.activo ? '' : '<div><span class="tag tag-deuda">inactivo</span></div>'}</div>
       <div class="small" style="margin-top:4px">👤 @${esc(a.username || '—')}</div>
       <div class="small" style="margin-top:4px">${beltHTML(a.cinturon)} · ${a.edad != null ? a.edad + ' años' : '—'}</div>
-      <div class="small">Modalidad: <span class="tag ${(a.gi_pref || 'Ambas').toLowerCase()}">${esc(a.gi_pref || 'Ambas')}</span></div>
+      <div class="small">Actividades: ${(a.actividades || (a.gi_pref === 'Gi' ? 'Gi' : a.gi_pref === 'NoGi' ? 'NoGi' : '')).split(',').filter(Boolean).map(x => `<span class="tag gi">${esc(x.trim())}</span>`).join(' ') || '—'}</div>
       ${a.role === 'profesor' ? `<div class="small">🧑‍🏫 <b>Profesor</b> · no paga cuota</div>` : a.beca ? `<div class="small">🎖 <b>Becado</b> · no paga cuota</div>` : `<div class="small">Cuota: <b>$${num(a.familia ? a.familia.cuota_final : a.cuota_mensual)}</b> · <span class="tag ${cls}">${lbl}</span></div>`}
       ${a.familia ? `<div class="small">👨‍👩‍👧 <b>${esc(a.familia.nombre)}</b> ${a.familia.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}${a.familia.descuento ? `<span class="tag tag-por-vencer">ahorra $${num(a.familia.descuento)}</span>` : ''}</div>` : ''}
       ${a.en_pausa ? `<div class="small"><span class="tag tag-por-vencer">⏸ En pausa${a.pausa_hasta ? ' hasta ' + esc(a.pausa_hasta) : ''}</span></div>` : ''}
@@ -2467,8 +2475,10 @@ async function formAlumno(id) {
       <div class="field"><label>Fecha de nacimiento</label><input type="date" id="aNac" value="${a.nacimiento || ''}"></div>
       <div class="field"><label>Categoría</label><select id="aCat">${CATEGORIAS.map(c => `<option value="${c}" ${a.categoria === c ? 'selected' : ''}>${catLabel(c)}</option>`).join('')}</select></div>
       <div class="field"><label>Cinturón</label><select id="aCinturon"></select></div>
-      <div class="field"><label>Modalidad</label><select id="aGi">
-        ${['Ambas', 'Gi', 'NoGi'].map(g => `<option ${a.gi_pref === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div>
+      <div class="field" style="grid-column:1/-1"><label>Actividades</label>
+        <div class="chips">
+          ${TIPOS_ACTIVIDAD.map(ac => `<label class="chip"><input type="checkbox" name="actAct" value="${ac}" ${(a.actividades || '').split(',').map(s => s.trim()).includes(ac) ? 'checked' : ''}><span>${ac}</span></label>`).join('')}
+        </div>
       <div class="field"><label>Cuota mensual ($)</label><input type="number" step="0.01" id="aCuota" value="${a.cuota_mensual != null ? a.cuota_mensual : ''}" disabled></div>
       <div class="field"><label>⏸ Pausa desde (fechas vacías = sin pausa)</label><input type="date" id="aPausaDesde" value="${a.pausa_desde || ''}"></div>
       <div class="field"><label>⏸ Pausa hasta</label><input type="date" id="aPausaHasta" value="${a.pausa_hasta || ''}"></div>
@@ -2489,7 +2499,8 @@ async function formAlumno(id) {
   $('#alForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const body = { nombre: $('#aNombre').value.trim(), edad: $('#aEdad').value, peso: $('#aPeso').value,
-      cinturon: $('#aCinturon').value, categoria: $('#aCat').value, gi_pref: $('#aGi').value,
+      cinturon: $('#aCinturon').value, categoria: $('#aCat').value,
+      actividades: $$('input[name="actAct"]:checked').map(x => x.value),
       tel: $('#aTel').value, nacimiento: $('#aNac').value,
       medic_info: $('#aMedic').value, emergency_contact: $('#aEmer').value,
       tel_tutor: $('#aTutor')?.value || '', tel_2: $('#aTel2')?.value || '',

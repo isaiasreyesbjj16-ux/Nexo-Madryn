@@ -7,7 +7,7 @@
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#11151c">
 <link rel="icon" href="/static/icons/icon-192.png">
-<link rel="stylesheet" href="/static/style.css?v=31">
+<link rel="stylesheet" href="/static/style.css?v=32">
 </head>
 <body class="login-body">
 
@@ -67,12 +67,16 @@
         <div class="field"><label>Cinturón / Faixa</label>
           <select id="regAlumnoCinturon"></select></div>
       </div>
-      <div class="field"><label>Modalidad</label>
-        <select id="regAlumnoGi">
-          <option value="Ambas">Ambas (Gi y NoGi)</option>
-          <option value="Gi">Solo Gi</option>
-          <option value="NoGi">Solo NoGi</option>
-        </select></div>
+      <div class="field" style="grid-column:1/-1"><label>Actividades</label>
+        <div class="chips">
+          {% for a in actividades %}
+          <label class="chip">
+            <input type="checkbox" name="actividad" value="{{ a }}">
+            <span>{{ a }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <p class="small" style="color:var(--muted)">Elegí una o más actividades. Con 2 o más tenés descuento.</p>
       <div class="field"><label>📱 Tu teléfono (opcional)</label>
         <input type="tel" id="regAlumnoTel" placeholder="Ej: 299 1234567"></div>
       <div id="tutorFields" style="display:none">
@@ -196,6 +200,6 @@
   <a href="/presentacion" style="color:var(--muted);font-size:13.5px;text-decoration:none">presentación</a>
 </div>
 
-<script src="/static/app.js?v=36"></script>
+<script src="/static/app.js?v=37"></script>
 </body>
 </html>

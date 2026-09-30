@@ -240,6 +240,18 @@ body {
 .chip:active { transform: scale(.94); }
 .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .chip:hover { border-color: var(--accent); color: var(--accent2); box-shadow: 0 4px 14px rgba(224,46,46,.25); }
+.chips .chip input { display: none; }
+.chips .chip input:checked + span {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+  padding: 8px 14px; border-radius: 22px;
+}
+.chips .chip { background: none; border: none; padding: 0; }
+.chips .chip span {
+  background: var(--card2); border: 1px solid var(--line); color: var(--txt);
+  padding: 8px 14px; border-radius: 22px; display: inline-block; font-size: 13px; font-weight: 600;
+  transition: background .12s, border-color .15s, color .12s;
+}
+.chips .chip span:hover { border-color: var(--accent); color: var(--accent2); }
 .sec-grupo { margin-bottom: 16px; }
 .sec-grupo .gr-header {
   font-size: 15px; font-weight: 700; color: var(--accent2);

@@ -7,7 +7,7 @@
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#140d18">
 <link rel="icon" href="/static/icons/icon-192.png">
-<link rel="stylesheet" href="/static/style.css?v=33">
+<link rel="stylesheet" href="/static/style.css?v=34">
 </head>
 <body class="login-body">
 
@@ -151,6 +151,14 @@
         <div class="field"><label>Cinturón / Faixa</label>
           <select id="regProfeCinturon"></select></div>
       </div>
+      <div class="field" style="grid-column:1/-1"><label>Actividades que dictás</label>
+        <div class="chips">
+          {% for a in actividades %}
+          <label class="chip"><input type="checkbox" name="actividadProfe" value="{{ a }}"><span>{{ a }}</span></label>
+          {% endfor %}
+        </div>
+        <p class="small" style="color:var(--muted)">Elegí una o más actividades que enseñás. Con 2 o más tenés descuento en la cuota.</p>
+      </div>
       <div class="field" style="grid-column:1/-1">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="checkbox" id="regProfeTyC" style="width:18px;height:18px" required>
@@ -201,6 +209,6 @@
   <a href="/presentacion" style="color:var(--muted);font-size:13.5px;text-decoration:none">presentación</a>
 </div>
 
-<script src="/static/app.js?v=38"></script>
+<script src="/static/app.js?v=39"></script>
 </body>
 </html>

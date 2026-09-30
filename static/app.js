@@ -340,6 +340,7 @@ function initLogin() {
         password: $('#regProfePass').value, nombre: $('#regProfeNombre').value.trim(),
         codigo: $('#regProfeCodigo').value.trim(), edad: $('#regProfeEdad').value,
         nacimiento: $('#regProfeNac').value, peso: $('#regProfePeso').value, cinturon: $('#regProfeCinturon').value,
+        actividades: $$('input[name="actividadProfe"]:checked').map(c => c.value).join(','),
         acepto_tyc: !!($('#regProfeTyC')?.checked || false) } });
       if (d.ok) location.href = '/app';
     } catch (err) { msgShow(m, err.message, false); }

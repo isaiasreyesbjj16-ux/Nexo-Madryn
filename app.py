@@ -56,7 +56,12 @@ def _compress_response(rv):
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['DATABASE'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data.db')
 app.config['MAX_CONTENT_LENGTH'] = 150 * 1024 * 1024
-MAX_VIDEO_BYTES = 150 * 1024 * 1024
+# Techo de subida. Sin Supabase Storage configurado el video se guarda como
+# base64 en Postgres (~1.33x) y _video_range_response lo carga entero en RAM
+# para servir los rangos: con 150MB eso son ~200MB por request y el proceso
+# muere en una instancia de 512MB. 50MB es el limite de la rama de Storage,
+# asi que todo lo que entra queda en la base sin tocar Supabase.
+MAX_VIDEO_BYTES = 50 * 1024 * 1024
 
 # ---------------------------------------------------------------------------
 # Supabase Storage (híbrido: videos cortos → Storage; largos → base64 en DB)
@@ -212,10 +217,10 @@ BJJ_PESOS = {
     'adulto': {
         'M': {'gi': [('Galo', 57.50), ('Pluma', 64.00), ('Pena', 70.00), ('Leve', 76.00),
                      ('Medio', 82.30), ('Meio-Pesado', 88.30), ('Pesado', 94.30),
-                     ('Super Pesado', 100.50), ('Pesadissimo', None)],
+                     ('Super Pesado', 100.50), ('Pesadíssimo', None)],
               'nogi': [('Galo', 55.50), ('Pluma', 61.50), ('Pena', 67.50), ('Leve', 73.50),
                        ('Medio', 79.50), ('Meio-Pesado', 85.50), ('Pesado', 91.50),
-                       ('Super Pesado', 97.50), ('Pesadissimo', None)]},
+                       ('Super Pesado', 97.50), ('Pesadíssimo', None)]},
         'F': {'gi': [('Galo', 48.50), ('Pluma', 53.50), ('Pena', 58.50), ('Leve', 64.00),
                      ('Medio', 69.00), ('Meio-Pesado', 74.00), ('Pesado', 79.30),
                      ('Super Pesado', None)],
@@ -226,10 +231,10 @@ BJJ_PESOS = {
     'juvenil': {
         'M': {'gi': [('Galo', 53.50), ('Pluma', 58.50), ('Pena', 64.00), ('Leve', 69.00),
                      ('Medio', 74.00), ('Meio-Pesado', 79.30), ('Pesado', 84.30),
-                     ('Super Pesado', 89.30), ('Pesadissimo', None)],
+                     ('Super Pesado', 89.30), ('Pesadíssimo', None)],
               'nogi': [('Galo', 51.50), ('Pluma', 56.50), ('Pena', 61.50), ('Leve', 66.50),
                        ('Medio', 71.50), ('Meio-Pesado', 76.50), ('Pesado', 81.50),
-                       ('Super Pesado', 86.50), ('Pesadissimo', None)]},
+                       ('Super Pesado', 86.50), ('Pesadíssimo', None)]},
         'F': {'gi': [('Galo', 44.30), ('Pluma', 48.30), ('Pena', 52.50), ('Leve', 56.50),
                      ('Medio', 60.50), ('Meio-Pesado', 65.00), ('Pesado', 69.00),
                      ('Super Pesado', None)],
@@ -361,6 +366,13 @@ def close_db(exc):
 
 
 SCHEMA = """
+-- Marca de version del esquema: si la huella guardada coincide con la del
+-- codigo actual, init_db() se salta los ~62 CREATE ... IF NOT EXISTS.
+CREATE TABLE IF NOT EXISTS schema_meta (
+    clave VARCHAR(64) PRIMARY KEY,
+    valor VARCHAR(64)
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     k VARCHAR(100) PRIMARY KEY,
     value TEXT
@@ -704,6 +716,36 @@ CREATE INDEX IF NOT EXISTS idx_grados_alumno ON grados(alumno_id);
 """
 
 
+def _schema_version():
+    """Huella del esquema + de las migraciones.
+
+    Sale del source de _init_db_body y de SCHEMA, asi que cualquier cambio en una
+    migracion futura invalida la version solo: no hay que acordarse de bumpear un
+    numero a mano. Si no se puede leer el source (deploy empaquetado, zip, etc)
+    devuelve None y se corre todo, que es el comportamiento de siempre.
+    """
+    import hashlib
+    import inspect
+    try:
+        src = inspect.getsource(_init_db_body) + SCHEMA
+    except Exception:
+        return None
+    return hashlib.sha256(src.encode('utf-8')).hexdigest()[:16]
+
+
+def _schema_version_stored(db):
+    try:
+        row = db.execute("SELECT valor FROM schema_meta WHERE clave='version'").fetchone()
+    except Exception:
+        return None
+    if not row:
+        return None
+    try:
+        return row['valor']
+    except Exception:
+        return row[0]
+
+
 def init_db():
     if DB_MODE == 'postgres':
         db = dbadapter.connect_postgres()
@@ -714,7 +756,20 @@ def init_db():
     # try/finally: antes la conexion solo se cerraba al final del camino feliz y
     # cualquier error en una migracion la dejaba abierta (fuga + pool agotado).
     try:
+        ver = _schema_version()
+        # Contra Postgres/MySQL los ~62 CREATE ... IF NOT EXISTS viajan uno por
+        # uno (executescript no batchea), o sea ~62 round-trips en cada arranque.
+        # Con la version ya aplicada nos salteamos todo eso.
+        if ver and ver == _schema_version_stored(db):
+            return
         _init_db_body(db)
+        if ver:
+            try:
+                db.execute('INSERT OR REPLACE INTO schema_meta(clave, valor) VALUES(?,?)',
+                           ('version', ver))
+                db.commit()
+            except Exception:
+                pass
     finally:
         try:
             db.close()

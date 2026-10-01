@@ -1,3 +1,5 @@
+import gzip
+from io import BytesIO
 import os
 import io
 import re
@@ -19,6 +21,26 @@ import dbadapter
 from dbadapter import DB_MODE
 
 app = Flask(__name__)
+
+def _compress_response(rv):
+    try:
+        if getattr(rv, 'direct_passthrough', False):
+            return rv
+        data = rv.get_data()
+        if len(data) < 500:
+            return rv
+        accept = request.headers.get('Accept-Encoding', '')
+        if 'gzip' in accept.lower():
+            gz = BytesIO()
+            with gzip.GzipFile(fileobj=gz, mode='wb', compresslevel=6) as f:
+                f.write(data)
+            rv.set_data(gz.getvalue())
+            rv.headers['Content-Encoding'] = 'gzip'
+            rv.headers['Content-Length'] = str(len(rv.data))
+            rv.headers['Vary'] = 'Accept-Encoding'
+    except Exception:
+        pass
+    return rv
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['DATABASE'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data.db')
 app.config['MAX_CONTENT_LENGTH'] = 150 * 1024 * 1024
@@ -5839,3 +5861,21 @@ def api_bjj_calcular():
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)),
             debug=os.environ.get('FLASK_DEBUG', '0') == '1')
+
+
+@app.after_request
+def _after_req(resp):
+    try:
+        path = request.path
+        if path.startswith('/static/'):
+            # cache agresivo para assets versionados (tienen ?v=) o largos TTL
+            qs = request.query_string.decode('utf-8', errors='ignore')
+            if 'v=' in qs:
+                resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            else:
+                resp.headers['Cache-Control'] = 'public, max-age=86400'
+        else:
+            resp.headers.setdefault('Cache-Control', 'no-store, max-age=0')
+    except Exception:
+        pass
+    return _compress_response(resp)

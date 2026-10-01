@@ -3435,7 +3435,7 @@ async function renderMuro(el) {
           </div>
           ${p.texto ? `<p style="margin:8px 0">${esc(p.texto)}</p>` : ''}
           ${p.video ? muroVideoHTML(p.video) : ''}
-          ${(p.fotos || []).length ? `<div style="display:flex;flex-wrap:wrap;gap:6px">${p.fotos.slice(0,4).map(f => `<img loading="lazy" decoding="async" src="${esc(f)}" style="max-width:150px;max-height:150px;border-radius:8px;object-fit:cover;cursor:pointer" onclick="verFoto(this.src)">`).join('')}</div>` : ''}
+          ${(p.fotos || []).length ? `<div style="display:flex;flex-wrap:wrap;gap:10px">${p.fotos.slice(0,4).map(f => `<img loading="lazy" decoding="async" src="${esc(f)}" style="max-width:150px;max-height:150px;border-radius:8px;object-fit:cover;cursor:pointer" onclick="verFoto(this.src)">`).join('')}</div>` : ''}
         </div>`).join('') : '<div class="empty">Todavía no hay publicaciones.</div>'}
     </div>`;
 }
@@ -3524,7 +3524,7 @@ async function renderGaleria(el) {
   el.innerHTML = `
     ${secHeader('🖼️ Galería de fotos')}
     <div class="card">${fotos.length
-      ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">${fotos.map(x => `<div style="position:relative"><img loading="lazy" decoding="async" src="${esc(x.f)}" style="width:100%;height:120px;object-fit:cover;border-radius:10px;cursor:pointer" onclick="verFoto(this.src)"><span class="small" style="position:absolute;bottom:4px;left:6px;color:#fff;text-shadow:0 1px 2px #000">${esc(x.n)}</span></div>`).join('')}</div>`
+      ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">${fotos.map(x => `<div style="position:relative"><img loading="lazy" decoding="async" src="${esc(x.f)}" style="width:100%;height:120px;object-fit:cover;border-radius:10px;cursor:pointer" onclick="verFoto(this.src)"><span class="small" style="position:absolute;bottom:4px;left:6px;color:#fff;text-shadow:0 1px 2px #000">${esc(x.n)}</span></div>`).join('')}</div>`
       : '<div class="empty">Aún no hay fotos. Publicá una en el Muro 🖼️</div>'}</div>`;
 }
 
@@ -3656,7 +3656,7 @@ async function renderEventos(el) {
         <div class="field" style="grid-column:1/-1"><label>Descripción</label><textarea id="vDesc" style="width:100%;min-height:60px"></textarea></div>
         <div class="field" style="grid-column:1/-1"><label>Foto del evento / flyer (hasta 5)</label>
           <input type="file" id="vFotos" accept="image/*" multiple>
-          <div class="flex wrap mt" id="vFotosPre" style="gap:6px"></div>
+          <div class="flex wrap mt" id="vFotosPre" style="gap:10px"></div>
           <small class="hint">Subí el cartel o flyer del evento. Queda visible para todos.</small>
         </div>
         <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Publicar evento</button></div>
@@ -3669,7 +3669,7 @@ async function renderEventos(el) {
             <b>${esc(ev.titulo)}</b>
             <div class="small" style="color:var(--muted)">${esc(ev.fecha_evento)}${ev.hora ? ' · ' + esc(ev.hora) : ''}${ev.lugar ? ' · ' + esc(ev.lugar) : ''}</div>
             ${ev.descripcion ? `<div class="small">${esc(ev.descripcion)}</div>` : ''}
-            ${ev.fotos && ev.fotos.length ? `<div class="flex wrap mt" style="gap:6px">${ev.fotos.map((f, i) => `<img src="${esc(f)}" data-foto-ev="${ev.id}" data-foto-i="${i}" onclick="abrirFotoEvento(this)" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer" title="Ver foto">`).join('')}</div>` : ''}
+            ${ev.fotos && ev.fotos.length ? `<div class="flex wrap mt" style="gap:10px">${ev.fotos.map((f, i) => `<img src="${esc(f)}" data-foto-ev="${ev.id}" data-foto-i="${i}" onclick="abrirFotoEvento(this)" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer" title="Ver foto">`).join('')}</div>` : ''}
             <div class="small" style="color:var(--muted)">👥 ${ev.asisten_conf} confirmaron</div>
           </div>
           <span>

@@ -1,5 +1,5 @@
 /* Service worker - Academia */
-const CACHE_NAME = 'nexo-madryn-static-v17';
+const CACHE_NAME = 'nexo-madryn-static-v18';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -21,6 +21,9 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
   if (url.pathname.startsWith('/static/uploads/')) return;
+  // assets versionados (?v=N): el navegador ya los cachea con immutable.
+  // interceptedolos con network-first solo agregaba latencia.
+  if (url.pathname.startsWith('/static/') && url.searchParams.has('v')) return;
   e.respondWith(
     fetch(req).then((res) => {
       const copy = res.clone();

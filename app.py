@@ -22,25 +22,37 @@ from dbadapter import DB_MODE
 
 app = Flask(__name__)
 
+# Solo texto: comprimir imagenes o video es CPU gastada al pedo (ya van comprimidos).
+_COMPRESSIBLE = ('text/', 'application/javascript', 'application/json',
+                 'application/xml', 'application/manifest+json', 'image/svg+xml')
+
+
 def _compress_response(rv):
     try:
+        # send_file / send_from_directory llegan con direct_passthrough=True y un
+        # body en streaming: hay que materializarlo antes de poder comprimirlo.
         if getattr(rv, 'direct_passthrough', False):
+            rv.direct_passthrough = False
+        ctype = (rv.headers.get('Content-Type') or '').split(';')[0].strip().lower()
+        if not ctype.startswith(_COMPRESSIBLE):
+            return rv
+        if 'gzip' not in (request.headers.get('Accept-Encoding') or '').lower():
             return rv
         data = rv.get_data()
-        if len(data) < 500:
+        if len(data) < 700:
             return rv
-        accept = request.headers.get('Accept-Encoding', '')
-        if 'gzip' in accept.lower():
-            gz = BytesIO()
-            with gzip.GzipFile(fileobj=gz, mode='wb', compresslevel=6) as f:
-                f.write(data)
-            rv.set_data(gz.getvalue())
-            rv.headers['Content-Encoding'] = 'gzip'
-            rv.headers['Content-Length'] = str(len(rv.data))
-            rv.headers['Vary'] = 'Accept-Encoding'
+        buf = BytesIO()
+        with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=6) as f:
+            f.write(data)
+        rv.set_data(buf.getvalue())
+        rv.headers['Content-Encoding'] = 'gzip'
+        rv.headers['Content-Length'] = str(len(buf.getvalue()))
+        rv.headers['Vary'] = 'Accept-Encoding'
+        rv.headers.pop('ETag', None)
     except Exception:
         pass
     return rv
+
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['DATABASE'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data.db')
 app.config['MAX_CONTENT_LENGTH'] = 150 * 1024 * 1024

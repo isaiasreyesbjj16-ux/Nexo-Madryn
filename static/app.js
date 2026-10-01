@@ -4,6 +4,7 @@ const TIPOS_ACTIVIDAD = window.ACTIVIDADES || ['Gi', 'NoGi', 'JJ Kids', 'MMA', '
 const BELTS_KIDS = window.BELTS_KIDS || ['Gris', 'Amarillo', 'Naranja', 'Verde', 'Blanco'];
 const BELTS_JUV = window.BELTS_JUV || ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde'];
 const catLabel = (c) => esc({ adulto: 'Adulto', juveniles: 'Juveniles', kids: 'Kids' })[c] || esc(c);
+window._secCache = window._secCache || {};
 let filtroAlumnosCat = 'todos';
 const BELTS_POR_CAT = { kids: BELTS_KIDS, juveniles: BELTS_JUV, adulto: BELTS_ADULT };
 const CATS_VIDEOS = ['kids', 'juveniles', 'adulto']; // todas las categorías para staff
@@ -111,6 +112,8 @@ function fechaLocalDe(d) {
 function fechaHoyLocal() { return fechaLocalDe(new Date()); }
 
 async function api(path, opts = {}) {
+  // cualquier escritura invalida el cache de secciones: si no, se verian datos viejos
+  if ((opts.method || 'GET').toUpperCase() !== 'GET' && window._secCache) window._secCache = {};
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
@@ -544,7 +547,16 @@ function showSec(name) {
     planes: renderPlanes, estadisticas: renderEstadisticas,
     dinero: renderMiDinero, ingresos_extra: renderIngresosExtra, descuentos: renderDescuentos,
   };
-  if (renderers[name]) renderers[name](el);
+  if (renderers[name]) {
+    // cache corta por seccion: volver atras es instantaneo, sin datos viejos (TTL 20s)
+    const c = window._secCache && window._secCache[name];
+    if (c && (Date.now() - c.ts) < 20000) { el.innerHTML = c.html; return; }
+    const p = renderers[name](el);
+    if (p && p.then) {
+      p.then(() => { if (window._secCache) window._secCache[name] = { html: el.innerHTML, ts: Date.now() }; })
+       .catch(() => {});
+    }
+  }
 }
 
 /* ---------- NOTIFICACIONES ---------- */
@@ -854,8 +866,12 @@ function mostrarSelectorClase(hoyClases, marcar) {
 }
 
 /* ---------- ESCÁNER DE QR CON CÁMARA ---------- */
-function abrirScannerQR() {
-  if (typeof jsQR === 'undefined') { toast('El escáner necesita recargar la página (Ctrl+F5)'); return; }
+async function abrirScannerQR() {
+  if (typeof jsQR === 'undefined') {
+    try {
+        await new Promise((ok, ko) => { const t = document.createElement('script'); t.src = '/static/jsQR.js'; t.onload = ok; t.onerror = ko; document.head.appendChild(t); });
+    } catch (e) { toast('No se pudo cargar el escáner'); return; }
+}
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px';
   overlay.innerHTML = `

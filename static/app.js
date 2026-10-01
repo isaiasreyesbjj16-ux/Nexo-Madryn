@@ -1385,6 +1385,31 @@ async function renderInicio(el) {
 /* =====================================================================
    PERFIL
    ===================================================================== */
+async function renderBjj() {
+  const out = document.getElementById('bjjOut');
+  if (!out) return;
+  const gi = ($$('input[name="bjjGi"]').find(r => r.checked) || {}).value || 'gi';
+  const val = (s) => { const e = $(s); return e ? e.value : ''; };
+  try {
+    const r = await api('/api/bjj/calcular', { method: 'POST', body: {
+      nacimiento: val('#pNac'), peso: val('#pPeso'), genero: val('#pGenero'), gi } });
+    if (!r.division) {
+      out.innerHTML = `<span style="color:var(--muted)">Cargá tu fecha de nacimiento, peso y género para ver tu categoría.</span>`;
+      return;
+    }
+    if (!r.ok) {
+      out.innerHTML = `<b>${esc(r.division)}</b> (${r.edad} años) — falta: ${esc(r.motivo || 'datos')}`;
+      return;
+    }
+    const tope = r.limite ? `hasta ${r.limite} kg` : 'sin límite de peso';
+    out.innerHTML = `<div style="font-size:1.15rem;font-weight:600">${esc(r.division_peso)} · ${esc(r.division)}</div>
+      <div style="color:var(--muted);margin-top:4px">${esc(gi === 'nogi' ? 'No-Gi' : 'Con Gi')} · ${esc(tope)} · ${r.edad} años</div>
+      <div style="color:var(--muted);margin-top:4px;font-size:.85rem">La edad se cuenta como año del torneo − año de nacimiento, sin importar el día.</div>`;
+  } catch (e) {
+    out.innerHTML = `<span style="color:var(--muted)">No se pudo calcular la categoría.</span>`;
+  }
+}
+
 async function renderPerfil(el) {
   const me = await api('/api/me');
   const cat = me.categoria || 'adulto';
@@ -1459,6 +1484,10 @@ async function renderPerfil(el) {
           <div class="field"><label>Dirección / domicilio</label><input type="text" id="pDir" placeholder="Ej: Calle 1 N° 123, Madryn" value="${esc(me.direccion || '')}"></div>
           <div class="field"><label>Edad</label><input type="number" id="pEdad" value="${me.edad != null ? me.edad : ''}"></div>
           <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" id="pPeso" value="${me.peso != null ? me.peso : ''}"></div>
+          <div class="field"><label>Género (para categorías de competición)</label><select id="pGenero">
+            <option value="">Sin definir</option>
+            <option value="M" ${me.genero === 'M' ? 'selected' : ''}>Masculino</option>
+            <option value="F" ${me.genero === 'F' ? 'selected' : ''}>Femenino</option></select></div>
           <div class="field"><label>Teléfono</label><input type="tel" id="pTel" value="${esc(me.tel || '')}"></div>
           <div class="field"><label>📞 Teléfono del padre/madre/tutor ${cat === 'kids' || cat === 'juveniles' ? '<span style="color:#ff9b8f">(obligatorio)</span>' : '(opcional)'}</label><input type="tel" id="pTelTutor" placeholder="Ej: 299 1234567" value="${esc(me.tel_tutor || '')}"></div>
           <div class="field"><label>📞 Segundo teléfono (opcional)</label><input type="tel" id="pTel2" placeholder="Otro teléfono de contacto" value="${esc(me.tel_2 || '')}"></div>
@@ -1491,6 +1520,15 @@ async function renderPerfil(el) {
           </div>
           <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Guardar cambios</button></div>
         </form>
+      </div>
+
+      <div class="feed-card">
+        <div class="small mb">🥋 Mi categoría de competición (BJJ · IBJJF)</div>
+        <div class="chips" style="margin-bottom:10px">
+          <label class="chip"><input type="radio" name="bjjGi" value="gi" checked><span>Con Gi</span></label>
+          <label class="chip"><input type="radio" name="bjjGi" value="nogi"><span>No-Gi</span></label>
+        </div>
+        <div id="bjjOut" class="small">Cargando…</div>
       </div>
 
       ${(me.medic_enfermedades || me.medic_alergias || me.medic_medicacion || me.medic_lesiones || me.medic_info) ? `<div class="feed-card">
@@ -1555,6 +1593,12 @@ async function renderPerfil(el) {
         <p class="small" style="margin-bottom:0">Tus datos se guardan; si algún día volvés, el administrador puede reactivarte.</p>
       </div>` : ''}
     </div>`;
+  ['#pNac', '#pPeso', '#pGenero'].forEach(sel => {
+    const el = $(sel);
+    if (el) { el.addEventListener('change', renderBjj); el.addEventListener('input', renderBjj); }
+  });
+  $$('input[name="bjjGi"]').forEach(r => r.addEventListener('change', renderBjj));
+  renderBjj();
   $('#pCat').addEventListener('change', (e) => {
     const b = BELTS_POR_CAT[e.target.value] || BELTS_ADULT;
     $('#pCinturon').innerHTML = b.map(x => `<option>${esc(x)}</option>`).join('');
@@ -1564,7 +1608,7 @@ async function renderPerfil(el) {
     try {
       await api('/api/perfil', { method: 'PUT', body: {
         nombre: $('#pNombre').value.trim(), edad: $('#pEdad').value,
-        peso: $('#pPeso').value, cinturon: $('#pCinturon').value,
+        peso: $('#pPeso').value, genero: $('#pGenero').value, cinturon: $('#pCinturon').value,
         categoria: $('#pCat').value,
         actividades: $$('input[name="pAct"]:checked').map(x => x.value),
         tel: $('#pTel').value, nacimiento: $('#pNac').value,

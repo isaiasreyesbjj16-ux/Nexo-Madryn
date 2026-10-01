@@ -155,6 +155,101 @@ BELTS_ADULT = ['Blanco', 'Azul', 'Púrpura', 'Marrón', 'Negro']
 BELTS_KIDS = ['Gris', 'Amarillo', 'Naranja', 'Verde', 'Blanco']
 BELTS_JUV = ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde']
 CATEGORIAS = ['adulto', 'juveniles', 'kids']
+
+# ---------------------------------------------------------------------------
+# Categorias de competicion BJJ (IBJJF). NO reemplazan a CATEGORIAS (esa sigue
+# siendo adulto/juveniles/kids y maneja filtros de video, chat y seguridad de
+# menores). La edad de categoria se calcula como anio del torneo - anio de
+# nacimiento, sin importar mes ni dia.
+# ---------------------------------------------------------------------------
+GENEROS = ['M', 'F']
+
+BJJ_DIVISIONES = [
+    ('Mighty Mite I', 4), ('Mighty Mite II', 5), ('Mighty Mite III', 6),
+    ('Pee Wee I', 7), ('Pee Wee II', 8), ('Pee Wee III', 9),
+    ('Junior I', 10), ('Junior II', 11), ('Junior III', 12),
+    ('Teen I', 13), ('Teen II', 14), ('Teen III', 15),
+    ('Juvenil', 16), ('Adulto', 18),
+    ('Master 1', 30), ('Master 2', 36), ('Master 3', 41), ('Master 4', 46),
+    ('Master 5', 51), ('Master 6', 56), ('Master 7', 61),
+]
+
+BJJ_PESOS = {
+    'adulto': {
+        'M': {'gi': [('Galo', 57.50), ('Pluma', 64.00), ('Pena', 70.00), ('Leve', 76.00),
+                     ('Medio', 82.30), ('Meio-Pesado', 88.30), ('Pesado', 94.30),
+                     ('Super Pesado', 100.50), ('Pesadissimo', None)],
+              'nogi': [('Galo', 55.50), ('Pluma', 61.50), ('Pena', 67.50), ('Leve', 73.50),
+                       ('Medio', 79.50), ('Meio-Pesado', 85.50), ('Pesado', 91.50),
+                       ('Super Pesado', 97.50), ('Pesadissimo', None)]},
+        'F': {'gi': [('Galo', 48.50), ('Pluma', 53.50), ('Pena', 58.50), ('Leve', 64.00),
+                     ('Medio', 69.00), ('Meio-Pesado', 74.00), ('Pesado', 79.30),
+                     ('Super Pesado', None)],
+              'nogi': [('Galo', 46.50), ('Pluma', 51.50), ('Pena', 56.50), ('Leve', 61.50),
+                       ('Medio', 66.50), ('Meio-Pesado', 71.50), ('Pesado', 76.50),
+                       ('Super Pesado', None)]},
+    },
+    'juvenil': {
+        'M': {'gi': [('Galo', 53.50), ('Pluma', 58.50), ('Pena', 64.00), ('Leve', 69.00),
+                     ('Medio', 74.00), ('Meio-Pesado', 79.30), ('Pesado', 84.30),
+                     ('Super Pesado', 89.30), ('Pesadissimo', None)],
+              'nogi': [('Galo', 51.50), ('Pluma', 56.50), ('Pena', 61.50), ('Leve', 66.50),
+                       ('Medio', 71.50), ('Meio-Pesado', 76.50), ('Pesado', 81.50),
+                       ('Super Pesado', 86.50), ('Pesadissimo', None)]},
+        'F': {'gi': [('Galo', 44.30), ('Pluma', 48.30), ('Pena', 52.50), ('Leve', 56.50),
+                     ('Medio', 60.50), ('Meio-Pesado', 65.00), ('Pesado', 69.00),
+                     ('Super Pesado', None)],
+              'nogi': [('Galo', 42.50), ('Pluma', 46.50), ('Pena', 50.50), ('Leve', 54.50),
+                       ('Medio', 58.50), ('Meio-Pesado', 62.50), ('Pesado', 66.50),
+                       ('Super Pesado', None)]},
+    },
+}
+
+
+def bjj_edad_categoria(nacimiento, anio=None):
+    """Edad de categoria IBJJF: anio del torneo - anio de nacimiento."""
+    if not nacimiento:
+        return None, None
+    try:
+        an_nac = int(str(nacimiento)[:4])
+    except (ValueError, TypeError):
+        return None, None
+    edad = (anio or date.today().year) - an_nac
+    division = None
+    for nombre, desde in BJJ_DIVISIONES:
+        if edad >= desde:
+            division = nombre
+    return edad, division
+
+
+def bjj_categoria(nacimiento, peso, genero, gi=True, anio=None):
+    """Devuelve la categoria de competicion (edad + peso) para un alumno.
+
+    Devuelve dict con claves ok, edad, division, division_peso, limite,
+    genero, gi, motivo (por que no pudo calcular).
+    """
+    edad, division = bjj_edad_categoria(nacimiento, anio)
+    base = {'ok': False, 'edad': edad, 'division': division, 'division_peso': None,
+            'limite': None, 'genero': genero or '', 'gi': bool(gi)}
+    if not division:
+        base['motivo'] = 'Falta la fecha de nacimiento'
+        return base
+    if genero not in ('M', 'F'):
+        base['motivo'] = 'Falta el genero'
+        return base
+    peso = to_float(peso)
+    if not peso or peso <= 0:
+        base['motivo'] = 'Falta el peso'
+        return base
+    grupo = 'juvenil' if division == 'Juvenil' else 'adulto'
+    tabla = BJJ_PESOS[grupo][genero]['gi' if gi else 'nogi']
+    for nombre, limite in tabla:
+        if limite is None or peso <= limite:
+            base.update({'ok': True, 'division_peso': nombre, 'limite': limite})
+            return base
+    return base
+
+
 TIPOS_CLASE = ['Gi', 'NoGi', 'Kids', 'Juveniles', 'Abierto']
 ACTIVIDADES = ['Gi', 'NoGi', 'JJ Kids', 'MMA', 'Muay Thai', 'Sipalki', 'Clase personalizada']
 METODOS_PAGO = ['Efectivo', 'Transferencia', 'Débito', 'Crédito', 'Otro']
@@ -599,7 +694,7 @@ def _init_db_body(db):
                      ('medic_lesiones', 'TEXT'), ('ficha_fecha', 'TEXT'),
                      ('firma_tyc', 'TEXT'), ('firma_foto', 'TEXT'), ('firma_fecha', 'TEXT'),
                      ('pausa_desde', 'TEXT'), ('pausa_hasta', 'TEXT'), ('beca', 'INTEGER DEFAULT 0'),
-                     ('actividades', 'TEXT')]:
+                     ('actividades', 'TEXT'), ('genero', "TEXT DEFAULT ''")]:
         if col not in cols:
             c.execute('ALTER TABLE users ADD COLUMN %s %s' % (col, ddl))
     try:
@@ -1220,6 +1315,8 @@ def user_public(u):
         'peso': u['peso'],
         'cinturon': u['cinturon'],
         'categoria': u['categoria'],
+        'genero': u['genero'] or '',
+        'bjj': bjj_categoria(u['nacimiento'], u['peso'], u['genero'] or ''),
         'gi_pref': u['gi_pref'],
         'actividades': (u['actividades'] or '') if 'actividades' in u.keys() else '',
         'cuota_mensual': u['cuota_mensual'],
@@ -1947,6 +2044,9 @@ def api_register():
     username = txt_str(data.get('username'))
     password = data.get('password') or ''
     nombre = txt_str(data.get('nombre'))
+    genero = (data.get('genero') or '').strip().upper()[:1]
+    if genero not in ('M', 'F'):
+        genero = ''
     if not username or not password or not nombre:
         return jsonify({'error': 'Completa usuario, contrasena y nombre'}), 400
     if len(password) < 4:
@@ -2000,8 +2100,8 @@ def api_register():
 
     try:
         get_db().execute(
-            """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, actividades, cuota_mensual, tel, nacimiento, medic_info, emergency_contact, tel_tutor, tel_2, direccion, dni, foto_ok, acepto_tyc, firma_tyc, firma_foto, firma_fecha, creado)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, actividades, cuota_mensual, tel, nacimiento, medic_info, emergency_contact, tel_tutor, tel_2, direccion, dni, foto_ok, acepto_tyc, firma_tyc, firma_foto, firma_fecha, genero, creado)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (username, generate_password_hash(password), role, nombre,
              to_int(data.get('edad')), to_float(data.get('peso')),
              data.get('cinturon'), categoria,
@@ -2020,7 +2120,7 @@ def api_register():
              datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
              firma_tyc or None,
              firma_foto or None,
-             firma_fecha,
+             firma_fecha, genero,
              datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
         get_db().commit()
     except dbadapter.IntegrityError:
@@ -2670,6 +2770,9 @@ def api_familia_hijo_alta():
     username = txt_str(data.get('username'))
     password = data.get('password') or ''
     nombre = txt_str(data.get('nombre'))
+    genero = (data.get('genero') or '').strip().upper()[:1]
+    if genero not in ('M', 'F'):
+        genero = ''
     if not username or not password or not nombre:
         return jsonify({'error': 'Completa usuario, contrasena, nombre del menor y contrasena'}), 400
     if len(password) < 4:
@@ -2705,8 +2808,8 @@ def api_familia_hijo_alta():
     db = get_db()
     try:
         cur = db.execute(
-            """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, actividades, cuota_mensual, tel, nacimiento, medic_info, emergency_contact, tel_tutor, tel_2, direccion, dni, foto_ok, acepto_tyc, firma_tyc, firma_foto, firma_fecha, creado)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, actividades, cuota_mensual, tel, nacimiento, medic_info, emergency_contact, tel_tutor, tel_2, direccion, dni, foto_ok, acepto_tyc, firma_tyc, firma_foto, firma_fecha, genero, creado)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (username, generate_password_hash(password), 'alumno', nombre,
              to_int(data.get('edad')), to_float(data.get('peso')),
              data.get('cinturon') or 'Blanco', categoria,
@@ -2716,7 +2819,7 @@ def api_familia_hijo_alta():
              txt_str(data.get('emergency_contact')) or None,
              tel_tutor, None, None, txt_str(data.get('dni')) or None,
              1, datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-             data.get('firma_tyc'), data.get('firma_foto'), firma_fecha,
+             data.get('firma_tyc'), data.get('firma_foto'), firma_fecha, genero,
              datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
         db.commit()
         new_id = cur.lastrowid
@@ -3640,6 +3743,9 @@ def api_cumpleanios():
 def api_perfil_update():
     u = current_user()
     data = parse_json()
+    genero = (data.get('genero', u['genero']) or '').strip().upper()[:1]
+    if genero not in ('M', 'F'):
+        genero = ''
     cat = data.get('categoria', u['categoria'])
     # El alumno podia mandarse una categoria cualquiera y romper los filtros de
     # videos, cinturones y los chats por categoria.
@@ -3659,10 +3765,10 @@ def api_perfil_update():
         except ValueError:
             return jsonify({'error': 'Fecha de nacimiento inválida (formato AAAA-MM-DD).'}), 400
     get_db().execute(
-        'UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, medic_enfermedades=?, medic_alergias=?, medic_medicacion=?, medic_lesiones=?, ficha_fecha=? WHERE id=?',
+        'UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, genero=?, tel=? nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, medic_enfermedades=?, medic_alergias=?, medic_medicacion=?, medic_lesiones=?, ficha_fecha=? WHERE id=?',
         ((data.get('nombre') or u['nombre']), to_int(data.get('edad', u['edad'])),
          to_float(data.get('peso', u['peso'])), data.get('cinturon', u['cinturon']),
-         cat, data.get('gi_pref', u['gi_pref']), _actividades_csv(data),
+         cat, data.get('gi_pref', u['gi_pref']), _actividades_csv(data), genero,
          txt_str(data.get('tel', u['tel'])) or None,
          nac_upd or None,
          data.get('medic_info', u['medic_info']),
@@ -5425,6 +5531,48 @@ def api_exportar_alumnos():
                 '<cp:lastModifiedBy>NEXO MADRYN</cp:lastModifiedBy>'
                 '<dcterms:created xsi:type="dcterms:W3CDTF">' + datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ') + '</dcterms:created>'
                 '</cp:coreProperties>')
+
+
+@app.route('/api/bjj/categorias')
+@login_required
+def api_bjj_categorias():
+    """Tablas de referencia de categorias de competicion IBJJF."""
+    return jsonify({'divisiones': [n for n, _ in BJJ_DIVISIONES],
+                    'desde': dict(BJJ_DIVISIONES), 'pesos': BJJ_PESOS})
+
+
+@app.route('/api/bjj/calcular', methods=['POST'])
+@login_required
+def api_bjj_calcular():
+    """Categoria de competicion de un alumno.
+
+    Admin/profesor pueden pasar user_id. Sin user_id usa los datos enviados
+    (nacimiento, peso, genero) o los del usuario logged.
+    """
+    data = parse_json()
+    u = current_user()
+    uid = to_int(data.get('user_id'))
+    if uid and u['role'] not in ('admin', 'profesor'):
+        return jsonify({'error': 'Sin permisos'}), 403
+    if uid:
+        row = get_db().execute(
+            'SELECT nombre, peso, genero, nacimiento FROM users WHERE id=?', (uid,)).fetchone()
+        if not row:
+            return jsonify({'error': 'Alumno no encontrado'}), 404
+        nacimiento, peso, genero = row['nacimiento'], row['peso'], row['genero']
+        nombre = row['nombre']
+    else:
+        nacimiento = data.get('nacimiento') or (u['nacimiento'] if u else None)
+        peso = data.get('peso') if data.get('peso') not in (None, '') else (u['peso'] if u else None)
+        genero = data.get('genero') if data.get('genero') not in (None, '') else (u['genero'] if u else '')
+        nombre = (u['nombre'] if u else None)
+    gi = str(data.get('gi', 'gi')).lower() != 'nogi'
+    res = bjj_categoria(nacimiento, peso, genero, gi, to_int(data.get('anio')) or None)
+    res['nombre'] = nombre
+    res['gi'] = gi
+    return jsonify(res)
+
+
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:

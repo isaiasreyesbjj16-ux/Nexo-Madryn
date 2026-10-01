@@ -5639,9 +5639,49 @@ def api_exportar_pagos():
             str(round(deudores * 100 / total_alumnos) if total_alumnos else 0) + '%',
         ])
     rows_pagos = db.execute(
-        """SELECT p.id, p.fecha, u.nombre AS alumno, p.metodo, p.monto, p.mes, p.anio
+        """SELECT p.id, p.fecha, u.nombre AS alumno, p.alumno_id, p.metodo, p.monto, p.mes, p.anio,
+                  p.concepto, p.nota, reg.nombre AS registro_por
            FROM pagos p JOIN users u ON u.id=p.alumno_id
+           LEFT JOIN users reg ON reg.id=p.registrado_por
            WHERE p.anio=? ORDER BY p.mes, p.fecha""", (anio,)).fetchall()
+
+    # Reparto de cada pago entre los profesores, y quien pago en nombre del alumno.
+    partes_por_pago = {}
+    for rp in db.execute(
+            """SELECT pr.pago_id, pr.monto, pr.actividad, pr.profesor_id,
+                      u.nombre AS prof_nombre
+               FROM pago_reparto pr
+               LEFT JOIN users u ON u.id=pr.profesor_id
+               ORDER BY pr.pago_id, pr.id""").fetchall():
+        partes_por_pago.setdefault(rp['pago_id'], []).append(rp)
+
+    pagador_por_alumno = {}
+    for fm in db.execute(
+            """SELECT fm.user_id, t.nombre AS titular_nombre
+               FROM familia_miembros fm JOIN familias f ON f.id=fm.familia_id
+               LEFT JOIN users t ON t.id=f.titular_id""").fetchall():
+        pagador_por_alumno[fm['user_id']] = fm['titular_nombre']
+
+    def _m(v):
+        if v is None:
+            return ''
+        return str(int(v)) if float(v) == int(v) else ('%g' % v)
+
+    def col_reparto(p):
+        partes = partes_por_pago.get(p['id']) or []
+        if not partes:
+            return 'sin reparto registrado'
+        return '; '.join('%s $%s%s' % (
+            x['prof_nombre'] or ('Profesor #%s' % x['profesor_id']),
+            _m(x['monto']), (' [%s]' % x['actividad']) if x['actividad'] else '')
+            for x in partes)
+
+    def col_quien_pago(p):
+        nombre = p['alumno']
+        pag = pagador_por_alumno.get(p['alumno_id'])
+        if not pag or pag == nombre:
+            return 'Pago propio de %s' % nombre
+        return 'Pago de %s (titular) por %s' % (pag, nombre)
 
     def xenc(v):
         from xml.sax.saxutils import escape as xesc
@@ -5658,10 +5698,13 @@ def api_exportar_pagos():
 
     headers_resumen = ['Mes', 'Total cobrado ($)', 'Cantidad pagos', 'Alumnos que pagaron',
                        'Deudores', '% pagó', '% morosidad']
-    headers_detalle = ['ID', 'Fecha', 'Alumno', 'Método', 'Monto ($)', 'Mes', 'Año']
+    headers_detalle = ['ID', 'Fecha', 'Alumno', 'Quién pagó / a quién', 'Método', 'Concepto',
+                       'Monto ($)', 'Reparto entre profesores', 'Registrado por', 'Mes', 'Año']
     sh1 = sheet_xml(headers_resumen, resumen)
     sh2 = sheet_xml(headers_detalle,
-                    [[p['id'], p['fecha'], p['alumno'], p['metodo'], p['monto'], p['mes'], p['anio']]
+                    [[p['id'], p['fecha'], p['alumno'], col_quien_pago(p), p['metodo'],
+                      p['concepto'] or '', p['monto'], col_reparto(p),
+                      p['registro_por'] or '', p['mes'], p['anio']]
                      for p in rows_pagos])
 
     shared = (

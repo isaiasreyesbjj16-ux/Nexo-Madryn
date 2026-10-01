@@ -5414,6 +5414,60 @@ def api_exportar_alumnos():
             (SELECT COUNT(*) FROM pagos p WHERE p.alumno_id=u.id) AS pagos_totales
            FROM users u WHERE u.role IN ('alumno','profesor') AND u.activo=1 ORDER BY u.nombre""").fetchall()
 
+    # --- datos para las columnas nuevas del export ---
+    # Quien pago: el titular de la familia. A quien: el propio alumno.
+    # Reparto: como se divide el ultimo pago entre los profesores.
+    pagador = {}
+    for fm in get_db().execute(
+            """SELECT fm.user_id, t.nombre AS titular_nombre
+               FROM familia_miembros fm JOIN familias f ON f.id=fm.familia_id
+               LEFT JOIN users t ON t.id=f.titular_id""").fetchall():
+        pagador[fm['user_id']] = fm['titular_nombre']
+
+    reparto = {}
+    for rp in get_db().execute(
+            """SELECT p.alumno_id, p.id AS pago_id, p.monto AS monto_pago, p.fecha AS fecha,
+                      pr.profesor_id, pr.monto AS monto_prof, pr.actividad,
+                      u.nombre AS prof_nombre
+               FROM pago_reparto pr
+               JOIN pagos p ON p.id=pr.pago_id
+               LEFT JOIN users u ON u.id=pr.profesor_id
+               ORDER BY p.id, pr.id""").fetchall():
+        a_id = rp['alumno_id']
+        if a_id not in reparto or rp['pago_id'] != reparto[a_id]['pago_id']:
+            reparto[a_id] = {'pago_id': rp['pago_id'], 'monto': rp['monto_pago'],
+                             'fecha': rp['fecha'], 'partes': []}
+        if rp['pago_id'] == reparto[a_id]['pago_id']:
+            reparto[a_id]['partes'].append(rp)
+
+    def _m(v):
+        if v is None:
+            return ''
+        return str(int(v)) if float(v) == int(v) else ('%g' % v)
+
+    def col_pago(r):
+        nombre = r['nombre']
+        pag = pagador.get(r['id'])
+        quien = pag if (pag and pag != nombre) else nombre
+        partes = []
+        rep = reparto.get(r['id'])
+        if rep and rep['partes']:
+            for x in rep['partes']:
+                pn = x['prof_nombre'] or ('Profesor #%s' % x['profesor_id'])
+                act = (' [%s]' % x['actividad']) if x['actividad'] else ''
+                partes.append('%s $%s%s' % (pn, _m(x['monto_prof']), act))
+        out = ['Pago: %s' % quien, 'Imputado a: %s' % nombre]
+        out.append(('Reparto: ' + '; '.join(partes)) if partes
+                   else 'Reparto: sin reparto registrado')
+        return ' | '.join(out)
+
+    def col_competicion(r):
+        b = bjj_categoria(r['nacimiento'], r['peso'],
+                          (r['genero'] if 'genero' in r.keys() else '') or '')
+        if b['ok']:
+            return '%s - %s' % (b['division_peso'], b['division'])
+        return b.get('motivo') or ''
+
     def cel(v):
         if v is None:
             return ''
@@ -5424,9 +5478,11 @@ def api_exportar_alumnos():
     headers = ['Nombre', 'DNI', 'Direccion / Domicilio', 'Telefono', 'Celular 2',
                'Telefono tutor/padre', 'Email/Usuario',
                'Fecha de nacimiento', 'Edad', 'Peso (kg)', 'Categoria', 'Cinturon / Faixa',
+               'Categoria de competicion BJJ',
                'Modalidad', 'Ficha medica', 'Contacto emergencia', 'Autoriza fotos (menores)',
                'Cuota mensual ($)', 'Estado de pago',
-               'Asistencias', 'Total pagos registrados', 'Miembro desde']
+               'Asistencias', 'Total pagos registrados',
+               'Quien pago / a quien / reparto', 'Miembro desde']
 
     groups = {}
     for r in rows:
@@ -5451,10 +5507,10 @@ def api_exportar_alumnos():
         groups.setdefault(gkey, []).append([
             r['nombre'], r['dni'], r['direccion'], r['tel'], r['tel_2'], r['tel_tutor'],
             r['username'], r['nacimiento'],
-            r['edad'], r['peso'], r['categoria'], r['cinturon'], r['gi_pref'],
+            r['edad'], r['peso'], r['categoria'], r['cinturon'], col_competicion(r), r['gi_pref'],
             r['medic_info'], r['emergency_contact'], aut_foto,
             r['cuota_mensual'], estado_label,
-            r['asistencias'], r['pagos_totales'],
+            r['asistencias'], r['pagos_totales'], col_pago(r),
             (r['creado'] or '')[:10],
         ])
 
@@ -5541,49 +5597,6 @@ def api_exportar_alumnos():
                 '<cp:lastModifiedBy>NEXO MADRYN</cp:lastModifiedBy>'
                 '<dcterms:created xsi:type="dcterms:W3CDTF">' + datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ') + '</dcterms:created>'
                 '</cp:coreProperties>')
-
-
-@app.route('/api/bjj/categorias')
-@login_required
-def api_bjj_categorias():
-    """Tablas de referencia de categorias de competicion IBJJF."""
-    return jsonify({'divisiones': [n for n, _ in BJJ_DIVISIONES],
-                    'desde': dict(BJJ_DIVISIONES), 'pesos': BJJ_PESOS})
-
-
-@app.route('/api/bjj/calcular', methods=['POST'])
-@login_required
-def api_bjj_calcular():
-    """Categoria de competicion de un alumno.
-
-    Admin/profesor pueden pasar user_id. Sin user_id usa los datos enviados
-    (nacimiento, peso, genero) o los del usuario logged.
-    """
-    data = parse_json()
-    u = current_user()
-    uid = to_int(data.get('user_id'))
-    if uid and u['role'] not in ('admin', 'profesor'):
-        return jsonify({'error': 'Sin permisos'}), 403
-    if uid:
-        row = get_db().execute(
-            'SELECT nombre, peso, genero, nacimiento FROM users WHERE id=?', (uid,)).fetchone()
-        if not row:
-            return jsonify({'error': 'Alumno no encontrado'}), 404
-        nacimiento, peso, genero = row['nacimiento'], row['peso'], row['genero']
-        nombre = row['nombre']
-    else:
-        nacimiento = data.get('nacimiento') or (u['nacimiento'] if u else None)
-        peso = data.get('peso') if data.get('peso') not in (None, '') else (u['peso'] if u else None)
-        genero = data.get('genero') if data.get('genero') not in (None, '') else (u['genero'] if u else '')
-        nombre = (u['nombre'] if u else None)
-    gi = str(data.get('gi', 'gi')).lower() != 'nogi'
-    res = bjj_categoria(nacimiento, peso, genero, gi, to_int(data.get('anio')) or None)
-    res['nombre'] = nombre
-    res['gi'] = gi
-    return jsonify(res)
-
-
-
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
         z.writestr('[Content_Types].xml', content_types())
@@ -5739,6 +5752,46 @@ except Exception as _e:
     # se loguea el error y la app sigue (la DB real ya tiene las tablas).
     print('INIT_DB_IMPORT_ERROR:', _e)
     _tb.print_exc()
+
+@app.route('/api/bjj/categorias')
+@login_required
+def api_bjj_categorias():
+    """Tablas de referencia de categorias de competicion IBJJF."""
+    return jsonify({'divisiones': [n for n, _ in BJJ_DIVISIONES],
+                    'desde': dict(BJJ_DIVISIONES), 'pesos': BJJ_PESOS})
+
+
+@app.route('/api/bjj/calcular', methods=['POST'])
+@login_required
+def api_bjj_calcular():
+    """Categoria de competicion de un alumno.
+
+    Admin/profesor pueden pasar user_id. Sin user_id usa los datos enviados
+    (nacimiento, peso, genero) o los del usuario logged.
+    """
+    data = parse_json()
+    u = current_user()
+    uid = to_int(data.get('user_id'))
+    if uid and u['role'] not in ('admin', 'profesor'):
+        return jsonify({'error': 'Sin permisos'}), 403
+    if uid:
+        row = get_db().execute(
+            'SELECT nombre, peso, genero, nacimiento FROM users WHERE id=?', (uid,)).fetchone()
+        if not row:
+            return jsonify({'error': 'Alumno no encontrado'}), 404
+        nacimiento, peso, genero = row['nacimiento'], row['peso'], row['genero']
+        nombre = row['nombre']
+    else:
+        nacimiento = data.get('nacimiento') or (u['nacimiento'] if u else None)
+        peso = data.get('peso') if data.get('peso') not in (None, '') else (u['peso'] if u else None)
+        genero = data.get('genero') if data.get('genero') not in (None, '') else (u['genero'] if u else '')
+        nombre = (u['nombre'] if u else None)
+    gi = str(data.get('gi', 'gi')).lower() != 'nogi'
+    res = bjj_categoria(nacimiento, peso, genero, gi, to_int(data.get('anio')) or None)
+    res['nombre'] = nombre
+    res['gi'] = gi
+    return jsonify(res)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)),

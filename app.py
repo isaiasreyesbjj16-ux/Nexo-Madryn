@@ -1305,6 +1305,12 @@ def url_http_valida(u, max_len=600):
     return u
 
 
+def _genero_de(data, u):
+    """Genero ('M', 'F' o '') normalizado, tolerando que falte la columna."""
+    g = (data.get('genero') or (u['genero'] if 'genero' in u.keys() else '') or '').strip().upper()[:1]
+    return g if g in ('M', 'F') else ''
+
+
 def user_public(u):
     return {
         'id': u['id'],
@@ -1315,8 +1321,11 @@ def user_public(u):
         'peso': u['peso'],
         'cinturon': u['cinturon'],
         'categoria': u['categoria'],
-        'genero': u['genero'] or '',
-        'bjj': bjj_categoria(u['nacimiento'], u['peso'], u['genero'] or ''),
+        'genero': (u['genero'] if 'genero' in u.keys() else '') or '',
+        'bjj': bjj_categoria(
+            u['nacimiento'] if 'nacimiento' in u.keys() else None,
+            u['peso'] if 'peso' in u.keys() else None,
+            (u['genero'] if 'genero' in u.keys() else '') or ''),
         'gi_pref': u['gi_pref'],
         'actividades': (u['actividades'] or '') if 'actividades' in u.keys() else '',
         'cuota_mensual': u['cuota_mensual'],
@@ -2297,12 +2306,13 @@ def api_alumnos_create():
     except ValueError:
         return jsonify({'error': 'Fecha de nacimiento inválida (formato AAAA-MM-DD).'}), 400
     get_db().execute(
-        """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, actividades, cuota_mensual, nacimiento, creado)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, actividades, cuota_mensual, nacimiento, genero, creado)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (username, generate_password_hash(password), 'alumno', nombre,
          to_int(data.get('edad')), to_float(data.get('peso')),
          data.get('cinturon'), data.get('categoria') or 'adulto',
          data.get('gi_pref') or 'Ambas', _actividades_csv(data), cuota, nacimiento,
+         _genero_de(data, {'genero': ''}),
          datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     get_db().commit()
     new_id = get_db().execute('SELECT last_insert_rowid() AS id').fetchone()['id']
@@ -2324,11 +2334,11 @@ def api_alumnos_update(uid):
         except ValueError:
             return jsonify({'error': 'Fecha de nacimiento inválida (formato AAAA-MM-DD).'}), 400
     get_db().execute(
-        """UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, cuota_mensual=?, activo=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, pausa_desde=?, pausa_hasta=? WHERE id=?""",
+        """UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, genero=?, cuota_mensual=?, activo=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, pausa_desde=?, pausa_hasta=? WHERE id=?""",
         ((data.get('nombre') or u['nombre']), to_int(data.get('edad', u['edad'])),
          to_float(data.get('peso', u['peso'])), data.get('cinturon', u['cinturon']),
          data.get('categoria', u['categoria']), data.get('gi_pref', u['gi_pref']),
-         _actividades_csv(data),
+         _actividades_csv(data), _genero_de(data, u),
          (to_float(data.get('cuota_mensual')) if data.get('cuota_mensual') not in (None, '', 'auto')
           else (_cuota_por_actividades(_actividades_csv(data)) or (to_float(get_setting('default_cuota', '15000')) or 15000))),
          1 if data.get('activo', u['activo']) else 0,
@@ -3765,7 +3775,7 @@ def api_perfil_update():
         except ValueError:
             return jsonify({'error': 'Fecha de nacimiento inválida (formato AAAA-MM-DD).'}), 400
     get_db().execute(
-        'UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, genero=?, tel=? nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, medic_enfermedades=?, medic_alergias=?, medic_medicacion=?, medic_lesiones=?, ficha_fecha=? WHERE id=?',
+        'UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, genero=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, medic_enfermedades=?, medic_alergias=?, medic_medicacion=?, medic_lesiones=?, ficha_fecha=? WHERE id=?',
         ((data.get('nombre') or u['nombre']), to_int(data.get('edad', u['edad'])),
          to_float(data.get('peso', u['peso'])), data.get('cinturon', u['cinturon']),
          cat, data.get('gi_pref', u['gi_pref']), _actividades_csv(data), genero,

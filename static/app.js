@@ -2443,6 +2443,16 @@ async function copiarAlias() {
 /* =====================================================================
    ALUMNOS (admin / profesor)
    ===================================================================== */
+function bjjBadge(a) {
+  const b = a.bjj;
+  if (!b || !b.division) return '';
+  if (!b.ok) {
+    const falta = { 'Falta el genero': '⚧ falta género', 'Falta el peso': '⚖️ falta peso', 'Falta la fecha de nacimiento': '🎂 falta fecha' };
+    return `<div class="small" style="color:var(--muted)">🥋 Competición: ${esc(falta[b.motivo] || 'faltan datos')}</div>`;
+  }
+  return `<div class="small">🥋 Competición: <b>${esc(b.division_peso)}</b> · ${esc(b.division)}${b.gi ? '' : ' · No-Gi'}</div>`;
+}
+
 async function renderAlumnos(el) {
   const d = await api('/api/alumnos');
   const filtro = filtroAlumnosCat || 'todos';
@@ -2453,7 +2463,7 @@ async function renderAlumnos(el) {
     const c = a.cuota;
     const cls = c.estado === 'al_dia' ? 'tag-al-dia' : c.estado === 'por_vencer' ? 'tag-por-vencer' : 'tag-deuda';
     const lbl = c.estado === 'al_dia' ? 'Al día' : c.estado === 'por_vencer' ? 'Por vencer' : 'Debe ' + c.mes + '/' + c.anio;
-    return `<div class="alum-card" data-q="${esc((a.nombre + ' ' + (a.cinturon || '')).toLowerCase())}">
+    return `<div class="alum-card" data-q="${esc((a.nombre + ' ' + (a.cinturon || '') + ' ' + ((a.bjj && a.bjj.division_peso) || '')).toLowerCase())}">
       ${avatarHTML(a.foto, a.nombre, 'lg')}
       <div class="al-nombre">${esc(a.nombre)}${a.role === 'profesor' ? '<span class="tag profesor">🧑‍🏫 Profesor</span>' : ''}${a.activo ? '' : '<div><span class="tag tag-deuda">inactivo</span></div>'}</div>
       <div class="small" style="margin-top:4px">👤 @${esc(a.username || '—')}</div>
@@ -2462,6 +2472,7 @@ async function renderAlumnos(el) {
       ${a.role === 'profesor' ? `<div class="small">🧑‍🏫 <b>Profesor</b> · no paga cuota</div>` : a.beca ? `<div class="small">🎖 <b>Becado</b> · no paga cuota</div>` : `<div class="small">Cuota: <b>$${num(a.familia ? a.familia.cuota_final : a.cuota_mensual)}</b> · <span class="tag ${cls}">${lbl}</span></div>`}
       ${a.familia ? `<div class="small">👨‍👩‍👧 <b>${esc(a.familia.nombre)}</b> ${a.familia.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}${a.familia.descuento ? `<span class="tag tag-por-vencer">ahorra $${num(a.familia.descuento)}</span>` : ''}</div>` : ''}
       ${a.en_pausa ? `<div class="small"><span class="tag tag-por-vencer">⏸ En pausa${a.pausa_hasta ? ' hasta ' + esc(a.pausa_hasta) : ''}</span></div>` : ''}
+      ${bjjBadge(a)}
       <div class="small">🥋 <b>${a.asistencias}</b> asistencias</div>
       <div class="al-actions">
         <button class="btn ghost small" onclick="formAlumno(${a.id})">✏️</button>
@@ -2650,6 +2661,10 @@ async function formAlumno(id) {
       <div class="field"><label>Dirección / domicilio</label><input type="text" id="aDir" placeholder="Ej: Calle 1 N° 123, Madryn" value="${esc(a.direccion || '')}"></div>
       <div class="field"><label>Edad</label><input type="number" id="aEdad" value="${a.edad != null ? a.edad : ''}"></div>
       <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" id="aPeso" value="${a.peso != null ? a.peso : ''}"></div>
+      <div class="field"><label>Género</label><select id="aGenero">
+        <option value="">Sin definir</option>
+        <option value="M" ${a.genero === 'M' ? 'selected' : ''}>Masculino</option>
+        <option value="F" ${a.genero === 'F' ? 'selected' : ''}>Femenino</option></select></div>
       <div class="field"><label>Teléfono</label><input type="tel" id="aTel" value="${esc(a.tel || '')}"></div>
       <div class="field"><label>📞 Tel. padre/madre/tutor ${a.categoria === 'kids' || a.categoria === 'juveniles' ? '<span style="color:#ff9b8f">(obligatorio)</span>' : ''}</label><input type="tel" id="aTutor" value="${esc(a.tel_tutor || '')}"></div>
       <div class="field"><label>📞 Segundo teléfono</label><input type="tel" id="aTel2" value="${esc(a.tel_2 || '')}"></div>
@@ -2679,7 +2694,7 @@ async function formAlumno(id) {
   $('#aCat').addEventListener('change', fillBelt);
   $('#alForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const body = { nombre: $('#aNombre').value.trim(), edad: $('#aEdad').value, peso: $('#aPeso').value,
+    const body = { nombre: $('#aNombre').value.trim(), edad: $('#aEdad').value, peso: $('#aPeso').value, genero: $('#aGenero').value,
       cinturon: $('#aCinturon').value, categoria: $('#aCat').value,
       actividades: $$('input[name="actAct"]:checked').map(x => x.value),
       tel: $('#aTel').value, nacimiento: $('#aNac').value,

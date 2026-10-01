@@ -1387,8 +1387,6 @@ async function renderInicio(el) {
    ===================================================================== */
 let BJJ_TABLAS = null;
 
-let BJJ_TABLAS = null;
-
 function _bjjTablaHTML(tabla) {
   return tabla.map(([nombre, limite]) => {
     const gi = limite === null ? 'sin límite' : `hasta ${limite} kg`;

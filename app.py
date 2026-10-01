@@ -5886,6 +5886,11 @@ def _after_req(resp):
                 resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
             else:
                 resp.headers['Cache-Control'] = 'public, max-age=86400'
+        elif path.startswith('/api/video/') or path.startswith('/api/muro_video/'):
+            # Media: el navegador del alumno puede cachear (repetir una tecnica no
+            # debe re-bajar 10MB cada vez), pero 'private' para que ningun proxy
+            # compartido guarde videos que son de otra categoria/cinturon.
+            resp.headers['Cache-Control'] = 'private, max-age=3600'
         else:
             resp.headers.setdefault('Cache-Control', 'no-store, max-age=0')
     except Exception:

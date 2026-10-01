@@ -1385,6 +1385,66 @@ async function renderInicio(el) {
 /* =====================================================================
    PERFIL
    ===================================================================== */
+let BJJ_TABLAS = null;
+
+let BJJ_TABLAS = null;
+
+function _bjjTablaHTML(tabla) {
+  return tabla.map(([nombre, limite]) => {
+    const gi = limite === null ? 'sin límite' : `hasta ${limite} kg`;
+    const ng = limite === null ? 'sin límite' : `hasta ${(limite - 2.5).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')} kg`;
+    return `<tr><td style="padding:6px 8px;font-weight:600">${esc(nombre)}</td>
+      <td style="padding:6px 8px;text-align:right">${esc(gi)}</td>
+      <td style="padding:6px 8px;text-align:right">${esc(ng)}</td></tr>`;
+  }).join('');
+}
+
+async function toggleBjjTabla() {
+  const box = document.getElementById('bjjTabla');
+  if (!box) return;
+  if (box.innerHTML) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="small" style="color:var(--muted);padding:8px 0">Cargando tabla…</div>';
+  try {
+    if (!BJJ_TABLAS) BJJ_TABLAS = await api('/api/bjj/categorias');
+    const P = BJJ_TABLAS.pesos;
+    const divs = (BJJ_TABLAS.divisiones || []);
+    const fmt = (v) => (v === null || v === undefined ? 'sin limite'
+      : 'hasta ' + String(v).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1') + ' kg');
+    const bloque = (titulo, grupo, g) => {
+      const gi = P[grupo][g].gi, ng = P[grupo][g].nogi;
+      const filas = gi.map(([nombre], i) => `<tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:6px 8px;font-weight:600">${esc(nombre)}</td>
+        <td style="padding:6px 8px;text-align:right">${esc(fmt(gi[i][1]))}</td>
+        <td style="padding:6px 8px;text-align:right">${esc(fmt(ng[i] ? ng[i][1] : null))}</td>
+      </tr>`).join('');
+      return `<div style="margin-top:14px">
+        <div style="font-weight:600;margin-bottom:4px">${esc(titulo)}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+          <thead><tr style="border-bottom:1px solid var(--line);color:var(--muted);font-size:.8rem">
+            <th style="text-align:left;padding:6px 8px">Categoria</th>
+            <th style="text-align:right;padding:6px 8px">Con Gi</th>
+            <th style="text-align:right;padding:6px 8px">No-Gi</th></tr></thead>
+          <tbody>${filas}</tbody>
+        </table></div>`;
+    };
+    box.innerHTML = `
+      <div class="small" style="color:var(--muted);margin-top:12px">
+        Tablas oficiales IBJJF. En No-Gi los límites bajan ~2,5 kg porque no se pesa con el kimono puesto.
+        La edad de categoría es <b>año del torneo − año de nacimiento</b>.
+      </div>
+      ${bloque('Masculino · Adulto (18 a 29)', 'adulto', 'M')}
+      ${bloque('Femenino · Adulto (18 a 29)', 'adulto', 'F')}
+      ${bloque('Masculino · Juvenil (16 y 17)', 'juvenil', 'M')}
+      ${bloque('Femenino · Juvenil (16 y 17)', 'juvenil', 'F')}
+      <div style="margin-top:16px">
+        <div style="font-weight:600;margin-bottom:4px">Divisiones por edad</div>
+        <div class="small" style="color:var(--muted)">${divs.join(' · ')}</div>
+      </div>`;
+  } catch (e) {
+    box.innerHTML = '<div class="small" style="color:var(--bad);padding:8px 0">No se pudo cargar la tabla.</div>';
+  }
+}
+
 async function renderBjj() {
   const out = document.getElementById('bjjOut');
   if (!out) return;
@@ -1529,6 +1589,8 @@ async function renderPerfil(el) {
           <label class="chip"><input type="radio" name="bjjGi" value="nogi"><span>No-Gi</span></label>
         </div>
         <div id="bjjOut" class="small">Cargando…</div>
+        <button class="btn ghost btn-block" style="margin-top:10px" onclick="toggleBjjTabla()">📋 Ver todas las categorías de peso</button>
+        <div id="bjjTabla"></div>
       </div>
 
       ${(me.medic_enfermedades || me.medic_alergias || me.medic_medicacion || me.medic_lesiones || me.medic_info) ? `<div class="feed-card">

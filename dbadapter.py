@@ -1,5 +1,13 @@
 import os
 import sqlite3
+import threading
+import time
+
+# Una conexion de Postgres por hilo de gunicorn, reutilizada entre requests.
+_pg_threads = threading.local()
+# Si el hilo estuvo mas de esto sin usarse, se presume coneccion muerta
+# (Neon y proxies cierran conexiones idle) y se reconecta.
+_PG_MAX_IDLE = 240
 
 try:
     import pymysql
@@ -220,10 +228,11 @@ class Cursor:
 
 
 class DB:
-    def __init__(self, raw, sqlite_rows):
+    def __init__(self, raw, sqlite_rows, reusable=False):
         self._raw = raw
         self._sqlite_rows = sqlite_rows
         self._last_id = None
+        self.reusable = reusable
 
     def cursor(self):
         return Cursor(self._raw.cursor(), self._sqlite_rows, self)
@@ -278,8 +287,29 @@ def connect_postgres(database_url=None):
     url = database_url or os.environ.get('DATABASE_URL', '')
     if not url:
         raise RuntimeError('DATABASE_URL no configurada (DB_MODE=postgres)')
-    conn = psycopg.connect(url, row_factory=dict_row)
-    return DB(conn, sqlite_rows=False)
+    # Abrir una conexion TLS a Neon cuesta ~2.5s. Con --threads 4 y una conexion
+    # nueva por request, cada pedido pagaba ese tiempo. Reutilizamos la conexion
+    # del hilo: se abre una vez y se mantiene viva.
+    # IMPORTANTE: no usamos un pool de psycopg_pool a proposito. Cada worker de
+    # gunicorn tiene sus propios hilos, asi que un hilo = una conexion alcanza,
+    # sin dependencias extra ni riesgo de agotar el limite de conexiones de Neon.
+    holder = _pg_threads
+    conn = getattr(holder, 'conn', None)
+    now = time.time()
+    if conn is not None and (now - getattr(holder, 'used', 0)) > _PG_MAX_IDLE:
+        conn = None  # estuvo mucho tiempo idle: Neon/proxy la pueden haber cerrado
+    if conn is not None:
+        try:
+            if conn.closed:
+                conn = None
+        except Exception:
+            conn = None
+    if conn is None:
+        conn = psycopg.connect(url, row_factory=dict_row)
+        holder.conn = conn
+        holder.url = url
+    holder.used = now
+    return DB(conn, sqlite_rows=False, reusable=True)
 
 
 def connect():

@@ -340,8 +340,24 @@ def get_db():
 @app.teardown_appcontext
 def close_db(exc):
     db = g.pop('db', None)
-    if db is not None:
-        db.close()
+    if db is None:
+        return
+    # Conexiones reutilizables (Postgres por hilo) NO se cierran: cerrarlas era
+    # justamente lo que costaba ~2.5s por request. Si la conexion quedo colgada
+    # por un corte, se descarta para que el proximo request abra una nueva.
+    if getattr(db, 'reusable', False):
+        if exc is not None:
+            try:
+                if not db._raw.closed:
+                    db._raw.rollback()
+            except Exception:
+                try:
+                    db._raw.close()
+                except Exception:
+                    pass
+                dbadapter._pg_threads.__dict__.pop('conn', None)
+        return
+    db.close()
 
 
 SCHEMA = """

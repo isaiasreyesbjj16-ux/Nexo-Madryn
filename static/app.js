@@ -417,7 +417,7 @@ function initDashboard() {
     { sec: 'inicio', ico: '🏠', lbl: 'Inicio' },
     { sec: 'horarios', ico: '📅', lbl: 'Horarios' },
   ];
-  if (R === 'alumno') items.push({ sec: 'mispagos', ico: '🧾', lbl: 'Cuota' });
+  if (R === 'alumno' || R === 'profesor') items.push({ sec: 'mispagos', ico: '🧾', lbl: 'Cuota' });
   else items.push({ sec: 'pagos', ico: '💳', lbl: 'Pagos' });
   items.push({ sec: 'videos', ico: '🎥', lbl: 'Videos' });
   items.push({ sec: 'perfil', ico: '👤', lbl: 'Perfil' });
@@ -1284,7 +1284,7 @@ async function renderInicio(el) {
       api('/api/me'), api('/api/mi_asistencia'), api('/api/horarios'), api('/api/videos')]);
     const c = me.cuota || {};
     const estado = c.estado;
-    const tagMap = { al_dia: ['tag-al-dia', 'Al día'], deuda: ['tag-deuda', 'Debe la cuota'], por_vencer: ['tag-por-vencer', 'Por vencer'] };
+    const tagMap = { al_dia: ['tag-al-dia', 'Al día'], deuda: ['tag-deuda', 'Debe la cuota'], por_vencer: ['tag-por-vencer', 'Por vencer'], becado: ['tag-al-dia', 'Becado'] };
     const [cls, lbl] = tagMap[estado] || ['tag-al-dia', 'Al día'];
     const hoyIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
     const hoyClases = horarios.horarios.filter(h => h.dia === hoyIdx);
@@ -2537,7 +2537,7 @@ async function abrirPagoFamilia() {
   const mes = new Date().getMonth() + 1;
   openModal(`
     <h3>👨‍👩‍👧 Pagar familia completa</h3>
-    <p class="small" style="color:var(--muted);margin:0">Registra la cuota (con descuento familiar) de todos los integrantes de una vez. Saltea becados, profesores y los que ya pagaron ese mes.</p>
+    <p class="small" style="color:var(--muted);margin:0">Registra la cuota (con descuento familiar) de todos los integrantes de una vez. Saltea becados y los que ya pagaron ese mes.</p>
     <div class="field"><label>Familia</label><select id="pfTitular">
       <option value="">— elegí la familia —</option>
       ${fams.map(f => {
@@ -2757,18 +2757,18 @@ async function renderMisPagos(el) {
   const [me, pagos] = await Promise.all([api('/api/me'), api('/api/mis_pagos')]);
   const c = me.cuota || {};
   const estado = c.estado;
-  const cls = estado === 'al_dia' || estado === 'becado' || estado === 'profesor' ? 'tag-al-dia' : estado === 'por_vencer' ? 'tag-por-vencer' : 'tag-deuda';
-  const lbl = estado === 'al_dia' ? 'Al día ✓' : estado === 'becado' ? '🎖 Becado' : estado === 'profesor' ? '🧑🏫 Profesor' : estado === 'por_vencer' ? 'Por vencer' : 'Debe la cuota';
+  const cls = estado === 'al_dia' || estado === 'becado' ? 'tag-al-dia' : estado === 'por_vencer' ? 'tag-por-vencer' : 'tag-deuda';
+  const lbl = estado === 'al_dia' ? 'Al día ✓' : estado === 'becado' ? '🎖 Becado' : estado === 'por_vencer' ? 'Por vencer' : 'Debe la cuota';
   const aviso = pagos.aviso_pendiente;
   const becado = estado === 'becado';
-  const exento = becado || estado === 'profesor';
+  const exento = becado;
   el.innerHTML = `
     ${secHeader('Mi estado de cuenta')}
     <div class="card">
       <div class="flex space-between">
         <div>
-          <h3 style="margin:0">${exento ? (estado === 'profesor' ? '🧑🏫 Estás registrado como Profesor' : '🎖 Estás becado') : 'Cuota de ' + c.mes + '/' + c.anio}</h3>
-          <p class="small">${exento ? (estado === 'profesor' ? 'Los profesores no pagan cuota mensual. No necesitás mandar comprobantes.' : 'No pagás cuota mensual: la academia te cubre la inscripción. No necesitás mandar comprobantes.') : `Tu cuota mensual es <b>$${num(c.cuota)}</b> · se considera paga hasta el día ${c.due_day} del mes${c.cargo_demora_pct ? ` · <b style="color:var(--warn)">si pagás después, se suma un ${c.cargo_demora_pct}% de recargo</b>` : ''}.`}</p>
+          <h3 style="margin:0">${exento ? '🎖 Estás becado' : 'Cuota de ' + c.mes + '/' + c.anio}</h3>
+          <p class="small">${exento ? 'No pagás cuota mensual: la academia te cubre la inscripción. No necesitás mandar comprobantes.' : `Tu cuota mensual es <b>$${num(c.cuota)}</b> · se considera paga hasta el día ${c.due_day} del mes${c.cargo_demora_pct ? ` · <b style="color:var(--warn)">si pagás después, se suma un ${c.cargo_demora_pct}% de recargo</b>` : ''}.`}</p>
         </div>
         <div class="tag ${cls}" style="font-size:14px;padding:6px 14px">${lbl}</div>
       </div>
@@ -2911,7 +2911,7 @@ async function renderAlumnos(el) {
       <div class="small" style="margin-top:4px">👤 @${esc(a.username || '—')}</div>
       <div class="small" style="margin-top:4px">${beltHTML(a.cinturon)} · ${a.edad != null ? a.edad + ' años' : '—'}</div>
       <div class="small">Actividades: ${(a.actividades || (a.gi_pref === 'Gi' ? 'Gi' : a.gi_pref === 'NoGi' ? 'NoGi' : '')).split(',').filter(Boolean).map(x => `<span class="tag gi">${esc(x.trim())}</span>`).join(' ') || '—'}</div>
-      ${a.role === 'profesor' ? `<div class="small">🧑‍🏫 <b>Profesor</b> · no paga cuota</div>` : a.beca ? `<div class="small">🎖 <b>Becado</b> · no paga cuota</div>` : `<div class="small">Cuota: <b>$${num(a.familia ? a.familia.cuota_final : a.cuota_mensual)}</b> · <span class="tag ${cls}">${lbl}</span></div>`}
+      ${a.beca ? `<div class="small">🎖 <b>Becado</b> · no paga cuota</div>` : `<div class="small">Cuota: <b>$${num(a.familia ? a.familia.cuota_final : a.cuota_mensual)}</b> · <span class="tag ${cls}">${lbl}</span></div>`}
       ${a.familia ? `<div class="small">👨‍👩‍👧 <b>${esc(a.familia.nombre)}</b> ${a.familia.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}${a.familia.descuento ? `<span class="tag tag-por-vencer">ahorra $${num(a.familia.descuento)}</span>` : ''}</div>` : ''}
       ${a.en_pausa ? `<div class="small"><span class="tag tag-por-vencer">⏸ En pausa${a.pausa_hasta ? ' hasta ' + esc(a.pausa_hasta) : ''}</span></div>` : ''}
       ${bjjBadge(a)}
@@ -3149,6 +3149,25 @@ async function formAlumno(id) {
       await api('/api/alumnos/' + a.id, { method: 'PUT', body });
       toast('Alumno actualizado ✓');
       closeModal(); renderAlumnos($('#sec-alumnos'));
+    } catch (err) { toast(err.message); }
+  });
+}
+
+function cambiarCuotaProfe(id, nombre, actual) {
+  openModal(`
+    <h3>Cuota de ${esc(nombre)}</h3>
+    <form id="cuotaProfeForm">
+      <p class="small">Los profesores también pagan cuota. Cargale el monto mensual; si no lo cargás, el profesor no figura como deudor y no puede pagar con MercadoPago.</p>
+      <div class="field"><label>Cuota mensual ($)</label>
+        <input type="number" step="0.01" id="cpMonto" value="${actual || ''}" required></div>
+      <button class="btn primary btn-block" type="submit">Guardar cuota</button>
+    </form>`);
+  $('#cuotaProfeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api('/api/profesores/' + id + '/cuota', { method: 'PUT', body: { cuota_mensual: +$('#cpMonto').value } });
+      closeModal(); toast('Cuota del profesor actualizada ✓');
+      renderProfesores($('#sec-profesores'));
     } catch (err) { toast(err.message); }
   });
 }
@@ -3499,14 +3518,17 @@ async function renderProfesores(el) {
       <button class="btn primary" onclick="formProfesor()">+ Crear profesor</button>
     </div>
     <div class="card"><div style="overflow:auto"><table>
-      <tr><th>Profesor</th><th>Faixa</th><th>Edad</th><th>Peso</th><th>Usuario</th><th>Clases</th><th></th></tr>
+      <tr><th>Profesor</th><th>Faixa</th><th>Edad</th><th>Peso</th><th>Usuario</th><th>Clases</th><th>Cuota</th><th></th></tr>
       ${d.profesores.length ? d.profesores.map(p => `
         <tr>
           <td><div class="flex" style="gap:8px">${avatarHTML(p.foto, p.nombre, 'sm')}<b>${esc(p.nombre)}</b></div></td><td>${beltHTML(p.cinturon)}</td>
           <td>${p.edad != null ? p.edad : '—'}</td><td>${p.peso ? p.peso + 'kg' : '—'}</td>
           <td>@${esc(p.username)}</td><td>${p.clases}</td>
-          <td><button class="btn bad small" onclick="eliminarProfesor(${p.id},'${escJs(p.nombre)}')">🗑 Eliminar</button></td>
-        </tr>`).join('') : '<tr><td colspan="7" class="empty">Todavía no hay profesores.</td></tr>'}
+          <td>${p.cuota_mensual ? '$' + num(p.cuota_mensual) : '<span style="color:var(--warn)">sin cargar</span>'}</td>
+          <td><div class="flex" style="gap:6px;flex-wrap:wrap">
+            ${USER.role === 'admin' ? `<button class="btn ghost small" onclick="cambiarCuotaProfe(${p.id},'${escJs(p.nombre)}',${p.cuota_mensual || 0})">💲</button>` : ''}
+            <button class="btn bad small" onclick="eliminarProfesor(${p.id},'${escJs(p.nombre)}')">🗑 Eliminar</button></div></td>
+        </tr>`).join('') : '<tr><td colspan="8" class="empty">Todavía no hay profesores.</td></tr>'}
     </table></div></div>`;
 }
 
@@ -3529,12 +3551,15 @@ async function formProfesor() {
       <div class="field"><label>Edad</label><input type="number" id="prEdad"></div>
       <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" id="prPeso"></div>
       <div class="field"><label>Faixa</label><select id="prCinturon">${BELTS_ADULT.map(b => `<option>${b}</option>`).join('')}</select></div>
+      <div class="field" style="grid-column:1/-1"><label>Cuota mensual ($) — los profesores también pagan</label>
+        <input type="number" step="0.01" id="prCuota" placeholder="si lo dejás vacío se usa la cuota por defecto"></div>
       <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Crear</button></div>
     </form>`);
   $('#profeForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const body = { nombre: $('#prNombre').value.trim(), edad: $('#prEdad').value, peso: $('#prPeso').value,
       cinturon: $('#prCinturon').value };
+    if ($('#prCuota').value) body.cuota_mensual = +$('#prCuota').value;
     if ($('#prUser').value) body.username = $('#prUser').value.trim();
     if ($('#prPass').value) body.password = $('#prPass').value;
     try {

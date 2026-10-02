@@ -1168,7 +1168,7 @@ def aviso_cuotas_automatico():
         if hoy.day < due_day:
             return 0
         deudores = get_db().execute(
-            """SELECT u.id, u.nombre FROM users u WHERE u.role='alumno' AND u.activo=1
+            """SELECT u.id, u.nombre FROM users u WHERE u.role IN ('alumno','profesor') AND u.activo=1
                AND NOT EXISTS (SELECT 1 FROM pagos p WHERE p.alumno_id=u.id AND p.mes=? AND p.anio=?)""",
             (hoy.month, hoy.year)).fetchall()
         enviados = 0
@@ -1571,16 +1571,6 @@ def cuota_status(alumno):
             'due_day': due_day,
             'cargo_demora_pct': 0,
         }
-    if alumno['role'] == 'profesor':
-        return {
-            'mes': hoy.month,
-            'anio': hoy.year,
-            'estado': 'profesor',
-            'pago': None,
-            'cuota': 0,
-            'due_day': due_day,
-            'cargo_demora_pct': 0,
-        }
     estado = 'al_dia' if pago else 'deuda'
     if not pago and hoy.day <= due_day:
         estado = 'por_vencer'
@@ -1811,10 +1801,10 @@ FOTOS_PROFES = {
 
 #  ####################  DATOS DEL SITIO (web + presentacion)  ####################
 # Link de Instagram (aparece arriba, abajo y en contacto).
-INSTAGRAM_URL = ''
-INSTAGRAM_USUARIO = ''
+INSTAGRAM_URL = 'https://www.instagram.com/madrynjiujitsu/'
+INSTAGRAM_USUARIO = '@madrynjiujitsu'
 #  Direccion de la academia.
-DIRECCION = 'Puerto Madryn, Chubut, Argentina'
+DIRECCION = 'San Martín 1310, Puerto Madryn, Chubut, Argentina'
 #  WhatsApp para consultas: solo numeros con prefijo internacional, sin + ni espacios.
 #  Ej: '54292123456789'. Si queda vacio, el boton de WhatsApp NO se muestra.
 WHATSAPP_NUMERO = ''
@@ -1912,8 +1902,16 @@ def _reparto_por_actividades(alumno_id, monto, profesor_manual_id=None):
     return []
 
 
-def _registrar_reparto(db, pago_id, alumno_id, monto, profesor_manual_id=None):
-    """Guarda el desglose del pago en pago_reparto y devuelve las partes."""
+def _registrar_reparto(db, pago_id, alumno_id, monto, profesor_manual_id=None,
+                       sin_reparto=False):
+    """Guarda el desglose del pago en pago_reparto y devuelve las partes.
+
+    sin_reparto=True cuando el pago es la cuota del propio profesor: esa plata
+    entra a la academia, no se reparte entre los profes. Sin esto, un profe que
+    carga su cuota se terminaba pagando a si mismo.
+    """
+    if sin_reparto:
+        return []
     partes = _reparto_por_actividades(alumno_id, monto, profesor_manual_id)
     ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     for pid, parte, act, _nombre in partes:
@@ -2255,7 +2253,7 @@ def api_register():
     if menor and not firma_foto:
         return jsonify({'error': 'Para menores (Kids/Juveniles) el padre, madre o tutor debe firmar la autorización de fotos.'}), 400
     firma_fecha = datetime.now().strftime('%d/%m/%Y %H:%M') if (firma_tyc or firma_foto) else None
-    cuota_reg = to_float(data.get('cuota_mensual')) if role == 'alumno' else None
+    cuota_reg = to_float(data.get('cuota_mensual')) if role in ('alumno', 'profesor') else None
     csv_act = _actividades_csv(data)
     if role == 'alumno' and not cuota_reg:
         cuota_reg = _cuota_por_actividades(csv_act)
@@ -2311,7 +2309,7 @@ def api_logout():
 def api_me():
     u = current_user()
     d = user_public(u)
-    if u['role'] == 'alumno':
+    if u['role'] in ('alumno', 'profesor'):
         d['cuota'] = cuota_status(u)
     d['pago_link'] = url_http_valida(get_setting('pago_link', '')) or PAGO_LINK_DEFAULT
     d['pago_alias'] = get_setting('pago_alias', '')
@@ -2866,17 +2864,44 @@ def api_profesores_create():
     if get_db().execute('SELECT id FROM users WHERE username=?', (username,)).fetchone():
         return jsonify({'error': 'Ese usuario ya existe'}), 400
     password = data.get('password') or 'profe123'
+    # Los profes pagan cuota. Sin esto queda NULL y el profe no aparece como
+    # deudor ni puede pagar por MercadoPago.
+    cuota_profe = to_float(data.get('cuota_mensual')) or to_float(get_setting('default_cuota', '0')) or None
     get_db().execute(
-        """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, creado)
-           VALUES(?,?,?,?,?,?,?,?,?,?)""",
+        """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, cuota_mensual, creado)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
         (username, generate_password_hash(password), 'profesor', nombre,
          to_int(data.get('edad')), to_float(data.get('peso')),
          data.get('cinturon'), data.get('categoria') or 'adulto',
-         data.get('gi_pref') or 'Ambas',
+         data.get('gi_pref') or 'Ambas', cuota_profe,
          datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
     get_db().commit()
     new_id = get_db().execute('SELECT last_insert_rowid() AS id').fetchone()['id']
     return jsonify({'ok': True, 'id': new_id, 'username': username, 'password': password})
+
+
+@app.route('/api/profesores/<int:uid>/cuota', methods=['PUT'])
+@role_required('admin')
+def api_profesores_cuota(uid):
+    """Carga el monto de cuota de un profesor.
+
+    Los profes pagan cuota, asi que su cuota_mensual deja de ser NULL: sin monto
+    /api/checkout no tendria nada que cobrar y no figurarian en /api/deudores
+    (que filtra por cuota_mensual IS NOT NULL).
+    """
+    data = parse_json()
+    cuota = to_float(data.get('cuota_mensual'))
+    if not cuota or cuota <= 0:
+        return jsonify({'error': 'Monto de cuota invalido'}), 400
+    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='profesor'", (uid,)).fetchone()
+    if not u:
+        return jsonify({'error': 'Profesor no encontrado'}), 404
+    get_db().execute('UPDATE users SET cuota_mensual=? WHERE id=?', (cuota, uid))
+    get_db().commit()
+    who = current_user()['nombre']
+    notify(uid, 'Tu cuota cambio',
+           f'{who} actualizo tu cuota mensual a ${cuota:,.0f}'.replace(',', '.'), 'cuota')
+    return jsonify({'ok': True, 'cuota_mensual': cuota})
 
 
 @app.route('/api/profesores/<int:uid>', methods=['DELETE'])
@@ -3439,10 +3464,10 @@ def api_pagos_create():
     if err:
         return jsonify({'error': err}), 400
     who = current_user()
-    # Un profesor no puede registrarse un pago a si mismo: si lo hacia, cada
-    # reenvio del formulario le generaba ingreso de profesor duplicado.
-    if who['role'] != 'admin' and alumno_id == who['id']:
-        return jsonify({'error': 'No podes registrarte un pago a vos mismo. Pedile al administrador que lo cargue.'}), 403
+    # Un profesor puede cargar su propia cuota (los profes pagan), pero ese pago
+    # NO se reparte: la plata entra a la academia. Antes se bloqueaba entero y un
+    # profe no podia darse de alta su cuota sin que lo hiciera un admin.
+    propio = (who['role'] != 'admin' and alumno_id == who['id'])
     # profesor_id 0 / -1 / ausente = reparto automático según actividades
     if profesor_id in (None, 0, -1) or data.get('profesor_id') in (None, 0, -1, '0'):
         profesor_id = None
@@ -3472,7 +3497,8 @@ def api_pagos_create():
     get_db().commit()
     pago_id = get_db().execute('SELECT last_insert_rowid() AS id').fetchone()['id']
     # reparto 50/50 segun las actividades del alumno
-    partes = _registrar_reparto(get_db(), pago_id, alumno_id, monto, profesor_id)
+    partes = _registrar_reparto(get_db(), pago_id, alumno_id, monto, profesor_id,
+                                sin_reparto=propio)
     get_db().commit()
     alumno = get_db().execute('SELECT * FROM users WHERE id=?', (alumno_id,)).fetchone()
     nota_extra = f' (incluye ${cargo:,.0f} de recargo por demora).'.replace(',', '.') if cargo else '.'
@@ -3539,7 +3565,7 @@ def api_pagos_familia():
     total = 0
     for m in miem:
         md = dict(m)
-        if md.get('beca') or md.get('role') == 'profesor':
+        if md.get('beca'):
             continue
         if db.execute('SELECT COUNT(*) AS n FROM pagos WHERE alumno_id=? AND mes=? AND anio=?',
                       (m['id'], mes, anio)).fetchone()['n']:
@@ -3594,7 +3620,7 @@ def api_pagos_delete(pid):
 @role_required('admin', 'profesor')
 def api_deudores():
     rows = get_db().execute(
-        "SELECT * FROM users WHERE role='alumno' AND activo=1 AND cuota_mensual IS NOT NULL ORDER BY nombre").fetchall()
+        "SELECT * FROM users WHERE role IN ('alumno','profesor') AND activo=1 AND cuota_mensual IS NOT NULL ORDER BY nombre").fetchall()
     deudores = []
     for r in rows:
         if en_pausa(r):
@@ -3624,7 +3650,7 @@ def api_notify_deuda():
     if alumno_id:
         ids = [alumno_id]
     else:
-        rows = get_db().execute("SELECT * FROM users WHERE role='alumno' AND activo=1 AND cuota_mensual IS NOT NULL").fetchall()
+        rows = get_db().execute("SELECT * FROM users WHERE role IN ('alumno','profesor') AND activo=1 AND cuota_mensual IS NOT NULL").fetchall()
         ids = [r['id'] for r in rows if not en_pausa(r) and cuota_status(r)['estado'] in ('deuda', 'por_vencer')]
     who = current_user()['nombre']
     enviados = 0
@@ -3635,7 +3661,7 @@ def api_notify_deuda():
             if not alumno:
                 continue
             st = cuota_status(alumno)
-            if st.get('estado') in ('becado', 'profesor'):
+            if st.get('estado') == 'becado':
                 continue
             monto_txt = to_int(st.get('cuota') or 0)
             notify(aid, 'Recordatorio de deuda',
@@ -5951,7 +5977,8 @@ def api_exportar_alumnos():
                 'por_vencer': 'Por vencer (antes del dia %s)' % (cs.get('due_day') or 10),
                 'deuda': 'Deuda',
                 'becado': 'Beca (no paga)',
-                'profesor': 'Profesor (no paga)',
+                # Los profes pagan cuota: no hay estado 'profesor' para el que
+                # exento. Si aparece, es un dato viejo, no una excepcion.
             }.get(cs['estado'], cs['estado'])
         except Exception:
             estado_label = ''

@@ -747,6 +747,29 @@ CREATE INDEX IF NOT EXISTS idx_grados_alumno ON grados(alumno_id);
 """
 
 
+def _partes_schema():
+    """(tablas, indices) separados del SCHEMA.
+
+    El orden entre las dos partes importa: los CREATE INDEX se corren despues de
+    los ALTER TABLE que agregan las columnas que indexan. Al reves, en una base
+    que ya tenia la tabla, CREATE TABLE IF NOT EXISTS no agrega la columna, el
+    indice revienta, y como Postgres corre la migracion entera en una sola
+    transaccion se pierde tambien todo lo creado antes.
+    """
+    tablas, indices = [], []
+    for stmt in dbadapter._split(SCHEMA):
+        (indices if stmt.strip().upper().startswith('CREATE INDEX') else tablas).append(stmt)
+    return tablas, indices
+
+
+def _tablas_sql():
+    return '\n'.join(_partes_schema()[0])
+
+
+def _indices_sql():
+    return '\n'.join(_partes_schema()[1])
+
+
 def _schema_version():
     """Huella del esquema + de las migraciones.
 
@@ -765,9 +788,22 @@ def _schema_version():
 
 
 def _schema_version_stored(db):
+    """Version guardada, o None si todavia no se migro.
+
+    Cuidado con Postgres: si el SELECT falla porque schema_meta no existe, la
+    transaccion queda abortada y TODO lo que se corra despues en la misma
+    conexion revienta con InFailedSqlTransaction. Por eso se corta la
+    transaccion aca: si no, la migracion no puede ni crear la tabla que este
+    mismo probe esta buscando.
+    """
     try:
         row = db.execute("SELECT valor FROM schema_meta WHERE clave='version'").fetchone()
-    except Exception:
+    except Exception as e:
+        _log.warning('schema_meta no se pudo leer (%s): se migra de cero', type(e).__name__)
+        try:
+            db.rollback()
+        except Exception:
+            pass
         return None
     if not row:
         return None
@@ -775,6 +811,18 @@ def _schema_version_stored(db):
         return row['valor']
     except Exception:
         return row[0]
+
+
+import logging as _logging
+
+# Un solo logger para toda la app. Con print() el error de migracion salia a
+# stdout y Render lo bufferbeaba: la app levantaba igual y el motivo del fallo
+# no aparecia en ningun lado.
+_log = _logging.getLogger('nexo')
+if not _logging.getLogger().handlers:
+    _logging.basicConfig(
+        level=_logging.INFO,
+        format='%(asctime)s %(levelname)s %(name)s: %(message)s')
 
 
 def init_db():
@@ -799,8 +847,10 @@ def init_db():
                 db.execute('INSERT OR REPLACE INTO schema_meta(clave, valor) VALUES(?,?)',
                            ('version', ver))
                 db.commit()
-            except Exception:
-                pass
+            except Exception as e:
+                # NO se traga en silencio: sin la version guardada la migracion
+                # entera se re-corre en cada arranque.
+                _log.error('no se pudo guardar la version del esquema %s: %s', ver, e)
     finally:
         try:
             db.close()
@@ -808,18 +858,85 @@ def init_db():
             pass
 
 
-def _init_db_body(db):
-    db.executescript(SCHEMA)
-    c = db.cursor()
-    # migracion: agregar columnas nuevas si faltan
+def _columnas_de(c, tabla):
+    """Nombres de columnas de una tabla, en el dialecto que toque."""
     if DB_MODE == 'postgres':
-        cols = [r[0] for r in c.execute(
+        return [r[0] for r in c.execute(
             "SELECT column_name AS name FROM information_schema.columns "
-            "WHERE table_schema=current_schema() AND table_name='users'").fetchall()]
-    elif DB_MODE == 'mysql':
-        cols = [r[0] for r in c.execute('SHOW COLUMNS FROM users').fetchall()]
-    else:
-        cols = [r[1] for r in c.execute('PRAGMA table_info(users)').fetchall()]
+            "WHERE table_schema=current_schema() AND table_name=?", (tabla,)).fetchall()]
+    if DB_MODE == 'mysql':
+        return [r[0] for r in c.execute('SHOW COLUMNS FROM ' + tabla).fetchall()]
+    return [r[1] for r in c.execute('PRAGMA table_info(%s)' % tabla).fetchall()]
+
+
+_TIPOS_COL = ('TEXT', 'INTEGER', 'REAL', 'VARCHAR', 'NUMERIC', 'DECIMAL', 'BLOB', 'DATE', 'BOOLEAN')
+_NOMBRES_IGNORAR = ('PRIMARY', 'FOREIGN', 'UNIQUE', 'CHECK', 'CONSTRAINT', 'KEY', 'INDEX')
+
+
+def _columnas_declaradas():
+    """{tabla: {columna: tipo}} segun lo que el propio SCHEMA declara.
+
+    Se usa para alinear las tablas viejas con el SCHEMA actual. Si no, cualquier
+    columna que se haya agregado al CREATE TABLE despues (videos.belt, por
+    ejemplo) volaba: el CREATE TABLE IF NOT EXISTS no hace nada en una tabla que
+    ya existe y el indice que la referencia revienta con UndefinedColumn.
+    """
+    out = {}
+    for tabla, cuerpo in re.findall(
+            r'CREATE TABLE IF NOT EXISTS (\w+)\s*\((.*?)\n\)', SCHEMA, re.S):
+        cols = {}
+        for linea in cuerpo.split('\n'):
+            linea = linea.strip().rstrip(',')
+            if not linea or linea.startswith('--'):
+                continue
+            palabras = linea.split()
+            nombre = palabras[0]
+            if nombre.upper() in _NOMBRES_IGNORAR or '(' in nombre:
+                continue
+            resto = ' '.join(palabras[1:])
+            tipo = 'TEXT'
+            for p in palabras[1:]:
+                p = p.strip('()').upper()
+                if p in _TIPOS_COL:
+                    tipo = 'VARCHAR(255)' if p == 'VARCHAR' else p
+                    break
+                if p in _NOMBRES_IGNORAR:
+                    tipo = None
+                    break
+            if tipo is None:
+                continue
+            cols[nombre] = tipo
+        if cols:
+            out[tabla] = cols
+    return out
+
+
+def _alinear_columnas(c):
+    """Agrega a cada tabla las columnas que el SCHEMA ya declara y faltan."""
+    for tabla, cols in _columnas_declaradas().items():
+        try:
+            existentes = set(_columnas_de(c, tabla))
+        except Exception:
+            continue
+        for nombre, tipo in cols.items():
+            if nombre in existentes:
+                continue
+            try:
+                c.execute('ALTER TABLE %s ADD COLUMN %s %s' % (tabla, nombre, tipo))
+            except Exception as e:
+                _log.warning('no se pudo agregar %s.%s (%s): %s', tabla, nombre, tipo, e)
+
+
+def _migrar_columnas(c):
+    """Agrega las columnas que se fueron sumando despues del CREATE TABLE.
+
+    Corre ANTES que los CREATE INDEX del SCHEMA: si un indice referenciara una
+    de estas columnas en una base ya vieja, reventaria con UndefinedColumn y,
+    como Postgres corre toda la migracion en una sola transaccion, se perderian
+    tambien las tablas que se acababan de crear. Asi fue comoGI 'torneos' nunca
+    llego a existir en produccion.
+    """
+    cols = _columnas_de(c, 'users')
     if 'foto' not in cols:
         c.execute('ALTER TABLE users ADD COLUMN foto TEXT')
     for col, ddl in [('tel', 'TEXT'), ('nacimiento', 'TEXT'), ('medic_info', 'TEXT'), ('emergency_contact', 'TEXT'),
@@ -834,66 +951,44 @@ def _init_db_body(db):
                      ('bjj_categoria', "TEXT DEFAULT ''")]:
         if col not in cols:
             c.execute('ALTER TABLE users ADD COLUMN %s %s' % (col, ddl))
-    try:
-        c.execute('UPDATE users SET beca=0 WHERE beca IS NULL')
-    except Exception:
-        pass
-    if DB_MODE == 'postgres':
-        ev_cols = [r[0] for r in c.execute(
-            "SELECT column_name AS name FROM information_schema.columns "
-            "WHERE table_schema=current_schema() AND table_name='eventos'").fetchall()]
-    elif DB_MODE == 'mysql':
-        ev_cols = [r[0] for r in c.execute('SHOW COLUMNS FROM eventos').fetchall()]
-    else:
-        ev_cols = [r[1] for r in c.execute('PRAGMA table_info(eventos)').fetchall()]
-    if 'recordado' not in ev_cols:
+    if 'recordado' not in _columnas_de(c, 'eventos'):
         c.execute('ALTER TABLE eventos ADD COLUMN recordado INTEGER DEFAULT 0')
-    if DB_MODE == 'postgres':
-        ap_cols = [r[0] for r in c.execute(
-            "SELECT column_name AS name FROM information_schema.columns "
-            "WHERE table_schema=current_schema() AND table_name='avisos_pago'").fetchall()]
-    elif DB_MODE == 'mysql':
-        ap_cols = [r[0] for r in c.execute('SHOW COLUMNS FROM avisos_pago').fetchall()]
-    else:
-        ap_cols = [r[1] for r in c.execute('PRAGMA table_info(avisos_pago)').fetchall()]
-    if 'comprobante' not in ap_cols:
+    if 'comprobante' not in _columnas_de(c, 'avisos_pago'):
         c.execute('ALTER TABLE avisos_pago ADD COLUMN comprobante TEXT')
-    if DB_MODE == 'postgres':
-        v_cols = [r[0] for r in c.execute(
-            "SELECT column_name AS name FROM information_schema.columns "
-            "WHERE table_schema=current_schema() AND table_name='videos'").fetchall()]
-    elif DB_MODE == 'mysql':
-        v_cols = [r[0] for r in c.execute('SHOW COLUMNS FROM videos').fetchall()]
-    else:
-        v_cols = [r[1] for r in c.execute('PRAGMA table_info(videos)').fetchall()]
+    v_cols = _columnas_de(c, 'videos')
     if 'data' not in v_cols:
         c.execute('ALTER TABLE videos ADD COLUMN data TEXT')
     if 'categoria' not in v_cols:
         c.execute('ALTER TABLE videos ADD COLUMN categoria TEXT DEFAULT \'adulto\'')
     if 'actividad' not in v_cols:
         c.execute('ALTER TABLE videos ADD COLUMN actividad TEXT')
-    if DB_MODE == 'postgres':
-        cm_cols = [r[0] for r in c.execute(
-            "SELECT column_name AS name FROM information_schema.columns "
-            "WHERE table_schema=current_schema() AND table_name='chat_messages'").fetchall()]
-    elif DB_MODE == 'mysql':
-        cm_cols = [r[0] for r in c.execute('SHOW COLUMNS FROM chat_messages').fetchall()]
-    else:
-        cm_cols = [r[1] for r in c.execute('PRAGMA table_info(chat_messages)').fetchall()]
+    cm_cols = _columnas_de(c, 'chat_messages')
     if 'adjunto' not in cm_cols:
         c.execute('ALTER TABLE chat_messages ADD COLUMN adjunto TEXT')
     if 'adjunto_tipo' not in cm_cols:
         c.execute('ALTER TABLE chat_messages ADD COLUMN adjunto_tipo TEXT')
-    if DB_MODE == 'postgres':
-        n_cols = [r[0] for r in c.execute(
-            "SELECT column_name AS name FROM information_schema.columns "
-            "WHERE table_schema=current_schema() AND table_name='notificaciones'").fetchall()]
-    elif DB_MODE == 'mysql':
-        n_cols = [r[0] for r in c.execute('SHOW COLUMNS FROM notificaciones').fetchall()]
-    else:
-        n_cols = [r[1] for r in c.execute('PRAGMA table_info(notificaciones)').fetchall()]
-    if 'link' not in n_cols:
+    if 'link' not in _columnas_de(c, 'notificaciones'):
         c.execute('ALTER TABLE notificaciones ADD COLUMN link TEXT DEFAULT \'\'')
+
+
+def _init_db_body(db):
+    # Orden: CREATE TABLE -> ALTER TABLE (columnas nuevas) -> CREATE INDEX.
+    db.executescript(_tablas_sql())
+    c = db.cursor()
+    _migrar_columnas(c)
+    _alinear_columnas(c)
+    try:
+        c.execute('UPDATE users SET beca=0 WHERE beca IS NULL')
+    except Exception as e:
+        # En Postgres un UPDATE fallido ABORTA la transaccion: todo lo que se
+        # corra despues revienta con InFailedSqlTransaction y el error real queda
+        # enmascarado. Por eso se loguea y no se traga en silencio.
+        _log.exception('no se pudo normalizar users.beca: %s', e)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+    db.executescript(_indices_sql())
     defaults = {
         'academy_name': 'NEXO MADRYN JIU JITSU',
         'academy_code': 'NEXO2026',
@@ -930,10 +1025,7 @@ def _init_db_body(db):
         c.execute(
             "INSERT INTO users(username, password_hash, role, nombre) VALUES(?,?,?,?)",
             ('admin', generate_password_hash(clave), 'admin', 'Administrador'))
-        print('=' * 60)
-        print('  ADMIN CREADO ->  usuario: admin')
-        print('  CONTRASENA (se muestra una sola vez, guardala):', clave)
-        print('=' * 60)
+        _log.critical('ADMIN CREADO usuario=admin contrasena=%s (se muestra una sola vez, guardala)', clave)
     db.commit()
 
 
@@ -1168,26 +1260,31 @@ def aviso_cuotas_automatico():
         if hoy.day < due_day:
             return 0
         deudores = get_db().execute(
-            """SELECT u.id, u.nombre FROM users u WHERE u.role IN ('alumno','profesor') AND u.activo=1
+            """SELECT u.* FROM users u WHERE u.role IN ('alumno','profesor') AND u.activo=1
+               AND u.cuota_mensual IS NOT NULL AND (u.beca IS NULL OR u.beca=0)
                AND NOT EXISTS (SELECT 1 FROM pagos p WHERE p.alumno_id=u.id AND p.mes=? AND p.anio=?)""",
             (hoy.month, hoy.year)).fetchall()
         enviados = 0
         for d in deudores:
+            # La pausa se chequea en el loop porque necesita las columnas del
+            # usuario. Y el deudor se confirma con cuota_status, no solo por "no
+            # tiene pago": asi se respeta el mismo criterio que la lista de
+            # deudores y el panel no contradicen al aviso que se acabo de mandar.
             if en_pausa(d):
+                continue
+            if cuota_status(d)['estado'] not in ('deuda', 'por_vencer'):
                 continue
             try:
                 notify(d['id'], '💸 Recordatorio de cuota',
                        'Tu cuota de %d/%d está pendiente. Pagala cuando puedas.' % (hoy.month, hoy.year),
                        'cuota', push=True)
                 enviados += 1
-            except Exception:
-                pass
+            except Exception as e:
+                _log.warning('no se pudo avisar la cuota a %s: %s', d['id'], e)
         set_setting('aviso_cuota_%d_%d' % (hoy.year, hoy.month), '1')
         return enviados
     except Exception as e:
-        import traceback as _tb
-        print('AVISO_CUOTA_ERROR:', e)
-        _tb.print_exc()
+        _log.exception('AVISO_CUOTA_ERROR: %s', e)
         return 0
 
 
@@ -1219,9 +1316,7 @@ def aviso_eventos_hoy():
             db.commit()
         return enviados
     except Exception as e:
-        import traceback as _tb
-        print('AVISO_EVENTOS_ERROR:', e)
-        _tb.print_exc()
+        _log.exception('AVISO_EVENTOS_ERROR: %s', e)
         return 0
 
 
@@ -1262,9 +1357,7 @@ def aviso_renovacion():
             set_setting(key, '1')
         return enviados
     except Exception as e:
-        import traceback as _tb
-        print('AVISO_RENOVACION_ERROR:', e)
-        _tb.print_exc()
+        _log.exception('AVISO_RENOVACION_ERROR: %s', e)
         return 0
 
 
@@ -1333,8 +1426,19 @@ def role_required(*roles):
 
 
 def parse_json():
+    """Devuelve el body como dict, o {} si no lo es.
+
+    Antes tiraba el body entero sin avisar cuando no era un objeto, y por eso
+    un cliente que manda el JSON ya serializado (o un string) se comia un 400
+    de "falta X" sin decir que el problema era el formato del cuerpo entero.
+    """
     data = request.get_json(silent=True)
-    return data if isinstance(data, dict) else {}
+    if isinstance(data, dict):
+        return data
+    if data is not None:
+        _log.warning('%s %s: body JSON que no es un objeto (%s), se trata como vacio',
+                     request.method, request.path, type(data).__name__)
+    return {}
 
 
 def to_int(v):
@@ -1516,6 +1620,22 @@ STALE_SECONDS = int(os.environ.get('AVISOS_STALE', '600'))
 _ultimo_aviso = [0]
 
 
+def _recuperar_conexion():
+    """Deja sana la transaccion de la conexion del request.
+
+    En Postgres, un error dentro de una transaccion la ABORTA: todo lo que se
+    corra despues en esa conexion falla con InFailedSqlTransaction hasta que se
+    haga ROLLBACK. Estos tres ROLLBACK a mano eran el parche; con DB.rollback()
+    queda en un solo lugar y no hay que acordarse de repetirlo.
+    """
+    if DB_MODE == 'sqlite':
+        return
+    try:
+        get_db().rollback()
+    except Exception as e:
+        _log.debug('rollback de recuperación: %s', e)
+
+
 def _correr_avisos_periodicos():
     # Corre fuera del request para que el usuario no espere mientras se
     # mandan los push (HTTP sincronico a Google/Apple por suscripcion).
@@ -1526,10 +1646,7 @@ def _correr_avisos_periodicos():
             aviso_renovacion()
             # Si algun aviso fallo a mitad, su transaccion quedo abortada
             # (Postgres). Dejar la conexion sana para el resto del proceso.
-            try:
-                get_db().execute('ROLLBACK')
-            except Exception:
-                pass
+            _recuperar_conexion()
     except Exception:
         pass
 
@@ -1634,31 +1751,38 @@ def en_pausa(alumno, fecha=None):
 
 
 def dias_deuda(alumno):
+    """Días de atraso de la cuota: 0 si está al día, y 0 también si está en pausa.
+
+    Antes usaba la fecha del último pago, así que un alumno que pagó bien en
+    febrero figuraba "al día" en abril y nunca llegaba al umbral de deuda. Y si
+    nunca había pagado devolvía los días desde que se creó la cuenta, que no
+    tienen nada que ver con el vencimiento de la cuota.
+    """
     hoy = _hoy_academy()
     try:
-        beca = int(alumno['beca'] or 0)
+        if int(alumno['beca'] or 0):
+            return 0
     except (KeyError, IndexError, TypeError):
-        beca = 0
-    if beca:
+        pass
+    if en_pausa(alumno):
         return 0
+    due_day = to_int(get_setting('due_day', '10')) or 10
+
+    # Solo importa el mes en curso, igual que en cuota_status: si esta pagado,
+    # esta al dia. Asi el numero de dias que muestra el panel no contradice el
+    # estado, y un alumno que pago el mes vigente no queda marcado con la deuda
+    # de un mes anterior que ya se regularizo o se condono.
     pago = get_db().execute(
-        'SELECT fecha FROM pagos WHERE alumno_id=? ORDER BY fecha DESC LIMIT 1',
-        (alumno['id'],)).fetchone()
-    if pago and pago['fecha']:
-        try:
-            last = datetime.strptime(pago['fecha'][:10], '%Y-%m-%d').date()
-            return (hoy - last).days
-        except Exception:
-            pass
-    # si nunca pago
-    creado = alumno['creado']
-    if creado:
-        try:
-            last = datetime.strptime(creado[:10], '%Y-%m-%d').date()
-            return (hoy - last).days
-        except Exception:
-            pass
-    return 0
+        'SELECT id FROM pagos WHERE alumno_id=? AND mes=? AND anio=? LIMIT 1',
+        (alumno['id'], hoy.month, hoy.year)).fetchone()
+    if pago:
+        return 0
+    try:
+        venc = date(hoy.year, hoy.month, due_day)
+    except ValueError:
+        import calendar
+        venc = date(hoy.year, hoy.month, calendar.monthrange(hoy.year, hoy.month)[1])
+    return max(0, (hoy - venc).days)
 
 
 def dias_sin_entrenar(alumno):
@@ -1697,7 +1821,7 @@ def run_auto_mensajes():
     inact_dias = to_int(get_setting('auto_inact_dias', '15')) or 15
     deuda_dias = to_int(get_setting('auto_deuda_dias', '30')) or 30
     alumnos = get_db().execute(
-        "SELECT * FROM users WHERE role='alumno' AND activo=1").fetchall()
+        "SELECT * FROM users WHERE role IN ('alumno','profesor') AND activo=1").fetchall()
     enviados = []
     for a in alumnos:
         if en_pausa(a):
@@ -1902,15 +2026,32 @@ def _reparto_por_actividades(alumno_id, monto, profesor_manual_id=None):
     return []
 
 
+def _rol_de(db, user_id):
+    try:
+        row = db.execute('SELECT role FROM users WHERE id=?', (user_id,)).fetchone()
+    except Exception:
+        return None
+    if not row:
+        return None
+    try:
+        return row['role']
+    except Exception:
+        return row[0]
+
+
 def _registrar_reparto(db, pago_id, alumno_id, monto, profesor_manual_id=None,
                        sin_reparto=False):
     """Guarda el desglose del pago en pago_reparto y devuelve las partes.
 
-    sin_reparto=True cuando el pago es la cuota del propio profesor: esa plata
-    entra a la academia, no se reparte entre los profes. Sin esto, un profe que
-    carga su cuota se terminaba pagando a si mismo.
+    La cuota de un PROFESOR nunca se reparte: esa plata entra a la academia, no
+    va a los profesores. El chequeo del rol va aca adentro y no en los endpoints
+    a proposito: si quedara en el llamador, cualquier camino nuevo (el cobro
+    familiar, otro profe que registre el pago, el webhook) volveria a pagarle al
+    profesor su propia cuota desde la propia academia.
     """
     if sin_reparto:
+        return []
+    if _rol_de(db, alumno_id) == 'profesor':
         return []
     partes = _reparto_por_actividades(alumno_id, monto, profesor_manual_id)
     ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -2532,8 +2673,14 @@ def _torneo_campos(data, tid=None):
     if not nombre:
         return None, ('Falta el nombre del torneo', 400)
     fecha = txt_str(data.get('fecha'))
-    if fecha and not re.match(r'^\d{4}-\d{2}-\d{2}$', fecha):
-        return None, ('Fecha inválida (esperaba AAAA-MM-DD)', 400)
+    if fecha:
+        # El regex solo chequeaba la forma: 2026-13-45 pasaba y despues reventaba
+        # al ordenar o al pintar el calendario. Se valida como fecha real.
+        try:
+            datetime.strptime(fecha, '%Y-%m-%d')
+        except ValueError:
+            return None, ('Fecha inválida: usá una fecha que exista, tipo 2026-03-15', 400)
+    url = url_http_valida(txt_str(data.get('url')))
     return {
         'nombre': nombre,
         'fecha': fecha or None,
@@ -2542,7 +2689,9 @@ def _torneo_campos(data, tid=None):
         'tipo': txt_str(data.get('tipo')) or 'IBJJF',
         'estado': txt_str(data.get('estado')) or 'programado',
         'descripcion': txt_str(data.get('descripcion')),
-        'url': txt_str(data.get('url')),
+        # Sin esto la url va directo a un href: un javascript: o data: queda
+        # clickeable en la tarjeta del torneo.
+        'url': url or '',
     }, None
 
 
@@ -2590,6 +2739,13 @@ def api_torneos_delete(tid):
     return jsonify({'ok': True})
 
 
+def _es_unique(e):
+    """True si la excepcion es una violacion de indice unico."""
+    txt = str(e).lower()
+    return ('unique' in txt or 'duplicate' in txt
+            or 'uniqueviolation' in type(e).__name__.lower())
+
+
 @app.route('/api/torneos/<int:tid>/inscripcion', methods=['POST'])
 @role_required('admin', 'profesor')
 def api_torneos_inscribir(tid):
@@ -2599,8 +2755,11 @@ def api_torneos_inscribir(tid):
     if not get_db().execute('SELECT id FROM torneos WHERE id=?', (tid,)).fetchone():
         return jsonify({'error': 'Torneo no encontrado'}), 404
     alumno = to_int(data.get('alumno_id'))
+    # El selector de la pantalla lista /api/alumnos, que ya trae profesores y
+    # admins; el endpoint los rechazaba con un 400 sin explicar por que. Ahora se
+    # acepta a cualquiera que compita, activo y con la cuenta dada de alta.
     if not alumno or not get_db().execute(
-            'SELECT id FROM users WHERE id=? AND role=?', (alumno, 'alumno')).fetchone():
+            'SELECT id FROM users WHERE id=? AND activo=1', (alumno,)).fetchone():
         return jsonify({'error': 'Alumno no encontrado'}), 400
     medalla = txt_str(data.get('medalla')).lower()
     if medalla and medalla not in MEDALLAS:
@@ -2615,22 +2774,29 @@ def api_torneos_inscribir(tid):
             cambios.append(campo + '=?')
             vals.append(val)
     db = get_db()
-    existe = db.execute('SELECT id FROM torneo_inscripciones WHERE torneo_id=? AND alumno_id=?',
-                        (tid, alumno)).fetchone()
-    if existe:
-        if not cambios:
-            return jsonify({'ok': True})
-        vals += [existe['id']]
-        db.execute('UPDATE torneo_inscripciones SET ' + ', '.join(cambios)
-                   + ' WHERE id=?', vals)
-    else:
+    ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    valores = {'categoria': txt_str(data.get('categoria')),
+               'medalla': medalla,
+               'nota': txt_str(data.get('nota'))}
+    try:
+        # Se intenta el INSERT y, si choca con el UNIQUE, se pasa al UPDATE. Asi
+        # la carrera del doble clic la resuelve la base (no dos inserts) sin
+        # perder de paso el update parcial: el upsert con COALESCE pisaba con ''
+        # los campos ausentes del payload y vaciaba la categoria.
         db.execute('INSERT INTO torneo_inscripciones(torneo_id, alumno_id, categoria,'
                    ' medalla, nota, creado) VALUES(?,?,?,?,?,?)',
                    (tid, alumno,
-                    txt_str(data.get('categoria')) if 'categoria' in data else '',
-                    medalla if 'medalla' in data else '',
-                    txt_str(data.get('nota')) if 'nota' in data else '',
-                    datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+                    valores['categoria'] if 'categoria' in data else '',
+                    valores['medalla'] if 'medalla' in data else '',
+                    valores['nota'] if 'nota' in data else '',
+                    ahora))
+    except Exception as e:
+        if not _es_unique(e):
+            raise
+        if not cambios:
+            return jsonify({'ok': True})
+        db.execute('UPDATE torneo_inscripciones SET ' + ', '.join(cambios)
+                   + ' WHERE torneo_id=? AND alumno_id=?', vals + [tid, alumno])
     db.commit()
     return jsonify({'ok': True})
 
@@ -2784,26 +2950,62 @@ def api_alumnos_update(uid):
                 return jsonify({'error': 'La fecha de nacimiento no puede ser hoy ni del futuro.'}), 400
         except ValueError:
             return jsonify({'error': 'Fecha de nacimiento inválida (formato AAAA-MM-DD).'}), 400
-    get_db().execute(
-        """UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, genero=?, cuota_mensual=?, activo=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, pausa_desde=?, pausa_hasta=? WHERE id=?""",
-        ((data.get('nombre') or u['nombre']), to_int(data.get('edad', u['edad'])),
-         to_float(data.get('peso', u['peso'])), data.get('cinturon', u['cinturon']),
-         data.get('categoria', u['categoria']), data.get('gi_pref', u['gi_pref']),
-         _actividades_csv(data), _genero_de(data, u),
-         (to_float(data.get('cuota_mensual')) if data.get('cuota_mensual') not in (None, '', 'auto')
-          else (_cuota_por_actividades(_actividades_csv(data)) or (to_float(get_setting('default_cuota', '15000')) or 15000))),
-         1 if data.get('activo', u['activo']) else 0,
-         txt_str(data.get('tel', u['tel'])) or None,
-         nac_upd or None,
-         data.get('medic_info', u['medic_info']),
-         data.get('emergency_contact', u['emergency_contact']),
-         txt_str(data.get('tel_tutor', u['tel_tutor'])) or None,
-         txt_str(data.get('tel_2', u['tel_2'])) or None,
-         txt_str(data.get('direccion', u['direccion'])) or None,
-         txt_str(data.get('dni', u['dni'])) or None,
-         1 if data.get('foto_ok', u['foto_ok']) else 0,
-         txt_str(data.get('pausa_desde', u['pausa_desde'])) or None,
-         txt_str(data.get('pausa_hasta', u['pausa_hasta'])) or None, uid))
+    # UPDATE parcial: solo las columnas que vienen de verdad en el body. Antes
+    # armaba un SET con las 21 columnas y para las que no llegaban usaba valores
+    # derivados del body en vez del usuario, asi que editar un solo campo desde
+    # el perfil (por ejemplo la ficha medica) vol activities a '' y recalculaba
+    # la cuota desde cero. Un update parcial no puede romper lo que no manda.
+    campos, vals = [], []
+
+    def poner(col, valor):
+        campos.append('%s=?' % col)
+        vals.append(valor)
+
+    def si(mapping, calc=None):
+        for col, clave in mapping:
+            if clave in data:
+                poner(col, data[clave] if calc is None else calc(clave))
+                break
+
+    si([('nombre', 'nombre')], lambda k: data.get('nombre') or u['nombre'])
+    si([('edad', 'edad')], lambda k: to_int(data.get('edad', u['edad'])))
+    si([('peso', 'peso')], lambda k: to_float(data.get('peso', u['peso'])))
+    si([('cinturon', 'cinturon'), ('cinturon', 'cinturon_actual')])
+    si([('categoria', 'categoria')])
+    si([('gi_pref', 'gi_pref')])
+    si([('genero', 'genero')], lambda k: _genero_de(data, u))
+    si([('activo', 'activo')], lambda k: 1 if data.get('activo', u['activo']) else 0)
+    si([('tel', 'tel')], lambda k: txt_str(data.get('tel')) or None)
+    si([('nacimiento', 'nacimiento')], lambda k: nac_upd or None)
+    si([('medic_info', 'medic_info'), ('medic_info', 'medico')])
+    si([('emergency_contact', 'emergency_contact'), ('emergency_contact', 'contacto_emergencia')])
+    si([('tel_tutor', 'tel_tutor')], lambda k: txt_str(data.get('tel_tutor')) or None)
+    si([('tel_2', 'tel_2')], lambda k: txt_str(data.get('tel_2')) or None)
+    si([('direccion', 'direccion')], lambda k: txt_str(data.get('direccion')) or None)
+    si([('dni', 'dni')], lambda k: txt_str(data.get('dni')) or None)
+    si([('foto_ok', 'foto_ok')], lambda k: 1 if data.get('foto_ok', u['foto_ok']) else 0)
+    si([('pausa_desde', 'pausa_desde')], lambda k: txt_str(data.get('pausa_desde')) or None)
+    si([('pausa_hasta', 'pausa_hasta')], lambda k: txt_str(data.get('pausa_hasta')) or None)
+
+    # actividades: si viene la clave se recalcula la cuota automatica; si no, se
+    # respeta la que ya tiene el usuario (no se pisa con un default).
+    if 'actividades' in data:
+        acts = _actividades_csv(data)
+        poner('actividades', acts)
+        if data.get('cuota_mensual') in (None, '', 'auto'):
+            poner('cuota_mensual', _cuota_por_actividades(acts)
+                  or (to_float(get_setting('default_cuota', '15000')) or 15000))
+    if 'cuota_mensual' in data:
+        cm = data.get('cuota_mensual')
+        if cm in (None, '', 'auto') and 'actividades' not in data:
+            # 'auto' sin actividades nuevas: no hay de donde calcular un precio,
+            # asi que se conserva la cuota actual en vez de mandarle un default.
+            cm = u['cuota_mensual']
+        poner('cuota_mensual', to_float(cm))
+    if not campos:
+        return jsonify({'ok': True})
+    vals.append(uid)
+    get_db().execute('UPDATE users SET %s WHERE id=?' % ', '.join(campos), vals)
     get_db().commit()
     nuevo_pausa = bool(txt_str(data.get('pausa_desde', u['pausa_desde'])))
     if nuevo_pausa and not en_pausa(u) and en_pausa(get_db().execute('SELECT * FROM users WHERE id=?', (uid,)).fetchone()):
@@ -2816,9 +3018,17 @@ def api_alumnos_update(uid):
 @app.route('/api/alumnos/<int:uid>', methods=['DELETE'])
 @role_required('admin', 'profesor')
 def api_alumnos_delete(uid):
-    get_db().execute("DELETE FROM users WHERE id=? AND role='alumno'", (uid,))
+    # Baja logica, no un DELETE: los pagos, la asistencia y las inscripciones a
+    # torneo quedan colgando de la fila. Si se borra, ese historial desaparece y
+    # los reportes quedan con pagos de un alumno inexistente.
+    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
+    if not u:
+        return jsonify({'error': 'Alumno no encontrado'}), 404
+    get_db().execute('UPDATE users SET activo=0 WHERE id=?', (uid,))
     get_db().commit()
-    return jsonify({'ok': True})
+    notify(uid, 'Tu cuenta fue dada de baja',
+           'Tu cuenta quedo desactivada. Si creés que es un error, escribinos.', 'cuota')
+    return jsonify({'ok': True, 'activo': 0})
 
 
 @app.route('/api/alumnos/<int:uid>/cuota', methods=['PUT'])
@@ -3501,7 +3711,7 @@ def api_pagos_create():
                                 sin_reparto=propio)
     get_db().commit()
     alumno = get_db().execute('SELECT * FROM users WHERE id=?', (alumno_id,)).fetchone()
-    nota_extra = f' (incluye ${cargo:,.0f} de recargo por demora).'.replace(',', '.') if cargo else '.'
+    nota_extra = f' (incluye ${cargo:,.0f} de recargo por demora)'.replace(',', '.') if cargo else '.'
     # notificaciones: al alumno
     notify(alumno_id, 'Pago registrado',
            f'Tu pago de ${monto:,.0f} por {mes}/{anio} fue registrado por {who["nombre"]}{nota_extra}'.replace(',', '.'),
@@ -3639,12 +3849,9 @@ def api_deudores():
 @app.route('/api/notify_deuda', methods=['POST'])
 @role_required('admin', 'profesor')
 def api_notify_deuda():
-    # Si algun aviso del before_request fallo en Postgres, su transaccion
-    # quedo abortada: healearla antes de tocar la base.
-    try:
-        get_db().execute('ROLLBACK')
-    except Exception:
-        pass
+    # Si algo anterior en el ciclo del request fallo en Postgres, su
+    # transaccion quedo abortada: recuperarla antes de tocar la base.
+    _recuperar_conexion()
     data = parse_json()
     alumno_id = to_int(data.get('alumno_id'))
     if alumno_id:
@@ -4002,7 +4209,8 @@ def api_avisos_pago():
 @app.route('/api/avisos_pago/<int:aid>/confirmar', methods=['POST'])
 @role_required('admin', 'profesor')
 def api_avisos_confirmar(aid):
-    a = get_db().execute('SELECT * FROM avisos_pago WHERE id=?', (aid,)).fetchone()
+    db = get_db()
+    a = db.execute('SELECT * FROM avisos_pago WHERE id=?', (aid,)).fetchone()
     if not a:
         return jsonify({'error': 'Aviso no encontrado'}), 404
     if a['estado'] == 'confirmado':
@@ -4017,16 +4225,20 @@ def api_avisos_confirmar(aid):
     base, cargo, final = calcular_demora(monto_base, a['mes'], a['anio'])
     if not aplicar_cargo:
         cargo, final = 0, base
-    get_db().execute(
+    db.execute(
         'INSERT INTO pagos(alumno_id, profesor_id, monto, mes, anio, metodo, concepto, nota, fecha, registrado_por) VALUES(?,?,?,?,?,?,?,?,?,?)',
         (a['alumno_id'], None, final, a['mes'], a['anio'], 'Aviso', 'Cuota mensual',
          'Confirmado desde aviso de pago' + (f' (recargo por demora ${cargo:,.0f})'.replace(',', '.') if cargo else ''),
          datetime.now().strftime('%Y-%m-%d %H:%M:%S'), who['id']))
-    get_db().execute(
+    pid_pago = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+    # Sin esto el pago entra a la academia pero los profes que dirigieron las
+    # actividades del alumno nunca lo cobraban: el alumno pagaba y el profe no
+    # veía nada en su reparto.
+    _registrar_reparto(db, pid_pago, a['alumno_id'], final)
+    db.execute(
         "UPDATE avisos_pago SET estado='confirmado', confirmado_por=?, confirmado_fecha=? WHERE id=?",
         (who['id'], datetime.now().strftime('%Y-%m-%d %H:%M:%S'), aid))
-    get_db().commit()
-    alumno = get_db().execute('SELECT * FROM users WHERE id=?', (a['alumno_id'],)).fetchone()
+    db.commit()
     nota = f' (incluye ${cargo:,.0f} de recargo por demora)'.replace(',', '.') if cargo else ''
     notify(a['alumno_id'], 'Pago confirmado',
            f'Tu aviso de pago de la cuota {a["mes"]}/{a["anio"]} por ${final:,.0f} fue confirmado por {who["nombre"]}{nota}.'.replace(',', '.'),
@@ -4144,14 +4356,26 @@ def api_reporte():
     deudores = [d for d in deudores if not en_pausa(d)]
     avisos_pend = get_db().execute(
         "SELECT COUNT(*) AS c FROM avisos_pago WHERE estado='pendiente'").fetchone()['c']
-    # Porcentajes de alumnos
-    total_alumnos = get_db().execute(
-        "SELECT COUNT(*) AS c FROM users WHERE role IN ('alumno','profesor') AND activo=1").fetchone()['c']
-    pagaron_ids = [p['alumno_id'] for p in pagos]
-    cant_pagaron = len(set(pagaron_ids))
-    cant_no_pagaron = len(deudores)
-    pct_pagaron = round(cant_pagaron * 100 / total_alumnos) if total_alumnos else 0
-    pct_no_pagaron = round(cant_no_pagaron * 100 / total_alumnos) if total_alumnos else 0
+    # Porcentajes de alumnos. El numerador tiene que salir de la MISMA poblacion
+    # que el denominador: antes contaba como "pagaron" a cualquiera con un pago
+    # del mes, incluso uno dado de baja, y el reporte llegava a 110%. Y el total
+    # se limita a los que tienen cuota cargada, como la lista de deudores, para
+    # que las dos cosas cuadren entre si.
+    universo = get_db().execute(
+        "SELECT id FROM users WHERE role IN ('alumno','profesor') AND activo=1 "
+        "AND cuota_mensual IS NOT NULL").fetchall()
+    universo_ids = {r['id'] for r in universo}
+    total_alumnos = len(universo_ids)
+    ids_deudores = {d['id'] for d in deudores}
+    ids_pagaron = {p['alumno_id'] for p in pagos} & universo_ids
+    cant_pagaron = len(ids_pagaron)
+    cant_no_pagaron = len(ids_deudores)
+
+    def pct(n, d):
+        return min(100, round(n * 100 / d)) if d else 0
+
+    pct_pagaron = pct(cant_pagaron, total_alumnos)
+    pct_no_pagaron = pct(cant_no_pagaron, total_alumnos)
     # Alumnos que pagaron (detalle)
     alumnos_que_pagaron = get_db().execute(
         """SELECT DISTINCT u.id, u.nombre, u.cinturon, p.monto, p.metodo, p.fecha
@@ -4179,8 +4403,8 @@ def api_reporte():
     no_asistieron = [d for d in no_asistieron if not en_pausa(d)]
     cant_asistieron = len(asistieron)
     cant_no_asistieron = len(no_asistieron)
-    pct_asistieron = round(cant_asistieron * 100 / total_alumnos) if total_alumnos else 0
-    pct_no_asistieron = round(cant_no_asistieron * 100 / total_alumnos) if total_alumnos else 0
+    pct_asistieron = pct(cant_asistieron, total_alumnos)
+    pct_no_asistieron = pct(cant_no_asistieron, total_alumnos)
     return jsonify({'mes': mes, 'anio': anio, 'total': total, 'cantidad': len(pagos),
                     'por_metodo': por_metodo, 'deudores': [dict(d) for d in deudores],
                     'avisos_pend': int(avisos_pend),
@@ -4769,8 +4993,10 @@ def api_ingresos_extra_delete(eid):
 def api_metricas_pagos():
     anio = to_int(request.args.get('anio')) or _hoy_academy().year
     db = get_db()
-    total_alumnos = db.execute(
-        "SELECT COUNT(*) AS n FROM users WHERE role IN ('alumno','profesor') AND activo=1").fetchone()['n']
+    universo_ids = {r['id'] for r in db.execute(
+        "SELECT id FROM users WHERE role IN ('alumno','profesor') AND activo=1 "
+        "AND cuota_mensual IS NOT NULL").fetchall()}
+    total_alumnos = len(universo_ids)
     serie = []
     for mes in range(1, 13):
         ingresos = db.execute(
@@ -4779,17 +5005,21 @@ def api_metricas_pagos():
         cantidad = db.execute(
             'SELECT COUNT(*) AS n FROM pagos WHERE mes=? AND anio=?',
             (mes, anio)).fetchone()['n']
-        cant_pagaron = db.execute(
-            'SELECT COUNT(DISTINCT alumno_id) AS n FROM pagos WHERE mes=? AND anio=?',
-            (mes, anio)).fetchone()['n']
+        # solo cuentan los que hoy siguen activos y con cuota: si no, dar de baja
+        # a alguien hace que el mes aparezca con mas del 100% pagado.
+        ids_pagaron = {r['alumno_id'] for r in db.execute(
+            'SELECT DISTINCT alumno_id FROM pagos WHERE mes=? AND anio=?',
+            (mes, anio)).fetchall()}
+        cant_pagaron = len(ids_pagaron & universo_ids)
+        pct_pagaron = min(100, round(cant_pagaron * 100 / total_alumnos)) if total_alumnos else 0
         serie.append({
             'mes': mes,
             'ingresos': ingresos,
             'cantidad': cantidad,
             'cant_pagaron': cant_pagaron,
             'deudores': max(0, total_alumnos - cant_pagaron),
-            'pct_pagaron': round(cant_pagaron * 100 / total_alumnos) if total_alumnos else 0,
-            'pct_morosidad': round((total_alumnos - cant_pagaron) * 100 / total_alumnos) if total_alumnos else 0,
+            'pct_pagaron': pct_pagaron,
+            'pct_morosidad': min(100, 100 - pct_pagaron),
         })
     total_ingresos = sum(s['ingresos'] for s in serie)
     return jsonify({'anio': anio, 'total_alumnos': total_alumnos,
@@ -5460,10 +5690,48 @@ def api_checkout():
 
 
 @app.route('/api/mp_webhook', methods=['POST'])
+def _mp_firma_valida(data):
+    """Valida la firma que manda MercadoPago (x-signature / x-request-id).
+
+    El endpoint es publico, asi que sin esto cualquiera que conozca la URL puede
+    Postear avisos de pago falsos. Si no hay secreto configurado se acepta
+    (para no romper una instalacion que todavia no lo tiene), pero queda avisado
+    en el log: es una decision consciente, no un olvido.
+    """
+    import hmac
+    import hashlib
+    secret = (get_setting('mp_secret', '') or '').strip()
+    if not secret:
+        _log.warning('mp_secret no esta configurado: el webhook no puede validar la firma')
+        return True
+    ts = request.headers.get('x-signature', '')
+    req_id = request.headers.get('x-request-id', '')
+    if not ts or not req_id:
+        return False
+    # x-signature: ts=...,v1=...
+    partes = dict(p.strip().split('=', 1) for p in ts.split(',') if '=' in p)
+    ts_val = partes.get('ts', '')
+    v1 = partes.get('v1', '')
+    if not ts_val or not v1:
+        return False
+    # La plantilla es fija: ts + el body literal que se recibio.
+    crudo = request.get_data() or b''
+    if isinstance(crudo, bytes):
+        crudo = crudo.decode('utf-8', 'replace')
+    objetivo = 'ts:%s;%s' % (ts_val, request.path)
+    esperado = hmac.new(secret.encode('utf-8'),
+                        ('%s%s' % (objetivo, crudo)).encode('utf-8'),
+                        hashlib.sha256).hexdigest()
+    return hmac.compare_digest(esperado, v1)
+
+
 def api_mp_webhook():
     """Webhook de MercadoPago: registra el aviso de pago cuando se aprueba."""
     try:
         data = request.get_json(silent=True) or {}
+        if not _mp_firma_valida(data):
+            _log.warning('mp_webhook: firma invalida, se rechaza')
+            return jsonify({'ok': False, 'error': 'firma invalida'}), 401
         ext = data.get('external_reference') or ''
         if ext.startswith('cuota-'):
             parts = ext.split('-')
@@ -5471,10 +5739,23 @@ def api_mp_webhook():
             now = datetime.now().strftime('%Y-%m-%d %H:%M')
             hoy = _hoy_academy()
             db = get_db()
+            # Idempotencia: MercadoPago reintenta el POST y cada intento creaba
+            # un aviso nuevo. La llave va en la nota, que es lo unico que hay
+            # disponible sin cambiar el esquema.
+            nota = 'Pago por MercadoPago (ref %s)' % ext
+            ya = db.execute(
+                'SELECT id FROM avisos_pago WHERE nota=? AND alumno_id=?',
+                (nota, alumno_id)).fetchone()
+            if ya:
+                return jsonify({'ok': True, 'aviso_id': ya['id'], 'duplicado': True})
+            # El monto real viene del webhook; antes se guardaba 0 y el admin
+            # terminaba adivinando el importe al confirmar.
+            monto = to_float((data.get('transaction_amount')
+                              or (data.get('data') or {}).get('transaction_amount'))) or 0
             cur = db.execute(
                 'INSERT INTO avisos_pago(alumno_id, monto, mes, anio, nota, comprobante, estado, fecha) '
                 'VALUES(?,?,?,?,?,?,?,?)',
-                (alumno_id, 0, hoy.month, hoy.year, 'Pago por MercadoPago', None, 'pendiente', now))
+                (alumno_id, monto, hoy.month, hoy.year, nota, None, 'pendiente', now))
             db.commit()
             aviso_id = cur.lastrowid
             # notificar a staff
@@ -5485,9 +5766,7 @@ def api_mp_webhook():
                        'info', push=True)
         return jsonify({'ok': True})
     except Exception as e:
-        import traceback as _tb
-        print('MP_WEBHOOK_ERROR:', e)
-        _tb.print_exc()
+        _log.exception('MP_WEBHOOK_ERROR: %s', e)
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
@@ -5539,12 +5818,9 @@ def api_mensajes_broadcast():
     envio = data.get('push', True)
     who = current_user()['nombre']
     alumno_id = to_int(data.get('alumno_id'))
-    # Si un aviso/codigo previo dejo la transaccion abortada (Postgres),
+    # Si algo previo en este proceso dejo la transaccion abortada (Postgres),
     # recuperar la conexion antes de la primera consulta de este request.
-    try:
-        get_db().execute('ROLLBACK')
-    except Exception:
-        pass
+    _recuperar_conexion()
     if alumno_id:
         rows = get_db().execute("SELECT id, nombre FROM users WHERE id=? AND activo=1", (alumno_id,)).fetchall()
     elif quienes == 'todos':
@@ -5802,8 +6078,11 @@ def api_settings_aplicar_cuota():
     cuota = to_float(get_setting('default_cuota'))
     if not cuota or cuota <= 0:
         return jsonify({'error': 'Configura una cuota mensual valida primero'}), 400
+    # Los profesores tambien pagan cuota, asi que aplicar el valor por defecto
+    # tiene que alcanzarlos: antes solo tocaba a los alumnos y los profes
+    # quedaban con el monto viejo (o en null) sin avisar.
     alumnos = get_db().execute(
-        "SELECT id, nombre FROM users WHERE role='alumno' AND activo=1").fetchall()
+        "SELECT id, nombre FROM users WHERE role IN ('alumno','profesor') AND activo=1").fetchall()
     for a in alumnos:
         get_db().execute('UPDATE users SET cuota_mensual=? WHERE id=?', (cuota, a['id']))
     get_db().commit()
@@ -6100,23 +6379,28 @@ def api_exportar_alumnos():
 def api_exportar_pagos():
     anio = to_int(request.args.get('anio')) or _hoy_academy().year
     db = get_db()
-    total_alumnos = db.execute(
-        "SELECT COUNT(*) AS n FROM users WHERE role IN ('alumno','profesor') AND activo=1").fetchone()['n']
+    universo_ids = {r['id'] for r in db.execute(
+        "SELECT id FROM users WHERE role IN ('alumno','profesor') AND activo=1 "
+        "AND cuota_mensual IS NOT NULL").fetchall()}
+    total_alumnos = len(universo_ids)
     resumen = []
     for mes in range(1, 13):
         pagos = db.execute('SELECT monto FROM pagos WHERE mes=? AND anio=?', (mes, anio)).fetchall()
-        cant_pagaron = db.execute(
-            'SELECT COUNT(DISTINCT alumno_id) AS n FROM pagos WHERE mes=? AND anio=?',
-            (mes, anio)).fetchone()['n']
+        ids_pagaron = {r['alumno_id'] for r in db.execute(
+            'SELECT DISTINCT alumno_id FROM pagos WHERE mes=? AND anio=?',
+            (mes, anio)).fetchall()}
+        cant_pagaron = len(ids_pagaron & universo_ids)
         ingresos = sum((p['monto'] or 0) for p in pagos)
         deudores = max(0, total_alumnos - cant_pagaron)
+        pct_p = min(100, round(cant_pagaron * 100 / total_alumnos)) if total_alumnos else 0
+        pct_d = min(100, round(deudores * 100 / total_alumnos)) if total_alumnos else 0
         resumen.append([
             ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio',
              'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][mes - 1],
             ingresos, len(pagos),
             cant_pagaron, deudores,
-            str(round(cant_pagaron * 100 / total_alumnos) if total_alumnos else 0) + '%',
-            str(round(deudores * 100 / total_alumnos) if total_alumnos else 0) + '%',
+            str(pct_p) + '%',
+            str(pct_d) + '%',
         ])
     rows_pagos = db.execute(
         """SELECT p.id, p.fecha, u.nombre AS alumno, p.alumno_id, p.metodo, p.monto, p.mes, p.anio,

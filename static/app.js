@@ -1510,7 +1510,7 @@ async function elegirCategoriaBjj() {
 
 async function guardarCategoriaBjj(clave) {
   try {
-    const r = await api('/api/bjj/categoria', { method: 'POST', body: JSON.stringify({ clave: clave || '' }) });
+    const r = await api('/api/bjj/categoria', { method: 'POST', body: { clave: clave || '' } });
     closeModal();
     toast(r.label ? 'Categoría guardada: ' + r.label : 'Categoría quitada');
     pintarBjjElegida(r.clave);
@@ -2309,7 +2309,7 @@ function formTorneo(id) {
     btn.disabled = true; btn.textContent = 'Guardando...';
     try {
       await api(t ? '/api/torneos/' + t.id : '/api/torneos',
-        { method: t ? 'PUT' : 'POST', body: JSON.stringify(body) });
+        { method: t ? 'PUT' : 'POST', body: body });
       closeModal();
       toast(t ? 'Torneo actualizado' : 'Torneo creado');
       renderTorneos($('#sec-torneos'));
@@ -2364,10 +2364,13 @@ async function inscribirEnTorneo(torneoId, alumnoId) {
   // si elegiste un alumno distinto, Autocompletar su categoria elegida
   const selAl = $('#inAlumno');
   if (!alumnoId && selAl) selAl.addEventListener('change', () => {
-    const a = alumnos.find(x => x.id === selAl.value);
+    // selAl.value es un string y a.id un numero: con === el find nunca
+    // encontraba a nadie y la categoria se quedaba siempre vacia.
+    const idElegido = parseInt(selAl.value, 10);
+    const a = alumnos.find(x => x.id === idElegido);
     const label = a && a.bjj_categoria
       ? bjjLabelDeClave(a.bjj_categoria) : '';
-    if (label) $('#inCat').value = label;
+    $('#inCat').value = label || '';
   });
 
   $('#insForm').addEventListener('submit', async (ev) => {
@@ -2379,12 +2382,12 @@ async function inscribirEnTorneo(torneoId, alumnoId) {
     try {
       await api(`/api/torneos/${torneoId}/inscripcion`, {
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           alumno_id: id,
           categoria: $('#inCat').value.trim(),
           medalla: $('#inMedalla').value,
           nota: $('#inNota').value.trim(),
-        }),
+        },
       });
       closeModal();
       toast('Inscripción guardada');

@@ -192,13 +192,16 @@ class Cursor:
                         self._lastrowid = None
                 else:
                     self._cur.execute(t, params if params else None)
-        except sqlite3.IntegrityError:
-            raise IntegrityError()
+        except sqlite3.IntegrityError as e:
+            # Antes se relanzaba IntegrityError() vacio: se perdia el mensaje del
+            # motor, asi que un handler no podia distinguir un UNIQUE de un CHECK
+            # ni mostrar que constraint habia fallado.
+            raise IntegrityError(str(e)) from e
         except Exception as e:
             if HAVE_MYSQL and isinstance(e, pymysql.err.IntegrityError):
-                raise IntegrityError()
+                raise IntegrityError(str(e)) from e
             if HAVE_PG and isinstance(e, psycopg.errors.IntegrityError):
-                raise IntegrityError()
+                raise IntegrityError(str(e)) from e
             raise
         if self._lastrowid is not None and self._db is not None:
             self._db._last_id = self._lastrowid
@@ -256,7 +259,20 @@ class DB:
     def commit(self):
         self._raw.commit()
 
+    def rollback(self):
+        # Sin esto no hay forma de retomar el control despues de un error: en
+        # Postgres la transaccion queda abortada y todo lo que sigue revienta
+        # con InFailedSqlTransaction. Antes los llamadores envolvian esto en
+        # try/except y el AttributeError se comia el arreglo entero.
+        self._raw.rollback()
+
     def close(self):
+        # Sin rollback previo, cerrar una conexion con la transaccion a medias
+        # deja el estado colgando (y en Threads reutilizadas, envenenadas).
+        try:
+            self._raw.rollback()
+        except Exception:
+            pass
         self._raw.close()
 
 

@@ -2426,6 +2426,66 @@ def api_horarios_delete(cid):
 
 MEDALLAS = ('oro', 'plata', 'bronce')
 
+# Mismo DDL que el de SCHEMA. Se vuelve a intentar en cada arranque de la app y
+# ademas en el primer uso, porque si el deploy caiu en medio de la migracion
+# (o la base se clonó) el endpoint finds "relation does not exist" y la seccion
+# entera queda en error sin explicar nada. CREATE TABLE IF NOT EXISTS es
+# idempotente, asi que repetirlo no molesta.
+TORNEOS_DDL = (
+    """CREATE TABLE IF NOT EXISTS torneos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        fecha TEXT,
+        ciudad TEXT,
+        lugar TEXT,
+        tipo TEXT DEFAULT 'IBJJF',
+        estado TEXT DEFAULT 'programado',
+        descripcion TEXT,
+        url TEXT,
+        creado_por INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        creado TEXT
+    )""",
+    """CREATE TABLE IF NOT EXISTS torneo_inscripciones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        torneo_id INTEGER NOT NULL REFERENCES torneos(id) ON DELETE CASCADE,
+        alumno_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        categoria TEXT DEFAULT '',
+        medalla TEXT DEFAULT '',
+        nota TEXT DEFAULT '',
+        creado TEXT,
+        UNIQUE (torneo_id, alumno_id)
+    )""",
+)
+_torneos_ready = False
+
+
+def asegurar_torneos():
+    """Crea las tablas de torneos si faltan. Idempotente.
+
+    El flag solo se levanta si el DDL fue bien: si falla una vez (deploy a medio
+    camino, base clonada) se reintenta en el proximo pedido en vez de dejar la
+    seccion muerta para siempre.
+    """
+    global _torneos_ready
+    if _torneos_ready:
+        return
+    db = get_db()
+    for sql in TORNEOS_DDL:
+        db.execute(sql)
+    db.commit()
+    _torneos_ready = True
+
+
+def torneo_error(e):
+    """Vuelve el error real en vez de un 500 sin cuerpo.
+
+    api() del front muestra data.error, asi que con esto el problema se lee en
+    pantalla en vez de ser el generico "Error de servidor".
+    """
+    print('TORNEOS ERROR: %r' % (e,))
+    return jsonify({'error': 'No se pudieron leer los torneos: %s' % e,
+                    'tipo': type(e).__name__}), 500
+
 
 def _torneo_row(r):
     return {
@@ -2440,26 +2500,33 @@ def _torneo_row(r):
 @app.route('/api/torneos', methods=['GET'])
 @login_required
 def api_torneos():
-    db = get_db()
-    trs = [_torneo_row(r) for r in db.execute(
-        'SELECT id, nombre, fecha, ciudad, lugar, tipo, estado, descripcion, url'
-        ' FROM torneos ORDER BY COALESCE(fecha,\'\') DESC, id DESC').fetchall()]
-    por_id = {t['id']: t for t in trs}
-    for i in db.execute(
-            'SELECT i.id, i.torneo_id, i.alumno_id, i.categoria, i.medalla, i.nota,'
-            '       u.nombre, u.cinturon, u.foto'
-            ' FROM torneo_inscripciones i JOIN users u ON u.id = i.alumno_id'
-            ' ORDER BY i.id').fetchall():
-        if i['torneo_id'] not in por_id:
-            continue  # inscripcion huerfana de un torneo borrado
-        por_id[i['torneo_id']]['inscripciones'].append({
-            'id': i['id'], 'alumno_id': i['alumno_id'],
-            'nombre': i['nombre'] or '',
-            'cinturon': i['cinturon'] or '', 'foto': i['foto'],
-            'categoria': i['categoria'] or '',
-            'medalla': i['medalla'] or '', 'nota': i['nota'] or '',
-        })
-    return jsonify({'torneos': trs})
+    try:
+        asegurar_torneos()
+    except Exception as e:
+        return torneo_error(e)
+    try:
+        db = get_db()
+        trs = [_torneo_row(r) for r in db.execute(
+            'SELECT id, nombre, fecha, ciudad, lugar, tipo, estado, descripcion, url'
+            ' FROM torneos ORDER BY COALESCE(fecha,\'\') DESC, id DESC').fetchall()]
+        por_id = {t['id']: t for t in trs}
+        for i in db.execute(
+                'SELECT i.id, i.torneo_id, i.alumno_id, i.categoria, i.medalla, i.nota,'
+                '       u.nombre, u.cinturon, u.foto'
+                ' FROM torneo_inscripciones i JOIN users u ON u.id = i.alumno_id'
+                ' ORDER BY i.id').fetchall():
+            if i['torneo_id'] not in por_id:
+                continue  # inscripcion huerfana de un torneo borrado
+            por_id[i['torneo_id']]['inscripciones'].append({
+                'id': i['id'], 'alumno_id': i['alumno_id'],
+                'nombre': i['nombre'] or '',
+                'cinturon': i['cinturon'] or '', 'foto': i['foto'],
+                'categoria': i['categoria'] or '',
+                'medalla': i['medalla'] or '', 'nota': i['nota'] or '',
+            })
+        return jsonify({'torneos': trs})
+    except Exception as e:
+        return torneo_error(e)
 
 
 def _torneo_campos(data, tid=None):
@@ -2487,6 +2554,7 @@ def api_torneos_create():
     campos, err = _torneo_campos(parse_json())
     if err:
         return jsonify({'error': err[0]}), err[1]
+    asegurar_torneos()
     cur = get_db().cursor()
     cur.execute(
         'INSERT INTO torneos(nombre, fecha, ciudad, lugar, tipo, estado, descripcion,'
@@ -2504,6 +2572,7 @@ def api_torneos_update(tid):
     campos, err = _torneo_campos(parse_json())
     if err:
         return jsonify({'error': err[0]}), err[1]
+    asegurar_torneos()
     if not get_db().execute('SELECT id FROM torneos WHERE id=?', (tid,)).fetchone():
         return jsonify({'error': 'Torneo no encontrado'}), 404
     get_db().execute(
@@ -2527,6 +2596,7 @@ def api_torneos_delete(tid):
 @role_required('admin', 'profesor')
 def api_torneos_inscribir(tid):
     """Inscribe (o actualiza) a un alumno en un torneo. Una fila por alumno."""
+    asegurar_torneos()
     data = parse_json()
     if not get_db().execute('SELECT id FROM torneos WHERE id=?', (tid,)).fetchone():
         return jsonify({'error': 'Torneo no encontrado'}), 404
@@ -2588,21 +2658,25 @@ def api_torneos_ranking():
     # de salida dentro de una expresion ("ORDER BY n_oro + n_plata" lo interpreta
     # como columna de las tablas y dice que no existe). SQLite lo resuelve bien y
     # por eso los tests en local no lo detectaban.
-    filas = get_db().execute(
-        'SELECT * FROM ('
-        '  SELECT u.id, u.nombre, u.cinturon, u.foto,'
-        '         COUNT(DISTINCT i.torneo_id) AS n_torneos,'
-        "         SUM(CASE WHEN i.medalla='oro' THEN 1 ELSE 0 END) AS n_oro,"
-        "         SUM(CASE WHEN i.medalla='plata' THEN 1 ELSE 0 END) AS n_plata,"
-        "         SUM(CASE WHEN i.medalla='bronce' THEN 1 ELSE 0 END) AS n_bronce"
-        '  FROM torneo_inscripciones i'
-        '  JOIN torneos t ON t.id = i.torneo_id'
-        '  JOIN users u ON u.id = i.alumno_id'
-        "  WHERE u.role='alumno' AND t.fecha IS NOT NULL AND t.fecha <> ''"
-        '  GROUP BY u.id, u.nombre, u.cinturon, u.foto'
-        ') r'
-        ' ORDER BY r.n_torneos DESC, (r.n_oro + r.n_plata + r.n_bronce) DESC,'
-        '          r.n_oro DESC, r.n_plata DESC, r.nombre ASC').fetchall()
+    try:
+        asegurar_torneos()
+        filas = get_db().execute(
+            'SELECT * FROM ('
+            '  SELECT u.id, u.nombre, u.cinturon, u.foto,'
+            '         COUNT(DISTINCT i.torneo_id) AS n_torneos,'
+            "         SUM(CASE WHEN i.medalla='oro' THEN 1 ELSE 0 END) AS n_oro,"
+            "         SUM(CASE WHEN i.medalla='plata' THEN 1 ELSE 0 END) AS n_plata,"
+            "         SUM(CASE WHEN i.medalla='bronce' THEN 1 ELSE 0 END) AS n_bronce"
+            '  FROM torneo_inscripciones i'
+            '  JOIN torneos t ON t.id = i.torneo_id'
+            '  JOIN users u ON u.id = i.alumno_id'
+            "  WHERE u.role='alumno' AND t.fecha IS NOT NULL AND t.fecha <> ''"
+            '  GROUP BY u.id, u.nombre, u.cinturon, u.foto'
+            ') r'
+            ' ORDER BY r.n_torneos DESC, (r.n_oro + r.n_plata + r.n_bronce) DESC,'
+            '          r.n_oro DESC, r.n_plata DESC, r.nombre ASC').fetchall()
+    except Exception as e:
+        return torneo_error(e)
     out = []
     for f in filas:
         oro, plata, bronce = f['n_oro'] or 0, f['n_plata'] or 0, f['n_bronce'] or 0

@@ -647,6 +647,37 @@ CREATE TABLE IF NOT EXISTS grados (
     registrado_por INTEGER
 );
 
+-- Torneos: se cargan a mano (no hay integracion con ningun calendario externo).
+CREATE TABLE IF NOT EXISTS torneos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    fecha TEXT,
+    ciudad TEXT,
+    lugar TEXT,
+    tipo TEXT DEFAULT 'IBJJF',
+    estado TEXT DEFAULT 'programado',
+    descripcion TEXT,
+    url TEXT,
+    creado_por INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    creado TEXT
+);
+
+-- Una fila por alumno y torneo: en que categoria compito y que medalla sacó.
+CREATE TABLE IF NOT EXISTS torneo_inscripciones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    torneo_id INTEGER NOT NULL REFERENCES torneos(id) ON DELETE CASCADE,
+    alumno_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    categoria TEXT DEFAULT '',
+    medalla TEXT DEFAULT '',
+    nota TEXT DEFAULT '',
+    creado TEXT,
+    UNIQUE (torneo_id, alumno_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_torneos_fecha ON torneos(fecha);
+CREATE INDEX IF NOT EXISTS idx_torneo_insc_alumno ON torneo_inscripciones(alumno_id);
+CREATE INDEX IF NOT EXISTS idx_torneo_insc_torneo ON torneo_inscripciones(torneo_id);
+
 CREATE TABLE IF NOT EXISTS familias (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
@@ -799,7 +830,8 @@ def _init_db_body(db):
                      ('medic_lesiones', 'TEXT'), ('ficha_fecha', 'TEXT'),
                      ('firma_tyc', 'TEXT'), ('firma_foto', 'TEXT'), ('firma_fecha', 'TEXT'),
                      ('pausa_desde', 'TEXT'), ('pausa_hasta', 'TEXT'), ('beca', 'INTEGER DEFAULT 0'),
-                     ('actividades', 'TEXT'), ('genero', "TEXT DEFAULT ''")]:
+                     ('actividades', 'TEXT'), ('genero', "TEXT DEFAULT ''"),
+                     ('bjj_categoria', "TEXT DEFAULT ''")]:
         if col not in cols:
             c.execute('ALTER TABLE users ADD COLUMN %s %s' % (col, ddl))
     try:
@@ -1447,6 +1479,7 @@ def user_public(u):
             u['peso'] if 'peso' in u.keys() else None,
             (u['genero'] if 'genero' in u.keys() else '') or ''),
         'gi_pref': u['gi_pref'],
+        'bjj_categoria': (u['bjj_categoria'] or '') if 'bjj_categoria' in u.keys() else '',
         'actividades': (u['actividades'] or '') if 'actividades' in u.keys() else '',
         'cuota_mensual': u['cuota_mensual'],
         'foto': u['foto'] if 'foto' in u.keys() else None,
@@ -2379,6 +2412,210 @@ def api_horarios_delete(cid):
     get_db().execute('DELETE FROM classes WHERE id=?', (cid,))
     get_db().commit()
     return jsonify({'ok': True})
+
+
+# ---------------------------------------------------------------------------
+# Torneos
+# ---------------------------------------------------------------------------
+# El calendario se carga a mano: no hay integracion con ningun calendario
+# externo, asi que un torneo es una fila en 'torneos' y sus participantes son
+# filas en 'torneo_inscripciones' (una por alumno y torneo, con su medalla).
+#
+# El ranking se arma con esas mismas inscripciones, asi que no se mantiene
+# ningun contador aparte que se pueda desincronizar.
+
+MEDALLAS = ('oro', 'plata', 'bronce')
+
+
+def _torneo_row(r):
+    return {
+        'id': r['id'], 'nombre': r['nombre'], 'fecha': r['fecha'] or '',
+        'ciudad': r['ciudad'] or '', 'lugar': r['lugar'] or '',
+        'tipo': r['tipo'] or 'IBJJF', 'estado': r['estado'] or 'programado',
+        'descripcion': r['descripcion'] or '', 'url': r['url'] or '',
+        'inscripciones': [],
+    }
+
+
+@app.route('/api/torneos', methods=['GET'])
+@login_required
+def api_torneos():
+    db = get_db()
+    trs = [_torneo_row(r) for r in db.execute(
+        'SELECT id, nombre, fecha, ciudad, lugar, tipo, estado, descripcion, url'
+        ' FROM torneos ORDER BY COALESCE(fecha,\'\') DESC, id DESC').fetchall()]
+    por_id = {t['id']: t for t in trs}
+    for i in db.execute(
+            'SELECT i.id, i.torneo_id, i.alumno_id, i.categoria, i.medalla, i.nota,'
+            '       u.nombre, u.cinturon, u.foto'
+            ' FROM torneo_inscripciones i JOIN users u ON u.id = i.alumno_id'
+            ' ORDER BY i.id').fetchall():
+        if i['torneo_id'] not in por_id:
+            continue  # inscripcion huerfana de un torneo borrado
+        por_id[i['torneo_id']]['inscripciones'].append({
+            'id': i['id'], 'alumno_id': i['alumno_id'],
+            'nombre': i['nombre'] or '',
+            'cinturon': i['cinturon'] or '', 'foto': i['foto'],
+            'categoria': i['categoria'] or '',
+            'medalla': i['medalla'] or '', 'nota': i['nota'] or '',
+        })
+    return jsonify({'torneos': trs})
+
+
+def _torneo_campos(data, tid=None):
+    nombre = txt_str(data.get('nombre'))
+    if not nombre:
+        return None, ('Falta el nombre del torneo', 400)
+    fecha = txt_str(data.get('fecha'))
+    if fecha and not re.match(r'^\d{4}-\d{2}-\d{2}$', fecha):
+        return None, ('Fecha inválida (esperaba AAAA-MM-DD)', 400)
+    return {
+        'nombre': nombre,
+        'fecha': fecha or None,
+        'ciudad': txt_str(data.get('ciudad')),
+        'lugar': txt_str(data.get('lugar')),
+        'tipo': txt_str(data.get('tipo')) or 'IBJJF',
+        'estado': txt_str(data.get('estado')) or 'programado',
+        'descripcion': txt_str(data.get('descripcion')),
+        'url': txt_str(data.get('url')),
+    }, None
+
+
+@app.route('/api/torneos', methods=['POST'])
+@role_required('admin', 'profesor')
+def api_torneos_create():
+    campos, err = _torneo_campos(parse_json())
+    if err:
+        return jsonify({'error': err[0]}), err[1]
+    cur = get_db().cursor()
+    cur.execute(
+        'INSERT INTO torneos(nombre, fecha, ciudad, lugar, tipo, estado, descripcion,'
+        ' url, creado_por, creado) VALUES(?,?,?,?,?,?,?,?,?,?)',
+        (campos['nombre'], campos['fecha'], campos['ciudad'], campos['lugar'],
+         campos['tipo'], campos['estado'], campos['descripcion'], campos['url'],
+         current_user()['id'], datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    get_db().commit()
+    return jsonify({'ok': True, 'id': cur.lastrowid})
+
+
+@app.route('/api/torneos/<int:tid>', methods=['PUT'])
+@role_required('admin', 'profesor')
+def api_torneos_update(tid):
+    campos, err = _torneo_campos(parse_json())
+    if err:
+        return jsonify({'error': err[0]}), err[1]
+    if not get_db().execute('SELECT id FROM torneos WHERE id=?', (tid,)).fetchone():
+        return jsonify({'error': 'Torneo no encontrado'}), 404
+    get_db().execute(
+        'UPDATE torneos SET nombre=?, fecha=?, ciudad=?, lugar=?, tipo=?, estado=?,'
+        ' descripcion=?, url=? WHERE id=?',
+        (campos['nombre'], campos['fecha'], campos['ciudad'], campos['lugar'],
+         campos['tipo'], campos['estado'], campos['descripcion'], campos['url'], tid))
+    get_db().commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/torneos/<int:tid>', methods=['DELETE'])
+@role_required('admin')
+def api_torneos_delete(tid):
+    get_db().execute('DELETE FROM torneos WHERE id=?', (tid,))
+    get_db().commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/torneos/<int:tid>/inscripcion', methods=['POST'])
+@role_required('admin', 'profesor')
+def api_torneos_inscribir(tid):
+    """Inscribe (o actualiza) a un alumno en un torneo. Una fila por alumno."""
+    data = parse_json()
+    if not get_db().execute('SELECT id FROM torneos WHERE id=?', (tid,)).fetchone():
+        return jsonify({'error': 'Torneo no encontrado'}), 404
+    alumno = to_int(data.get('alumno_id'))
+    if not alumno or not get_db().execute(
+            'SELECT id FROM users WHERE id=? AND role=?', (alumno, 'alumno')).fetchone():
+        return jsonify({'error': 'Alumno no encontrado'}), 400
+    medalla = txt_str(data.get('medalla')).lower()
+    if medalla and medalla not in MEDALLAS:
+        return jsonify({'error': 'Medalla inválida'}), 400
+    # Solo se pisan los campos que vienen en el payload. Si no, un update parcial
+    # (por ejemplo cambiar solo la medalla) borraria la categoria sin avisar.
+    cambios, vals = [], []
+    for campo, val in (('categoria', txt_str(data.get('categoria'))),
+                       ('medalla', medalla),
+                       ('nota', txt_str(data.get('nota')))):
+        if campo in data:
+            cambios.append(campo + '=?')
+            vals.append(val)
+    db = get_db()
+    existe = db.execute('SELECT id FROM torneo_inscripciones WHERE torneo_id=? AND alumno_id=?',
+                        (tid, alumno)).fetchone()
+    if existe:
+        if not cambios:
+            return jsonify({'ok': True})
+        vals += [existe['id']]
+        db.execute('UPDATE torneo_inscripciones SET ' + ', '.join(cambios)
+                   + ' WHERE id=?', vals)
+    else:
+        db.execute('INSERT INTO torneo_inscripciones(torneo_id, alumno_id, categoria,'
+                   ' medalla, nota, creado) VALUES(?,?,?,?,?,?)',
+                   (tid, alumno,
+                    txt_str(data.get('categoria')) if 'categoria' in data else '',
+                    medalla if 'medalla' in data else '',
+                    txt_str(data.get('nota')) if 'nota' in data else '',
+                    datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    db.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/torneos/torneo/<int:iid>', methods=['DELETE'])
+@role_required('admin', 'profesor')
+def api_torneos_quitar_inscripcion(iid):
+    get_db().execute('DELETE FROM torneo_inscripciones WHERE id=?', (iid,))
+    get_db().commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/torneos/ranking')
+@login_required
+def api_torneos_ranking():
+    """Ranking de la academia: a quien mas compite y a quien mas medallas trae.
+
+    Se calcula entero en cada pedido desde las inscripciones, sin contadores
+    guardados, para que no se pueda desincronizar del historial real.
+    Solo cuentan los torneos con fecha: los que estan programados todavia no.
+    """
+    # El ORDER BY va en una consulta exterior porque PostgreSQL NO acepta un alias
+    # de salida dentro de una expresion ("ORDER BY n_oro + n_plata" lo interpreta
+    # como columna de las tablas y dice que no existe). SQLite lo resuelve bien y
+    # por eso los tests en local no lo detectaban.
+    filas = get_db().execute(
+        'SELECT * FROM ('
+        '  SELECT u.id, u.nombre, u.cinturon, u.foto,'
+        '         COUNT(DISTINCT i.torneo_id) AS n_torneos,'
+        "         SUM(CASE WHEN i.medalla='oro' THEN 1 ELSE 0 END) AS n_oro,"
+        "         SUM(CASE WHEN i.medalla='plata' THEN 1 ELSE 0 END) AS n_plata,"
+        "         SUM(CASE WHEN i.medalla='bronce' THEN 1 ELSE 0 END) AS n_bronce"
+        '  FROM torneo_inscripciones i'
+        '  JOIN torneos t ON t.id = i.torneo_id'
+        '  JOIN users u ON u.id = i.alumno_id'
+        "  WHERE u.role='alumno' AND t.fecha IS NOT NULL AND t.fecha <> ''"
+        '  GROUP BY u.id, u.nombre, u.cinturon, u.foto'
+        ') r'
+        ' ORDER BY r.n_torneos DESC, (r.n_oro + r.n_plata + r.n_bronce) DESC,'
+        '          r.n_oro DESC, r.n_plata DESC, r.nombre ASC').fetchall()
+    out = []
+    for f in filas:
+        oro, plata, bronce = f['n_oro'] or 0, f['n_plata'] or 0, f['n_bronce'] or 0
+        out.append({
+            'alumno_id': f['id'],
+            'nombre': f['nombre'] or '',
+            'cinturon': f['cinturon'] or '', 'foto': f['foto'],
+            'torneos': f['n_torneos'] or 0,
+            'oro': oro, 'plata': plata, 'bronce': bronce,
+            'medallas': oro + plata + bronce,
+            # 3/2/1: criterio de desempate legible para la UI
+            'puntos': oro * 3 + plata * 2 + bronce})
+    return jsonify({'ranking': out})
 
 
 # ---------------------------------------------------------------------------
@@ -5938,6 +6175,36 @@ except Exception as _e:
     print('INIT_DB_IMPORT_ERROR:', _e)
     _tb.print_exc()
 
+def bjj_claves():
+    """Todas las claves validas de categoria: 'grupo|genero|modalidad|peso|edad'.
+
+    Permite que el alumno elija su categoria a mano y que la app la guarde como
+    una sola string, sin inventar una tabla nueva ni colgar el dato de tablas
+    externas. La clave sale de las mismas estructuras que usa /api/bjj/categorias,
+    asi que si esas cambian, la clave cambia con ellas.
+    """
+    out = set()
+    for grupo, genders in BJJ_PESOS.items():
+        for g, mods in genders.items():
+            for modalidad in ('gi', 'nogi'):
+                for nombre, _ in mods.get(modalidad) or []:
+                    for div, _ in BJJ_DIVISIONES:
+                        out.add('%s|%s|%s|%s|%s' % (grupo, g, modalidad, nombre, div))
+    return out
+
+
+def bjj_clave_valida(clave):
+    return (clave or '') in bjj_claves()
+
+
+def bjj_clave_label(clave):
+    """'adulto|M|gi|Medio|Adulto' -> 'Medio · Adulto · Con Gi'."""
+    p = (clave or '').split('|')
+    if len(p) != 5:
+        return ''
+    return '%s · %s · %s' % (p[3], p[4], 'No-Gi' if p[2] == 'nogi' else 'Con Gi')
+
+
 @app.route('/api/bjj/categorias')
 @login_required
 def api_bjj_categorias():
@@ -5976,6 +6243,25 @@ def api_bjj_calcular():
     res['nombre'] = nombre
     res['gi'] = gi
     return jsonify(res)
+
+
+@app.route('/api/bjj/categoria', methods=['POST'])
+@login_required
+def api_bjj_categoria():
+    """El alumno elige a que categoria compite y queda guardada en su perfil.
+
+    A diferencia de /api/bjj/calcular, que la deduce de edad y peso, esta es la
+    eleccion del usuario: cuando la IBJJF agrega una division de edad o cambia
+    un limite, el alumno se corrige solo sin que haya que tocar la app.
+    """
+    data = parse_json()
+    clave = str(data.get('clave') or '').strip()
+    if clave and not bjj_clave_valida(clave):
+        return jsonify({'error': 'Categoría inválida'}), 400
+    uid = current_user()['id']
+    get_db().execute('UPDATE users SET bjj_categoria=? WHERE id=?', (clave, uid))
+    get_db().commit()
+    return jsonify({'ok': True, 'clave': clave, 'label': bjj_clave_label(clave)})
 
 
 if __name__ == '__main__':

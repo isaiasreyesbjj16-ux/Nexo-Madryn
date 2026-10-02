@@ -543,6 +543,7 @@ function showSec(name) {
     chat: renderChat, muro: renderMuro, galeria: renderGaleria,
     ranking: renderRanking, metas: renderMetas, encuestas: renderEncuestas,
     eventos: renderEventos, historial: renderHistorial,
+    torneos: renderTorneos,
     familias: renderFamilias, diario: renderDiario,
     planes: renderPlanes, estadisticas: renderEstadisticas,
     dinero: renderMiDinero, ingresos_extra: renderIngresosExtra, descuentos: renderDescuentos,
@@ -1319,8 +1320,8 @@ async function renderInicio(el) {
         <div class="feed-card">
           <div class="small mb">📅 Clases de hoy</div>
           ${hoyClases.length ? hoyClases.map(h => `
-            <div class="clase-item ${h.tipo.toLowerCase()}">
-              <span class="hora">${esc(h.hora)}</span> · <span class="tag ${h.tipo.toLowerCase()}">${esc(h.tipo)}</span> · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>
+            <div class="clase-item ${(h.tipo || 'Gi').toLowerCase()}">
+              <span class="hora">${esc(h.hora)}</span> · <span class="tag ${(h.tipo || 'Gi').toLowerCase()}">${esc(h.tipo || 'Gi')}</span> · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>
               <div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">📷 Marcar con QR</button>`}</div>
             </div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas. Mirá la sección Horarios.</div>'}
         </div>
@@ -1340,6 +1341,7 @@ async function renderInicio(el) {
           <button class="chip" onclick="showSec('muro')">📢 Muro</button>
           <button class="chip" onclick="showSec('chat')">💬 Chat</button>
           <button class="chip" onclick="showSec('eventos')">🗓️ Eventos</button>
+          <button class="chip" onclick="showSec('torneos')">🏆 Torneos</button>
           <button class="chip" onclick="showSec('encuestas')">📊 Encuestas</button>
           <button class="chip" onclick="showSec('diario')">📓 Diario</button>
           <button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>
@@ -1371,6 +1373,7 @@ async function renderInicio(el) {
     chips.push(`<button class="chip" onclick="showSec('chat')">💬 Chat</button>`);
     chips.push(`<button class="chip" onclick="showSec('ranking')">🏆 Ranking</button>`);
     chips.push(`<button class="chip" onclick="showSec('eventos')">🗓️ Eventos</button>`);
+    chips.push(`<button class="chip" onclick="showSec('torneos')">🏆 Torneos</button>`);
     chips.push(`<button class="chip" onclick="showSec('encuestas')">📊 Encuestas</button>`);
     chips.push(`<button class="chip" onclick="showSec('historial')">📈 Historial</button>`);
     chips.push(`<button class="chip" onclick="showSec('galeria')">🖼️ Galería</button>`);
@@ -1393,7 +1396,7 @@ async function renderInicio(el) {
         <div class="chips">${chips.join('')}</div>
         <div class="feed-card">
           <div class="small mb">📅 Clases de hoy</div>
-          ${hoyClases.length ? hoyClases.map(h => `<div class="clase-item ${h.tipo.toLowerCase()}"><span class="hora">${esc(h.hora)}</span> · <span class="tag ${h.tipo.toLowerCase()}">${esc(h.tipo)}</span> · ${esc(h.nivel)} · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>${R === 'profesor' ? `<div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">📷 Marcar con QR</button>`}</div>` : ''}</div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas.</div>'}
+          ${hoyClases.length ? hoyClases.map(h => `<div class="clase-item ${(h.tipo || 'Gi').toLowerCase()}"><span class="hora">${esc(h.hora)}</span> · <span class="tag ${(h.tipo || 'Gi').toLowerCase()}">${esc(h.tipo || 'Gi')}</span> · ${esc(h.nivel || 'Todos')} · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>${R === 'profesor' ? `<div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">📷 Marcar con QR</button>`}</div>` : ''}</div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas.</div>'}
         </div>
         ${cums.cumpleanios.length ? `<div class="feed-card">
           <div class="small mb">🎂 Cumpleaños de ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][cums.mes - 1]} <span class="small" style="color:var(--muted)">(${cums.cumpleanios.length})</span></div>
@@ -1420,6 +1423,99 @@ function _bjjTablaHTML(tabla) {
       <td style="padding:6px 8px;text-align:right">${esc(gi)}</td>
       <td style="padding:6px 8px;text-align:right">${esc(ng)}</td></tr>`;
   }).join('');
+}
+
+// 'grupo|genero|modalidad|peso|edad' -> 'Medio · Adulto · Con Gi'
+// Misma regla que bjj_clave_label() en app.py. Devuelve '' si la clave no
+// tiene el formato esperado, para no romper la pantalla con undefined.
+function bjjLabelDeClave(clave) {
+  const p = String(clave || '').split('|');
+  if (p.length !== 5) return '';
+  return `${p[3]} · ${p[4]} · ${p[2] === 'nogi' ? 'No-Gi' : 'Con Gi'}`;
+}
+
+// Arma la lista de claves validas con la misma forma que hace bjj_claves() en
+// Python. Si un dia la IBJJF agrega una division, aparece sola en el selector.
+async function bjjListaClaves() {
+  if (!BJJ_TABLAS) BJJ_TABLAS = await api('/api/bjj/categorias');
+  const P = BJJ_TABLAS.pesos || {};
+  const divs = BJJ_TABLAS.divisiones || [];
+  const out = [];
+  Object.keys(P).forEach(grupo => {
+    Object.keys(P[grupo]).forEach(g => {
+      ['gi', 'nogi'].forEach(mod => {
+        (P[grupo][g][mod] || []).forEach(([nombre]) => {
+          divs.forEach(div => out.push({ clave: `${grupo}|${g}|${mod}|${nombre}|${div}`, grupo, g, mod, nombre, div }));
+        });
+      });
+    });
+  });
+  return out;
+}
+
+function pintarBjjElegida(clave) {
+  const box = document.getElementById('bjjElegida');
+  if (!box) return;
+  box.innerHTML = `
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+      <div class="small mb">🎯 Con qué categoría competís</div>
+      ${clave ? `<div class="tag tag-al-dia" style="font-size:.95rem">${esc(bjjLabelDeClave(clave))}</div>`
+        : `<div class="small" style="color:var(--muted)">Todavía no elegiste categoría.</div>`}
+      <button class="btn ghost btn-block" style="margin-top:10px" onclick="elegirCategoriaBjj()">
+        ${clave ? 'Cambiar' : 'Elegir mi categoría'}
+      </button>
+      <small class="hint">La app la calcula con tu edad y peso, pero si sabés en qué categoría
+        te inscribís, elegila acá: al inscripción a un torneo se usa esta.</small>
+    </div>`;
+}
+
+async function elegirCategoriaBjj() {
+  let lista;
+  try { lista = await bjjListaClaves(); } catch (e) { return toast(e.message); }
+  const me = await api('/api/me').catch(() => ({}));
+  const actual = me.bjj_categoria || '';
+  const gi = ($$('input[name="bjjGi"]').find(r => r.checked) || {}).value || 'gi';
+  const vis = lista.filter(x => x.mod === gi);
+  const grupos = {};
+  vis.forEach(x => { (grupos[x.grupo + '|' + x.g] = grupos[x.grupo + '|' + x.g] || []).push(x); });
+
+  openModal(`
+    <h3>Elegí tu categoría</h3>
+    <div class="small" style="color:var(--muted);margin-bottom:10px">
+      Andá a la pestaña ${gi === 'nogi' ? 'No-Gi' : 'Con Gi'}.
+    </div>
+    <div class="field"><label>Buscar</label><input id="bkBuscar" placeholder="Ej: Medio, Master, Pluma" autocomplete="off"></div>
+    <div id="bkLista" style="max-height:46vh;overflow:auto">
+      ${Object.keys(grupos).map(k => `
+        <div class="small" style="margin:12px 0 4px;font-weight:600">${esc(grupos[k][0].div)}</div>
+        <div class="chips" data-grupo="${esc(k)}">
+          ${grupos[k].map(x => `<label class="chip"><input type="radio" name="bkCat" value="${esc(x.clave)}"${x.clave === actual ? ' checked' : ''}><span>${esc(x.nombre)}</span></label>`).join('')}
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="btn ghost" style="flex:1" onclick="elegirCategoriaBjj()">${gi === 'nogi' ? 'Con Gi' : 'No-Gi'}</button>
+      ${actual ? `<button class="btn ghost" style="flex:1" onclick="guardarCategoriaBjj('')">Quitar</button>` : ''}
+      <button class="btn primary" style="flex:2" onclick="guardarCategoriaBjj((document.querySelector('input[name=bkCat]:checked')||{}).value||'')">Guardar</button>
+    </div>
+    <button class="btn ghost btn-block mt" onclick="closeModal()">Cancelar</button>`);
+
+  const b = document.getElementById('bkBuscar');
+  if (b) b.addEventListener('input', () => {
+    const q = b.value.trim().toLowerCase();
+    $$('#bkLista .chip').forEach(c => {
+      c.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+}
+
+async function guardarCategoriaBjj(clave) {
+  try {
+    const r = await api('/api/bjj/categoria', { method: 'POST', body: JSON.stringify({ clave: clave || '' }) });
+    closeModal();
+    toast(r.label ? 'Categoría guardada: ' + r.label : 'Categoría quitada');
+    pintarBjjElegida(r.clave);
+    if (window.USER) USER.bjj_categoria = r.clave;
+  } catch (e) { toast(e.message); }
 }
 
 async function toggleBjjTabla() {
@@ -1612,6 +1708,7 @@ async function renderPerfil(el) {
           <label class="chip"><input type="radio" name="bjjGi" value="nogi"><span>No-Gi</span></label>
         </div>
         <div id="bjjOut" class="small">Cargando…</div>
+        <div id="bjjElegida"></div>
         <button class="btn ghost btn-block" style="margin-top:10px" onclick="toggleBjjTabla()">📋 Ver todas las categorías de peso</button>
         <div id="bjjTabla"></div>
       </div>
@@ -1684,6 +1781,7 @@ async function renderPerfil(el) {
   });
   $$('input[name="bjjGi"]').forEach(r => r.addEventListener('change', renderBjj));
   renderBjj();
+  pintarBjjElegida(me.bjj_categoria || '');
   $('#pCat').addEventListener('change', (e) => {
     const b = BELTS_POR_CAT[e.target.value] || BELTS_ADULT;
     $('#pCinturon').innerHTML = b.map(x => `<option>${esc(x)}</option>`).join('');
@@ -1908,13 +2006,13 @@ async function renderHorarios(el) {
     const items = d.horarios.filter(h => h.dia === i);
     return `<div class="dia-col"><h4>${dia}</h4>
       ${items.length ? items.map(h => `
-        <div class="clase-item ${(h.tipo || 'Gi').toLowerCase()}">
-          <span class="hora">${esc(h.hora)}</span> · <span class="tag ${(h.tipo || 'Gi').toLowerCase()}">${esc(h.tipo)}</span>
-          <div class="small">${esc(h.nivel)} · ${esc(h.duracion)}min</div>
+<div class="clase-item ${(h.tipo || 'Gi').toLowerCase()}">
+          <span class="hora">${esc(h.hora)}</span> · <span class="tag ${(h.tipo || 'Gi').toLowerCase()}">${esc(h.tipo || 'Gi')}</span>
+          <div class="small">${esc(h.nivel || 'Todos')} · ${h.duracion || 60}min</div>
           <div class="profe">🧑‍🏫 ${esc(h.profesor_nombre || 'Sin profesor')}</div>
           ${R !== 'alumno' && h.rating ? `<button class="btn ghost small" style="margin-top:6px" onclick="verValoraciones(${h.id})">⭐ ${h.rating.promedio} (${h.rating.n})</button>` : ''}
           ${canEdit ? `<div class="flex" style="margin-top:6px">
-            <button class="btn ghost small" onclick="editarHorario(${h.id},${h.dia},'${escJs(h.hora)}','${escJs(h.tipo)}','${escJs(h.nivel)}',${h.profesor_id != null ? h.profesor_id : 'null'},${h.duracion})">✏️ Editar</button>
+            <button class="btn ghost small" onclick="editarHorario(${h.id},${h.dia},'${escJs(h.hora)}','${escJs(h.tipo || 'Gi')}','${escJs(h.nivel || 'Todos')}',${h.profesor_id != null ? h.profesor_id : 'null'},${h.duracion || 60})">✏️ Editar</button>
             ${R === 'admin' ? `<button class="btn bad small" onclick="borrarHorario(${h.id})">🗑</button>` : ''}
           </div>` : ''}
         </div>`).join('') : '<p class="small" style="color:var(--muted)">Sin clases</p>'}
@@ -1985,6 +2083,324 @@ async function verValoraciones(claseId) {
 }
 let PROFESORES_CACHE = [];
 let AVISOS_CACHE = {};
+
+/* =====================================================================
+   TORNEOS: calendario manual + ranking por asistencia y medallas
+   =====================================================================
+   No hay integracion con ningun calendario externo: el admin/profe carga
+   cada torneo a mano y marca Participatinges y medals. El ranking se arma
+   entero en el backend desde esas inscripciones, asi que la UI nunca inventa
+   numeros: solo los muestra.
+   ===================================================================== */
+let TORNEOS_CACHE = [];
+let TORNEOS_VISTA = 'calendario';
+
+const MEDALLAS = [
+  { v: 'oro', lbl: '🥇 Oro' },
+  { v: 'plata', lbl: '🥈 Plata' },
+  { v: 'bronce', lbl: '🥉 Bronce' },
+];
+const MESES_TORNEO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+  'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const ESTADOS = [
+  { v: 'programado', lbl: 'Programado' },
+  { v: 'inscripcion', lbl: 'Inscripción abierta' },
+  { v: 'confirmado', lbl: 'Confirmado' },
+  { v: 'finalizado', lbl: 'Finalizado' },
+  { v: 'cancelado', lbl: 'Cancelado' },
+];
+
+function torneoFechaLarga(f) {
+  if (!f) return 'Sin fecha';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f);
+  if (!m) return f;
+  const mi = parseInt(m[2], 10) - 1;
+  if (mi < 0 || mi > 11) return f;
+  return `${parseInt(m[3], 10)} de ${MESES_TORNEO[mi]} de ${m[1]}`;
+}
+
+function torneoMes(f) {
+  return /^\d{4}-\d{2}/.test(f || '') ? f.slice(0, 7) : 'sin-fecha';
+}
+
+function torneoMesLbl(ym) {
+  if (ym === 'sin-fecha') return 'Sin fecha';
+  const mi = parseInt(ym.slice(5, 7), 10) - 1;
+  return `${MESES_TORNEO[mi] || ym} ${ym.slice(0, 4)}`;
+}
+
+function medallaLbl(m) {
+  const h = MEDALLAS.find(x => x.v === m);
+  return h ? h.lbl : '';
+}
+
+function estadoTag(e) {
+  const c = { programado: '', inscripcion: 'tag-por-vencer', confirmado: 'tag-al-dia',
+    finalizado: 'tag-al-dia', cancelado: 'tag-deuda' }[e] || '';
+  const h = ESTADOS.find(x => x.v === e);
+  return `<span class="tag ${c}">${esc(h ? h.lbl : (e || 'Programado'))}</span>`;
+}
+
+function torneoInscripcionesHTML(t) {
+  if (!t.inscripciones.length) {
+    return `<div class="small" style="color:var(--muted);margin-top:8px">Todavía nadie inscrito.</div>`;
+  }
+  return `<div class="small" style="margin-top:10px"><b>Participantes (${t.inscripciones.length})</b></div>
+    ${t.inscripciones.map(i => `
+      <div class="flex space-between" style="padding:7px 0;border-bottom:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0">
+          ${avatarHTML(i.foto, i.nombre, 'sm')}
+          <div style="min-width:0">
+            <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.nombre)} ${beltHTML(i.cinturon)}</div>
+            ${i.categoria ? `<div class="small" style="color:var(--muted)">${esc(i.categoria)}</div>` : ''}
+            ${i.nota ? `<div class="small" style="color:var(--muted)">${esc(i.nota)}</div>` : ''}
+          </div>
+        </div>
+        <span class="flex" style="gap:6px;align-items:center">
+          ${medallaLbl(i.medalla) ? `<span class="tag tag-al-dia">${medallaLbl(i.medalla)}</span>` : ''}
+          ${USER.role !== 'alumno' ? `<button class="btn ghost small" onclick="inscribirEnTorneo(${t.id}, ${i.alumno_id})">✏️</button>
+            <button class="btn bad small" onclick="quitarInscripcion(${i.id})">🗑</button>` : ''}
+        </span>
+      </div>`).join('')}`;
+}
+
+function torneoCalendarioHTML() {
+  if (!TORNEOS_CACHE.length) {
+    return `<div class="card"><div class="empty">
+      Todavía no hay torneos cargados.
+      ${USER.role !== 'alumno' ? '<br>Usá <b>+ Nuevo torneo</b> para empezar.' : ''}
+    </div></div>`;
+  }
+  // agrupar por mes, conservando el orden que ya dio el backend (mas nuevo primero)
+  const grupos = [];
+  TORNEOS_CACHE.forEach(t => {
+    const ym = torneoMes(t.fecha);
+    let g = grupos.find(x => x.ym === ym);
+    if (!g) { g = { ym: ym, trs: [] }; grupos.push(g); }
+    g.trs.push(t);
+  });
+  return grupos.map(g => `
+    <div class="card">
+      <h3>${esc( torneoMesLbl(g.ym) )}</h3>
+      ${g.trs.map(t => `
+        <div style="padding:12px 0;border-bottom:1px solid var(--line)">
+          <div class="flex space-between" style="align-items:flex-start">
+            <div style="min-width:0">
+              <b style="font-size:16px">${esc(t.nombre)}</b>
+              <div class="small" style="color:var(--muted)">
+                📅 ${esc( torneoFechaLarga(t.fecha) )}
+                ${t.ciudad ? ' · 📍 ' + esc(t.ciudad) : ''}
+                ${t.lugar ? ' · ' + esc(t.lugar) : ''}
+              </div>
+              <div class="small" style="margin-top:4px">${estadoTag(t.estado)} ${t.tipo ? `<span class="tag">${esc(t.tipo)}</span>` : ''}</div>
+              ${t.descripcion ? `<div class="small" style="margin-top:6px">${esc(t.descripcion)}</div>` : ''}
+              ${t.url ? `<a class="small" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">🔗 Más info</a>` : ''}
+            </div>
+            ${USER.role !== 'alumno' ? `<div class="flex" style="gap:6px;flex-shrink:0">
+              <button class="btn primary small" onclick="inscribirEnTorneo(${t.id})">+ Inscribir</button>
+              <button class="btn ghost small" onclick="editarTorneo(${t.id})">✏️</button>
+              ${USER.role === 'admin' ? `<button class="btn bad small" onclick="borrarTorneo(${t.id})">🗑</button>` : ''}
+            </div>` : ''}
+          </div>
+          ${torneoInscripcionesHTML(t)}
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function torneoRankingHTML(ranking) {
+  if (!ranking.length) {
+    return `<div class="card"><div class="empty">
+      Todavía no hay resultados.<br>
+      A partir de la segunda inscripción con fecha ya aparecen posiciones.
+    </div></div>`;
+  }
+  const medals = rk => rk.oro + rk.plata + rk.bronce;
+  return `<div class="card">
+    <h3>🏆 Ranking de torneos</h3>
+    <p class="small" style="color:var(--muted)">Ordenado por cantidad de torneos y, en empate, por medallas. Los torneos sin fecha todavía no cuentan.</p>
+    <div style="overflow:auto"><table>
+      <thead><tr>
+        <th style="text-align:left;padding:6px 8px">#</th>
+        <th style="text-align:left;padding:6px 8px">Alumno</th>
+        <th style="text-align:right;padding:6px 8px">Torneos</th>
+        <th style="text-align:right;padding:6px 8px">🥇</th>
+        <th style="text-align:right;padding:6px 8px">🥈</th>
+        <th style="text-align:right;padding:6px 8px">🥉</th>
+        <th style="text-align:right;padding:6px 8px">Total</th>
+      </tr></thead>
+      <tbody>
+        ${ranking.map((rk, i) => `
+          <tr>
+            <td style="padding:6px 8px"><b>${i + 1}</b></td>
+            <td style="padding:6px 8px"><div class="flex" style="gap:8px;align-items:center">
+              ${avatarHTML(rk.foto, rk.nombre, 'sm')}<span>${esc(rk.nombre)}</span>${beltHTML(rk.cinturon)}
+            </div></td>
+            <td style="text-align:right;padding:6px 8px"><b>${rk.torneos}</b></td>
+            <td style="text-align:right;padding:6px 8px">${rk.oro || ''}</td>
+            <td style="text-align:right;padding:6px 8px">${rk.plata || ''}</td>
+            <td style="text-align:right;padding:6px 8px">${rk.bronce || ''}</td>
+            <td style="text-align:right;padding:6px 8px"><b>${medals(rk)}</b></td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>
+    <div class="small" style="color:var(--muted);margin-top:10px">
+      🥇 Oro ${ranking.reduce((a, x) => a + x.oro, 0)} ·
+      🥈 Plata ${ranking.reduce((a, x) => a + x.plata, 0)} ·
+      🥉 Bronce ${ranking.reduce((a, x) => a + x.bronce, 0)}
+    </div>
+  </div>`;
+}
+
+async function renderTorneos(el) {
+  const esStaff = USER.role !== 'alumno';
+  const [d, r] = await Promise.all([
+    api('/api/torneos'),
+    api('/api/torneos/ranking').catch(() => ({ ranking: [] })),
+  ]);
+  TORNEOS_CACHE = d.torneos;
+  const tab = (v, lbl) => `<button class="btn ${TORNEOS_VISTA === v ? 'primary' : 'ghost'} small"
+      onclick="TORNEOS_VISTA='${v}';renderTorneos($('#sec-torneos'))">${lbl}</button>`;
+  el.innerHTML = `
+    ${secHeader('🏆 Torneos', 'Calendario manual y ranking de la academia')}
+    <div class="flex" style="gap:8px;margin-bottom:12px">
+      ${tab('calendario', '🗓️ Calendario')}
+      ${tab('ranking', '🏅 Ranking')}
+      ${esStaff ? `<button class="btn primary small" style="margin-left:auto" onclick="editarTorneo(null)">+ Nuevo torneo</button>` : ''}
+    </div>
+    ${TORNEOS_VISTA === 'ranking' ? torneoRankingHTML(r.ranking || []) : torneoCalendarioHTML()}`;
+}
+
+function formTorneo(id) {
+  const t = id ? TORNEOS_CACHE.find(x => x.id === id) : null;
+  const val = (k, def = '') => esc(t ? (t[k] || def) : def);
+  openModal(`
+    <h3>${t ? 'Editar torneo' : 'Nuevo torneo'}</h3>
+    <form id="trForm" class="grid2">
+      <div class="field" style="grid-column:1/-1"><label>Nombre</label>
+        <input id="trNombre" required value="${val('nombre')}" placeholder="Copa Invierno"></div>
+      <div class="field"><label>Fecha</label><input type="date" id="trFecha" value="${val('fecha')}"></div>
+      <div class="field"><label>Estado</label>
+        <select id="trEstado">${ESTADOS.map(e =>
+          `<option value="${e.v}"${t && t.estado === e.v ? ' selected' : ''}>${e.lbl}</option>`).join('')}</select></div>
+      <div class="field"><label>Ciudad</label><input id="trCiudad" value="${val('ciudad')}"></div>
+      <div class="field"><label>Lugar</label><input id="trLugar" value="${val('lugar')}" placeholder="Polideportivo / Gym"></div>
+      <div class="field"><label>Tipo</label><input id="trTipo" value="${val('tipo', 'IBJJF')}" placeholder="IBJJF, Gi, No-Gi..."></div>
+      <div class="field"><label>Link</label><input id="trUrl" value="${val('url')}" placeholder="ibjjf.com/..."></div>
+      <div class="field" style="grid-column:1/-1"><label>Descripción</label>
+        <textarea id="trDesc" style="width:100%;min-height:60px">${val('descripcion')}</textarea></div>
+      <div class="field" style="grid-column:1/-1">
+        <button class="btn primary btn-block" type="submit">${t ? 'Guardar cambios' : 'Crear torneo'}</button></div>
+    </form>
+    <button class="btn ghost btn-block mt" onclick="closeModal()">Cancelar</button>`);
+  $('#trForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const body = {
+      nombre: $('#trNombre').value.trim(),
+      fecha: $('#trFecha').value,
+      ciudad: $('#trCiudad').value.trim(),
+      lugar: $('#trLugar').value.trim(),
+      tipo: $('#trTipo').value.trim(),
+      estado: $('#trEstado').value,
+      url: $('#trUrl').value.trim(),
+      descripcion: $('#trDesc').value.trim(),
+    };
+    if (!body.nombre) { toast('Falta el nombre'); return; }
+    const btn = ev.target.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+      await api(t ? '/api/torneos/' + t.id : '/api/torneos',
+        { method: t ? 'PUT' : 'POST', body: JSON.stringify(body) });
+      closeModal();
+      toast(t ? 'Torneo actualizado' : 'Torneo creado');
+      renderTorneos($('#sec-torneos'));
+    } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = 'Guardar'; }
+  });
+}
+
+function editarTorneo(id) { formTorneo(id); }
+
+async function borrarTorneo(id) {
+  const t = TORNEOS_CACHE.find(x => x.id === id);
+  if (!confirm(`¿Eliminar "${t ? t.nombre : 'este torneo'}"? Se borran también sus inscripciones.`)) return;
+  try {
+    await api('/api/torneos/' + id, { method: 'DELETE' });
+    toast('Torneo eliminado');
+    renderTorneos($('#sec-torneos'));
+  } catch (e) { toast(e.message); }
+}
+
+async function inscribirEnTorneo(torneoId, alumnoId) {
+  const t = TORNEOS_CACHE.find(x => x.id === torneoId);
+  if (!t) return;
+  const lista = await api('/api/alumnos').catch(() => ({ alumnos: [] }));
+  const alumnos = lista.alumnos || [];
+  const actual = alumnoId ? t.inscripciones.find(i => i.alumno_id === alumnoId) : null;
+  const sel = alumnoId || (actual ? actual.alumno_id : '');
+  // la categoria propia del alumno viene precargada: es lo que eligio en su perfil
+  const cat = actual ? actual.categoria : '';
+  openModal(`
+    <h3>${actual ? 'Editar inscripción' : 'Inscribir en'}<br>${esc(t.nombre)}</h3>
+    <form id="insForm" class="grid2">
+      <div class="field" style="grid-column:1/-1"><label>Alumno</label>
+        <select id="inAlumno" ${alumnoId ? 'disabled' : ''} required>
+          <option value="">Elegí un alumno</option>
+          ${alumnos.map(a => `<option value="${a.id}"${a.id === sel ? ' selected' : ''}>${esc(a.nombre)}${a.cinturon ? ' · ' + esc(a.cinturon) : ''}</option>`).join('')}
+        </select></div>
+      <div class="field" style="grid-column:1/-1"><label>Categoría de inscripción</label>
+        <input id="inCat" value="${esc(cat)}" placeholder="Ej: Medio · Adulto · Con Gi">
+        <small class="hint">Se completa con la categoría que eligió el alumno en su Perfil.</small></div>
+      <div class="field" style="grid-column:1/-1"><label>Medalla</label>
+        <select id="inMedalla">
+          <option value="">Sin medalla (todavía no compite)</option>
+          ${MEDALLAS.map(m => `<option value="${m.v}"${actual && actual.medalla === m.v ? ' selected' : ''}>${m.lbl}</option>`).join('')}
+        </select></div>
+      <div class="field" style="grid-column:1/-1"><label>Nota</label>
+        <input id="inNota" value="${esc(actual ? actual.nota : '')}" placeholder="Opcional"></div>
+      <div class="field" style="grid-column:1/-1">
+        <button class="btn primary btn-block" type="submit">${actual ? 'Guardar' : 'Inscribir'}</button></div>
+    </form>
+    <button class="btn ghost btn-block mt" onclick="closeModal()">Cancelar</button>`);
+
+  // si elegiste un alumno distinto, Autocompletar su categoria elegida
+  const selAl = $('#inAlumno');
+  if (!alumnoId && selAl) selAl.addEventListener('change', () => {
+    const a = alumnos.find(x => x.id === selAl.value);
+    const label = a && a.bjj_categoria
+      ? bjjLabelDeClave(a.bjj_categoria) : '';
+    if (label) $('#inCat').value = label;
+  });
+
+  $('#insForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const id = alumnoId || parseInt($('#inAlumno').value, 10);
+    if (!id) { toast('Elegí un alumno'); return; }
+    const btn = ev.target.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+      await api(`/api/torneos/${torneoId}/inscripcion`, {
+        method: 'POST',
+        body: JSON.stringify({
+          alumno_id: id,
+          categoria: $('#inCat').value.trim(),
+          medalla: $('#inMedalla').value,
+          nota: $('#inNota').value.trim(),
+        }),
+      });
+      closeModal();
+      toast('Inscripción guardada');
+      renderTorneos($('#sec-torneos'));
+    } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = 'Guardar'; }
+  });
+}
+
+async function quitarInscripcion(iid) {
+  if (!confirm('¿Quitar a este alumno del torneo?')) return;
+  try {
+    await api('/api/torneos/torneo/' + iid, { method: 'DELETE' });
+    toast('Inscripción quitada');
+    renderTorneos($('#sec-torneos'));
+  } catch (e) { toast(e.message); }
+}
 
 /* =====================================================================
    PAGOS (admin / profesor)
@@ -2800,7 +3216,7 @@ async function renderAsistencia(el) {
       <div class="flex mb">
         <select id="asClase" style="padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--bg2);color:var(--txt);flex:1">
           <option value="">— Elegí la clase —</option>
-          ${horarios.horarios.map(h => `<option value="${h.id}" data-profe="${h.profesor_id || ''}">${esc(h.dia_nombre)} ${esc(h.hora)} · ${esc(h.tipo)} · ${esc(h.nivel)}</option>`).join('')}
+          ${horarios.horarios.map(h => `<option value="${h.id}" data-profe="${h.profesor_id || ''}">${esc(h.dia_nombre)} ${esc(h.hora)} · ${esc(h.tipo || 'Gi')} · ${esc(h.nivel || 'Todos')}</option>`).join('')}
         </select>
         <input type="date" id="asFecha" value="${hoy}" style="padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--bg2);color:var(--txt)">
       </div>

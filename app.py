@@ -1351,6 +1351,21 @@ def validar_mes_anio(mes, anio):
     return m, a, None
 
 
+def col(r, name, default=None):
+    """Lee una columna de una fila sin reventar si la columna no existe o es NULL.
+
+    Hace falta porque una fila es un objeto distinto segun el driver: sqlite3.Row
+    tira IndexError si la columna no esta (y no KeyError), el Row de dbadapter KeyError.
+    Con una base creada por una version vieja del app la columna puede directamente
+    no existir, y `r['tipo']` tumbaba el endpoint entero con un 500.
+    """
+    try:
+        v = r[name]
+    except (KeyError, IndexError, TypeError):
+        return default
+    return default if v is None else v
+
+
 def txt_str(v):
     """Equivale a (v or '').strip() pero sin reventar si v no es string.
     Antes, un cliente que mandaba un numero o un booleano en un campo de texto
@@ -2291,16 +2306,38 @@ def api_horarios():
                 'SELECT clase_id, COUNT(*) AS n, COALESCE(AVG(estrellas),0) AS prom FROM clase_valoraciones GROUP BY clase_id').fetchall():
             ratings[r['clase_id']] = {'n': r['n'], 'promedio': round(r['prom'] or 0, 1)}
     horarios = []
+    avisos = []
     for r in rows:
+        # Una sola clase con el dia fuera de 0-6 (dato viejo o cargado por fuera
+        # de la app) hacia DIAS[r['dia']] -> IndexError -> 500 -> la seccion entera
+        # de Horarios quedaba en "Cargando" sin explicacion. Ahora se muestra con un
+        # nombre de dia corregido y se avisa, en vez de matar el calendario.
+        dia = col(r, 'dia', 0)
+        try:
+            dia_nombre = DIAS[int(dia)]
+            # DIAS[-1] en Python es "Domingo" y no tira, pero en el front el filtro
+            # es h.dia === i con i de 0 a 6, asi que la clase se perdia sin aviso.
+            if int(dia) < 0:
+                raise IndexError(dia)
+        except (IndexError, TypeError, ValueError):
+            dia_nombre = 'Día %s' % (dia,)
+            avisos.append('La clase #%s tiene un día inválido (%s). Corregilo editando la clase.'
+                          % (col(r, 'id'), dia))
+            print('HORARIOS: clase id=%s con dia=%r fuera de rango' % (col(r, 'id'), dia))
         item = {
-            'id': r['id'], 'dia': r['dia'], 'dia_nombre': DIAS[r['dia']],
-            'hora': r['hora'], 'tipo': r['tipo'], 'nivel': r['nivel'],
-            'duracion': r['duracion'], 'profesor_id': r['profesor_id'],
-            'profesor_nombre': r['profesor_nombre']}
+            'id': col(r, 'id'), 'dia': dia, 'dia_nombre': dia_nombre,
+            'hora': col(r, 'hora', ''), 'tipo': col(r, 'tipo', 'Gi') or 'Gi',
+            'nivel': col(r, 'nivel', ''),
+            'duracion': col(r, 'duracion', 60) or 60,
+            'profesor_id': col(r, 'profesor_id'),
+            'profesor_nombre': col(r, 'profesor_nombre')}
         if ratings:
-            item['rating'] = ratings.get(r['id'], {'n': 0, 'promedio': 0})
+            item['rating'] = ratings.get(col(r, 'id'), {'n': 0, 'promedio': 0})
         horarios.append(item)
-    return jsonify({'horarios': horarios})
+    out = {'horarios': horarios}
+    if avisos:
+        out['avisos'] = avisos
+    return jsonify(out)
 
 
 @app.route('/api/horarios', methods=['POST'])

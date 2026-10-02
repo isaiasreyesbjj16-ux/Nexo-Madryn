@@ -554,7 +554,16 @@ function showSec(name) {
     const p = renderers[name](el);
     if (p && p.then) {
       p.then(() => { if (window._secCache) window._secCache[name] = { html: el.innerHTML, ts: Date.now() }; })
-       .catch(() => {});
+       .catch((err) => {
+         // Antes el error se comia con .catch(() => {}) y la seccion se quedaba
+         // en "Cargando" para siempre, sin dar ninguna pista. Ahora se muestra.
+         console.error('Error renderizando #' + name, err);
+         el.innerHTML = `<div class="card">
+           <b>No se pudo cargar esta sección.</b>
+           <div class="small" style="color:var(--bad);margin-top:6px;word-break:break-word">${esc(err && err.message || err)}</div>
+           <button class="btn ghost" style="margin-top:12px" onclick="location.reload()">Reintentar</button>
+         </div>`;
+       });
     }
   }
 }
@@ -1899,9 +1908,9 @@ async function renderHorarios(el) {
     const items = d.horarios.filter(h => h.dia === i);
     return `<div class="dia-col"><h4>${dia}</h4>
       ${items.length ? items.map(h => `
-        <div class="clase-item ${h.tipo.toLowerCase()}">
-          <span class="hora">${esc(h.hora)}</span> · <span class="tag ${h.tipo.toLowerCase()}">${esc(h.tipo)}</span>
-          <div class="small">${esc(h.nivel)} · ${h.duracion}min</div>
+        <div class="clase-item ${(h.tipo || 'Gi').toLowerCase()}">
+          <span class="hora">${esc(h.hora)}</span> · <span class="tag ${(h.tipo || 'Gi').toLowerCase()}">${esc(h.tipo)}</span>
+          <div class="small">${esc(h.nivel)} · ${esc(h.duracion)}min</div>
           <div class="profe">🧑‍🏫 ${esc(h.profesor_nombre || 'Sin profesor')}</div>
           ${R !== 'alumno' && h.rating ? `<button class="btn ghost small" style="margin-top:6px" onclick="verValoraciones(${h.id})">⭐ ${h.rating.promedio} (${h.rating.n})</button>` : ''}
           ${canEdit ? `<div class="flex" style="margin-top:6px">
@@ -1913,6 +1922,9 @@ async function renderHorarios(el) {
   });
   el.innerHTML = `
     ${secHeader('Horarios semanales')}
+    ${d.avisos && d.avisos.length ? `<div class="card" style="border-color:var(--bad)">
+      ${d.avisos.map(a => `<div class="small" style="color:var(--bad)">⚠ ${esc(a)}</div>`).join('')}
+    </div>` : ''}
     ${R !== 'alumno' ? `<div class="card flex space-between"><span class="small">Profesores pueden editar la tabla de horarios (${R === 'admin' ? 'solo admin puede eliminar' : 'edición permitida'}).</span>
       <button class="btn primary small" onclick="formHorario()">+ Agregar clase</button></div>` : ''}
     <div class="semana">${cols.join('')}</div>`;

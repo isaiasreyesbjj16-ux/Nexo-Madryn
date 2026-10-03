@@ -2026,6 +2026,21 @@ def _reparto_por_actividades(alumno_id, monto, profesor_manual_id=None):
     return []
 
 
+def _get_alumno(uid):
+    """Busca a un alumno o profesor por id.
+
+    /api/alumnos los lista a los dos (los profesores entrenan y pagan cuota), pero
+    casi todas las acciones exigian role='alumno' y devolvian "Alumno no
+    encontrado": la pantalla ofrecia a la persona y al tocarla rebotaba. Ahora el
+    filtro de rol vive aca y es el mismo en las dos puntas.
+
+    No se filtra por activo a proposito: el listado tampoco lo hace, y un alumno
+    dado de baja igual tiene que poder recibir las acciones del staff.
+    """
+    return get_db().execute(
+        "SELECT * FROM users WHERE id=? AND role IN ('alumno','profesor')", (uid,)).fetchone()
+
+
 def _rol_de(db, user_id):
     try:
         row = db.execute('SELECT role FROM users WHERE id=?', (user_id,)).fetchone()
@@ -2755,11 +2770,10 @@ def api_torneos_inscribir(tid):
     if not get_db().execute('SELECT id FROM torneos WHERE id=?', (tid,)).fetchone():
         return jsonify({'error': 'Torneo no encontrado'}), 404
     alumno = to_int(data.get('alumno_id'))
-    # El selector de la pantalla lista /api/alumnos, que ya trae profesores y
-    # admins; el endpoint los rechazaba con un 400 sin explicar por que. Ahora se
-    # acepta a cualquiera que compita, activo y con la cuenta dada de alta.
-    if not alumno or not get_db().execute(
-            'SELECT id FROM users WHERE id=? AND activo=1', (alumno,)).fetchone():
+    # Mismo criterio que el resto de las acciones sobre alumnos (ver _get_alumno):
+    # cualquiera que compita, sea alumno o profesor. El filtro de activo se
+    # dejaba antes y rompia a los dados de baja, que el listado igual muestra.
+    if not alumno or not _get_alumno(alumno):
         return jsonify({'error': 'Alumno no encontrado'}), 400
     medalla = txt_str(data.get('medalla')).lower()
     if medalla and medalla not in MEDALLAS:
@@ -2834,7 +2848,7 @@ def api_torneos_ranking():
             '  FROM torneo_inscripciones i'
             '  JOIN torneos t ON t.id = i.torneo_id'
             '  JOIN users u ON u.id = i.alumno_id'
-            "  WHERE u.role='alumno' AND t.fecha IS NOT NULL AND t.fecha <> ''"
+            "  WHERE u.role IN ('alumno','profesor') AND t.fecha IS NOT NULL AND t.fecha <> ''"
             '  GROUP BY u.id, u.nombre, u.cinturon, u.foto'
             ') r'
             ' ORDER BY r.n_torneos DESC, (r.n_oro + r.n_plata + r.n_bronce) DESC,'
@@ -2940,7 +2954,7 @@ def api_alumnos_create():
 @role_required('admin', 'profesor')
 def api_alumnos_update(uid):
     data = parse_json()
-    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
+    u = _get_alumno(uid)
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     nac_upd = txt_str(data.get('nacimiento', u['nacimiento']))
@@ -3021,7 +3035,7 @@ def api_alumnos_delete(uid):
     # Baja logica, no un DELETE: los pagos, la asistencia y las inscripciones a
     # torneo quedan colgando de la fila. Si se borra, ese historial desaparece y
     # los reportes quedan con pagos de un alumno inexistente.
-    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
+    u = _get_alumno(uid)
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     get_db().execute('UPDATE users SET activo=0 WHERE id=?', (uid,))
@@ -3038,7 +3052,7 @@ def api_alumnos_cuota(uid):
     cuota = to_float(data.get('cuota_mensual'))
     if not cuota or cuota <= 0:
         return jsonify({'error': 'Monto de cuota invalido'}), 400
-    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
+    u = _get_alumno(uid)
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     get_db().execute('UPDATE users SET cuota_mensual=? WHERE id=?', (cuota, uid))
@@ -3132,6 +3146,9 @@ def api_profesores_delete(uid):
 @app.route('/api/alumnos/<int:uid>/profesor', methods=['POST'])
 @role_required('admin')
 def api_alumnos_promover(uid):
+    # Aca si se exige role='alumno': es "convertir alumno en profesor". Si se
+    # aceptara a un profesor ya dado de baja, el UPDATE le pondria activo=1 y lo
+    # reactivaria sin que nadie lo pida.
     u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
@@ -3147,7 +3164,7 @@ def api_alumnos_promover(uid):
 @app.route('/api/alumnos/<int:uid>/beca', methods=['POST'])
 @role_required('admin', 'profesor')
 def api_alumnos_beca(uid):
-    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
+    u = _get_alumno(uid)
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     nueva = 0 if (int(u['beca']) if 'beca' in u.keys() else 0) else 1
@@ -3160,7 +3177,7 @@ def api_alumnos_beca(uid):
 @role_required('admin', 'profesor')
 def api_alumno_notas(uid):
     data = parse_json()
-    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
+    u = _get_alumno(uid)
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     notas = txt_str(data.get('notas'))
@@ -3174,7 +3191,7 @@ def api_alumno_notas(uid):
 def api_alumno_ficha(uid):
     """El staff puede cargar/editar la ficha medica de un alumno (menores suelen no hacerlo solos)."""
     data = parse_json()
-    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
+    u = _get_alumno(uid)
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     db = get_db()
@@ -3290,7 +3307,7 @@ def api_familia_crear():
                      (nombre, datetime.now().strftime('%Y-%m-%d %H:%M')))
     fam_id = cur.lastrowid
     if titular_id:
-        u = db.execute("SELECT * FROM users WHERE id=? AND role='alumno'", (titular_id,)).fetchone()
+        u = _get_alumno(titular_id)
         if u:
             db.execute('INSERT INTO familia_miembros(familia_id, user_id, relacion) VALUES(?,?,?)',
                        (fam_id, titular_id, 'Titular'))
@@ -3316,7 +3333,7 @@ def api_familia_agregar(fam_id):
     f = db.execute('SELECT * FROM familias WHERE id=?', (fam_id,)).fetchone()
     if not f:
         return jsonify({'error': 'Grupo no encontrado'}), 404
-    u = db.execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
+    u = _get_alumno(uid)
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     # si el alumno ya está en otra familia, se la cambia
@@ -3945,7 +3962,7 @@ def api_asistencia_por_dia():
     for r in rows:
         por_clase.setdefault(r['clase_id'], []).append(r['alumno_id'])
     alumnos = {r['id']: r for r in db.execute(
-        "SELECT * FROM users WHERE role='alumno' AND activo=1").fetchall()}
+        "SELECT * FROM users WHERE role IN ('alumno','profesor') AND activo=1").fetchall()}
     res = []
     for c in clases:
         ids = por_clase.get(c['id'], [])
@@ -4042,7 +4059,7 @@ def api_estadisticas_asistencia():
     rows = db.execute(
         """SELECT u.*,
             (SELECT COUNT(*) FROM asistencia a WHERE a.alumno_id=u.id AND a.presente=1) AS total_asist
-           FROM users u WHERE u.role='alumno' AND u.activo=1
+           FROM users u WHERE u.role IN ('alumno','profesor') AND u.activo=1
            ORDER BY total_asist DESC LIMIT 40""").fetchall()
     alumnos = []
     for r in rows:
@@ -5171,7 +5188,7 @@ def api_contactos():
             (u['id'],)).fetchall()
     else:
         rows = get_db().execute(
-            "SELECT id, nombre, cinturon, categoria, foto FROM users WHERE activo=1 AND id<>? AND role='alumno'",
+            "SELECT id, nombre, cinturon, categoria, foto FROM users WHERE activo=1 AND id<>? AND role IN ('alumno','profesor')",
             (u['id'],)).fetchall()
     return jsonify({'contactos': [dict(r) for r in rows]})
 
@@ -5305,7 +5322,7 @@ def api_ranking():
     vmap = {v['uid']: v['n'] for v in vids}
     cmap = {c['uid']: c['n'] for c in comp}
     filas = db.execute(
-        "SELECT id, nombre, cinturon, categoria, foto FROM users WHERE activo=1 AND role='alumno'").fetchall()
+        "SELECT id, nombre, cinturon, categoria, foto FROM users WHERE activo=1 AND role IN ('alumno','profesor')").fetchall()
     lista = []
     for r in filas:
         punt = (nmap.get(r['id'], 0) * 2) + (cmap.get(r['id'], 0) * 5) + (vmap.get(r['id'], 0) * 1)
@@ -5337,7 +5354,7 @@ def api_mis_grados():
 @role_required('admin', 'profesor')
 def api_alumno_grado(uid):
     data = parse_json()
-    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
+    u = _get_alumno(uid)
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     cinturon = txt_str(data.get('cinturon'))
@@ -5365,7 +5382,7 @@ def api_alumno_grado(uid):
 @role_required('admin', 'profesor')
 def api_alumno_proximo_examen(uid):
     data = parse_json()
-    u = get_db().execute("SELECT * FROM users WHERE id=? AND role='alumno'", (uid,)).fetchone()
+    u = _get_alumno(uid)
     if not u:
         return jsonify({'error': 'Alumno no encontrado'}), 404
     fecha = txt_str(data.get('fecha')) or None
@@ -5826,7 +5843,7 @@ def api_mensajes_broadcast():
     elif quienes == 'todos':
         rows = get_db().execute("SELECT id, nombre FROM users WHERE activo=1").fetchall()
     else:
-        rows = get_db().execute("SELECT id, nombre FROM users WHERE role='alumno' AND activo=1").fetchall()
+        rows = get_db().execute("SELECT id, nombre FROM users WHERE role IN ('alumno','profesor') AND activo=1").fetchall()
     enviados = 0
     errores = []
     for r in rows:

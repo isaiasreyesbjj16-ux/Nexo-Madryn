@@ -2936,15 +2936,31 @@ def api_alumnos_create():
             return jsonify({'error': 'La fecha de nacimiento no puede ser hoy ni del futuro.'}), 400
     except ValueError:
         return jsonify({'error': 'Fecha de nacimiento inválida (formato AAAA-MM-DD).'}), 400
+    # El INSERT dejaba afuera todo lo que el formulario de alta trae (DNI,
+    # direccion, telefonos, ficha medica, pausa), asi que el admin lo cargaba y
+    # desaparecia. Se persisten las mismas columnas que usa api_alumnos_update.
     get_db().execute(
-        """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref, actividades, cuota_mensual, nacimiento, genero, creado)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref,
+                             actividades, cuota_mensual, nacimiento, genero, creado,
+                             tel, tel_2, tel_tutor, dni, direccion, medic_info, emergency_contact,
+                             foto_ok, pausa_desde, pausa_hasta)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (username, generate_password_hash(password), 'alumno', nombre,
          to_int(data.get('edad')), to_float(data.get('peso')),
          data.get('cinturon'), data.get('categoria') or 'adulto',
          data.get('gi_pref') or 'Ambas', _actividades_csv(data), cuota, nacimiento,
          _genero_de(data, {'genero': ''}),
-         datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+         datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+         txt_str(data.get('tel')) or None,
+         txt_str(data.get('tel_2')) or None,
+         txt_str(data.get('tel_tutor')) or None,
+         txt_str(data.get('dni')) or None,
+         txt_str(data.get('direccion')) or None,
+         txt_str(data.get('medic_info')) or None,
+         txt_str(data.get('emergency_contact')) or None,
+         1 if data.get('foto_ok') else 0,
+         txt_str(data.get('pausa_desde')) or None,
+         txt_str(data.get('pausa_hasta')) or None))
     get_db().commit()
     new_id = get_db().execute('SELECT last_insert_rowid() AS id').fetchone()['id']
     return jsonify({'ok': True, 'id': new_id, 'username': username, 'password': password})

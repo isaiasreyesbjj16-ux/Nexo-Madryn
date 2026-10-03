@@ -2943,7 +2943,11 @@ async function renderAlumnos(el) {
   };
   const total = d.alumnos.length;
   el.innerHTML = `
-    ${secHeader('Alumnos', 'Los alumnos se registran solos en la pantalla de ingreso')}
+    ${secHeader('Alumnos', USER.role === 'admin' ? 'Se registran solos en la pantalla de ingreso, o los creás vos acá' : 'Los alumnos se registran solos en la pantalla de ingreso')}
+    ${USER.role === 'admin' ? `<div class="card">
+      <p class="small">Alta de perfil: creás la cuenta y le generás usuario y contraseña. Si los dejás vacíos se generan solos.</p>
+      <button class="btn good" onclick="formAlumno()">+ Nuevo alumno</button>
+    </div>` : ''}
     ${USER.role === 'admin' || USER.role === 'profesor' ? `<div class="mb">
       <button class="btn good" onclick="exportarAlumnosExcel()">📥 Exportar alumnos a Excel (Adultos / Juveniles / Kids)</button>
       <p class="small" style="margin:6px 0 0">Descarga un archivo .xlsx con los datos de los alumnos activos (nombre, DNI, dirección, teléfonos, categoría, etc.). Solo alumnos <b>activos</b>.</p>
@@ -3096,12 +3100,21 @@ async function toggleActivo(id, activo) {
 }
 
 async function formAlumno(id) {
-  if (!id) { toast('Los alumnos se registran solos desde la pantalla de ingreso'); return; }
-  const a = (await api('/api/alumnos')).alumnos.find(x => x.id === id);
+  // Sin id = alta (botón "+ Nuevo alumno"); con id = edición, como siempre.
+  const esNuevo = !id;
+  const vacio = { nombre: '', dni: '', direccion: '', edad: '', peso: '', genero: '', tel: '',
+    tel_tutor: '', tel_2: '', nacimiento: '', categoria: 'adulto', cinturon: '', actividades: '',
+    cuota_mensual: null, pausa_desde: '', pausa_hasta: '', medic_info: '', emergency_contact: '',
+    foto_ok: 0 };
+  const a = esNuevo ? vacio : (await api('/api/alumnos')).alumnos.find(x => x.id === id);
+  if (!a) { toast('Alumno no encontrado'); return; }
   openModal(`
-    <h3>Editar alumno</h3>
+    <h3>${esNuevo ? 'Nuevo alumno' : 'Editar alumno'}</h3>
     <form id="alForm" class="grid2">
       <div class="field"><label>Nombre y apellido</label><input id="aNombre" value="${esc(a.nombre)}" required></div>
+      ${esNuevo ? `
+      <div class="field"><label>Usuario</label><input id="aUser" placeholder="si lo dejás vacío se genera"></div>
+      <div class="field"><label>Contraseña</label><input id="aPass" placeholder="si lo dejás vacío: alumno123"></div>` : ''}
       <div class="field"><label>DNI</label><input type="text" id="aDni" value="${esc(a.dni || '')}"></div>
       <div class="field"><label>Dirección / domicilio</label><input type="text" id="aDir" placeholder="Ej: Calle 1 N° 123, Madryn" value="${esc(a.direccion || '')}"></div>
       <div class="field"><label>Edad</label><input type="number" id="aEdad" value="${a.edad != null ? a.edad : ''}"></div>
@@ -3113,7 +3126,7 @@ async function formAlumno(id) {
       <div class="field"><label>Teléfono</label><input type="tel" id="aTel" value="${esc(a.tel || '')}"></div>
       <div class="field"><label>📞 Tel. padre/madre/tutor ${a.categoria === 'kids' || a.categoria === 'juveniles' ? '<span style="color:#ff9b8f">(obligatorio)</span>' : ''}</label><input type="tel" id="aTutor" value="${esc(a.tel_tutor || '')}"></div>
       <div class="field"><label>📞 Segundo teléfono</label><input type="tel" id="aTel2" value="${esc(a.tel_2 || '')}"></div>
-      <div class="field"><label>Fecha de nacimiento</label><input type="date" id="aNac" value="${a.nacimiento || ''}"></div>
+      <div class="field"><label>Fecha de nacimiento${esNuevo ? ' <span style="color:#ff9b8f">(obligatoria)</span>' : ''}</label><input type="date" id="aNac" value="${a.nacimiento || ''}" ${esNuevo ? 'required' : ''}></div>
       <div class="field"><label>Categoría</label><select id="aCat">${CATEGORIAS.map(c => `<option value="${c}" ${a.categoria === c ? 'selected' : ''}>${catLabel(c)}</option>`).join('')}</select></div>
       <div class="field"><label>Cinturón</label><select id="aCinturon"></select></div>
       <div class="field" style="grid-column:1/-1"><label>Actividades</label>
@@ -3148,9 +3161,18 @@ async function formAlumno(id) {
       dni: $('#aDni')?.value.trim() || '', direccion: $('#aDir')?.value.trim() || '',
       foto_ok: !!($('#aFotoOk')?.checked || false),
       pausa_desde: $('#aPausaDesde')?.value || '', pausa_hasta: $('#aPausaHasta')?.value || '' };
+    if (esNuevo) {
+      if ($('#aUser')?.value.trim()) body.username = $('#aUser').value.trim();
+      if ($('#aPass')?.value) body.password = $('#aPass').value;
+    }
     try {
-      await api('/api/alumnos/' + a.id, { method: 'PUT', body });
-      toast('Alumno actualizado ✓');
+      if (esNuevo) {
+        const r = await api('/api/alumnos', { method: 'POST', body });
+        toast(`Alumno creado · usuario: ${r.username} · contraseña: ${r.password}`);
+      } else {
+        await api('/api/alumnos/' + a.id, { method: 'PUT', body });
+        toast('Alumno actualizado ✓');
+      }
       closeModal(); renderAlumnos($('#sec-alumnos'));
     } catch (err) { toast(err.message); }
   });

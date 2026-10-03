@@ -1321,9 +1321,10 @@ def aviso_eventos_hoy():
 
 
 def aviso_renovacion():
-    """Si un alumno llega al minimo de asistencias configurado (asis_min_examen),
-    avisa SOLO al staff (admin/profesores) que puede sugerir examen. Flag por alumno
-    evita repetir; se reset cuando el staff entrega el nuevo grado."""
+    """Si un alumno o profesor llega al minimo de asistencias configurado
+    (asis_min_examen), avisa SOLO al staff (admin/profesores) que puede sugerir
+    examen. Flag por alumno evita repetir; se reset cuando el staff entrega el
+    nuevo grado. Los profesores entrenan y pagan cuota, asi que tambien rinden."""
     try:
         min_asist = to_int(get_setting('asis_min_examen', '30')) or 30
         if min_asist <= 0:
@@ -1332,7 +1333,7 @@ def aviso_renovacion():
         alumnos = db.execute(
             "SELECT u.id, u.nombre, u.cinturon, COUNT(a.id) AS n "
             "FROM users u LEFT JOIN asistencia a ON a.alumno_id=u.id "
-            "WHERE u.role='alumno' AND u.activo=1 "
+            "WHERE u.role IN ('alumno','profesor') AND u.activo=1 "
             # COUNT(*) contaba tambien la fila vacia del LEFT JOIN, por eso el
             # aviso salia con una asistencia menos (off-by-one). COUNT(a.id)
             # cuenta solo asistencias reales.

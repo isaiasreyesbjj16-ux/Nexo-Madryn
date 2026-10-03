@@ -2942,9 +2942,10 @@ async function renderAlumnos(el) {
     </div>`;
   };
   const total = d.alumnos.length;
+  const esStaff = USER.role === 'admin' || USER.role === 'profesor';
   el.innerHTML = `
-    ${secHeader('Alumnos', USER.role === 'admin' ? 'Se registran solos en la pantalla de ingreso, o los creás vos acá' : 'Los alumnos se registran solos en la pantalla de ingreso')}
-    ${USER.role === 'admin' ? `<div class="card">
+    ${secHeader('Alumnos', esStaff ? 'Se registran solos en la pantalla de ingreso, o los creás vos acá' : 'Los alumnos se registran solos en la pantalla de ingreso')}
+    ${esStaff ? `<div class="card">
       <p class="small">Alta de perfil: creás la cuenta y le generás usuario y contraseña. Si los dejás vacíos se generan solos.</p>
       <button class="btn good" onclick="formAlumno()">+ Nuevo alumno</button>
     </div>` : ''}

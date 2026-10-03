@@ -118,6 +118,24 @@ body {
     radial-gradient(1100px 460px at 50% -8%, rgba(155,93,229,.30), transparent 62%),
     radial-gradient(ellipse at 50% 120%, rgba(70,8,12,.55), transparent 60%),
     #0c0708;
+  /* Este shorthand (background:) reinicia el background-image que pone la regla
+     de body, asi que el badge del logo no llegaba al dashboard/feed: solo se veia
+     en el login. isolation crea el stacking context para que ::before con
+     z-index:-1 pinte encima del fondo de body pero debajo del contenido. */
+  isolation: isolate;
+}
+/* El badge va en una capa propia y NO en background-attachment: fixed, que iOS
+   Safari no soporta y renderiza como scroll: el logo quedaria clavado al tope
+   del documento y en un feed largo no se lo veria. position: fixed si funciona
+   en iOS, y ademas queda pegado a la pantalla mientras scrolleas. */
+.dash-body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url("/static/icons/logo.png?v=3") center / min(74vmin, 520px) no-repeat;
+  opacity: .10;
 }
 .topbar {
   display: flex; align-items: center; gap: 12px;

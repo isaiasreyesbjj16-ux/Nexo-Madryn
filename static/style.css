@@ -13,6 +13,8 @@
   --bad: #e74c3c;
   --blue: #3aa0ff;
   --radius: 14px;
+  /* velo que baja el logo de fondo al 10% de opacidad */
+  --wm-veil: rgba(20, 13, 24, .90);
   /* ritmo vertical: mas aire entre bloques */
   --sp-2: 10px;
   --sp-3: 16px;
@@ -25,7 +27,18 @@
 html, body { margin: 0; padding: 0; }
 body {
   font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
-  background: var(--bg);
+  /* El badge del logo (ya sin fondo blanco) queda como fondo de la app: una
+     capa de color igual al fondo baja su opacidad al 10%, y asi el contorno
+     blanco del texto sigue viendose sin pisar las tarjetas ni las tablas.
+     La capa de color va encima del logo y va primero en el listado. */
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--wm-veil), var(--wm-veil)),
+    url("/static/icons/logo.png?v=3");
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  background-size: cover, min(74vmin, 520px);
+  background-attachment: fixed, fixed;
   color: var(--txt);
   min-height: 100vh;
   -webkit-tap-highlight-color: transparent;
@@ -37,6 +50,8 @@ body {
   background:
     radial-gradient(1100px 520px at 50% -12%, rgba(155,93,229,.55), transparent 60%),
     radial-gradient(ellipse at 50% 115%, rgba(60,8,12,.8), transparent 60%),
+    linear-gradient(rgba(26,5,7,.78), rgba(26,5,7,.78)),
+    url("/static/icons/logo.png?v=3") center / min(70vmin, 500px) no-repeat fixed,
     #1a0507;
 }
 .login-wrap { width: 100%; max-width: 420px; }
@@ -471,6 +486,9 @@ hint { font-size: 12px; color: var(--muted); }
   --muted: #7d656c;
   --accent: #d02424;
   --accent2: #e0493d;
+  /* fondo claro: el velo tiene que ser del mismo tono del fondo o el logo
+     dejaria una mancha gris en el medio de la pantalla */
+  --wm-veil: rgba(247, 242, 243, .90);
 }
 [data-theme="light"] .topbar { background: rgba(255,255,255,.92); box-shadow: 0 1px 0 var(--line); }
 [data-theme="light"] .bottombar { background: rgba(255,255,255,.95); border-top: 1px solid var(--line); }

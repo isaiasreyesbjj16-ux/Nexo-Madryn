@@ -1673,7 +1673,7 @@ async function renderPerfil(el) {
           <div class="field"><label>Fecha de nacimiento</label><input type="date" id="pNac" value="${me.nacimiento || ''}"></div>
           <div class="field"><label>Categoría</label><select id="pCat">
             ${CATEGORIAS.map(c => `<option value="${c}" ${c === cat ? 'selected' : ''}>${catLabel(c)}</option>`).join('')}</select></div>
-          <div class="field"><label>Cinturón / Faixa</label><select id="pCinturon">
+          <div class="field"><label>Cinturón / Faixa${me.role === 'alumno' ? ' <span class="small">(lo define la academia)</span>' : ''}</label><select id="pCinturon" ${me.role === 'alumno' ? 'disabled' : ''}>
             ${belts.map(b => `<option ${b === me.cinturon ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
           <div class="field" style="grid-column:1/-1"><label>Actividades</label>
             <div class="chips">

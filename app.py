@@ -194,6 +194,7 @@ BELTS_ADULT = ['Blanco', 'Azul', 'Púrpura', 'Marrón', 'Negro']
 BELTS_KIDS = ['Gris', 'Amarillo', 'Naranja', 'Verde', 'Blanco']
 BELTS_JUV = ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde']
 CATEGORIAS = ['adulto', 'juveniles', 'kids']
+CINTURONES = set(BELTS_ADULT) | set(BELTS_KIDS) | set(BELTS_JUV)
 
 # ---------------------------------------------------------------------------
 # Categorias de competicion BJJ (IBJJF). NO reemplazan a CATEGORIAS (esa sigue
@@ -351,16 +352,15 @@ def close_db(exc):
     # justamente lo que costaba ~2.5s por request. Si la conexion quedo colgada
     # por un corte, se descarta para que el proximo request abra una nueva.
     if getattr(db, 'reusable', False):
-        if exc is not None:
+        try:
+            if not db._raw.closed:
+                db._raw.rollback()
+        except Exception:
             try:
-                if not db._raw.closed:
-                    db._raw.rollback()
+                db._raw.close()
             except Exception:
-                try:
-                    db._raw.close()
-                except Exception:
-                    pass
-                dbadapter._pg_threads.__dict__.pop('conn', None)
+                pass
+            dbadapter._pg_threads.__dict__.pop('conn', None)
         return
     db.close()
 
@@ -2343,9 +2343,11 @@ def api_usuario_password(uid):
     if len(nueva) < 4:
         return jsonify({'error': 'La contrasena debe tener al menos 4 caracteres'}), 400
     db = get_db()
-    u = db.execute('SELECT nombre FROM users WHERE id=?', (uid,)).fetchone()
+    u = db.execute('SELECT nombre, role FROM users WHERE id=?', (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Usuario no encontrado'}), 404
+    if current_user()['role'] != 'admin' and u['role'] != 'alumno':
+        return jsonify({'error': 'Solo un administrador puede reiniciar la clave de ese usuario'}), 403
     db.execute('UPDATE users SET password_hash=? WHERE id=?', (generate_password_hash(nueva), uid))
     db.commit()
     notify(uid, 'Contraseña actualizada', 'Tu contraseña fue reiniciada por la academia. La próxima vez que entres, usá la nueva clave.')
@@ -4498,6 +4500,13 @@ def api_perfil_update():
     # videos, cinturones y los chats por categoria.
     if cat not in CATEGORIAS:
         return jsonify({'error': 'Categoría inválida'}), 400
+    cinturon = u['cinturon']
+    if u['role'] != 'alumno':
+        nuevo_cinturon = txt_str(data.get('cinturon'))
+        if nuevo_cinturon:
+            if nuevo_cinturon not in CINTURONES:
+                return jsonify({'error': 'Cinturón inválido'}), 400
+            cinturon = nuevo_cinturon
     tel_tutor = txt_str(data.get('tel_tutor', u['tel_tutor'])) or None
     if u['role'] == 'alumno' and cat in ('kids', 'juveniles') and not tel_tutor:
         return jsonify({'error': 'Para menores (Kids/Juveniles) es obligatorio el telefono del padre, madre o tutor responsable.'}), 400
@@ -4514,7 +4523,7 @@ def api_perfil_update():
     get_db().execute(
         'UPDATE users SET nombre=?, edad=?, peso=?, cinturon=?, categoria=?, gi_pref=?, actividades=?, genero=?, tel=?, nacimiento=?, medic_info=?, emergency_contact=?, tel_tutor=?, tel_2=?, direccion=?, dni=?, foto_ok=?, medic_enfermedades=?, medic_alergias=?, medic_medicacion=?, medic_lesiones=?, ficha_fecha=? WHERE id=?',
         ((data.get('nombre') or u['nombre']), to_int(data.get('edad', u['edad'])),
-         to_float(data.get('peso', u['peso'])), data.get('cinturon', u['cinturon']),
+         to_float(data.get('peso', u['peso'])), cinturon,
          cat, data.get('gi_pref', u['gi_pref']), _actividades_csv(data), genero,
          txt_str(data.get('tel', u['tel'])) or None,
          nac_upd or None,
@@ -5723,7 +5732,6 @@ def api_checkout():
         return jsonify({'error': 'No se pudo crear el pago: %s' % e}), 502
 
 
-@app.route('/api/mp_webhook', methods=['POST'])
 def _mp_firma_valida(data):
     """Valida la firma que manda MercadoPago (x-signature / x-request-id).
 
@@ -5759,6 +5767,7 @@ def _mp_firma_valida(data):
     return hmac.compare_digest(esperado, v1)
 
 
+@app.route('/api/mp_webhook', methods=['POST'])
 def api_mp_webhook():
     """Webhook de MercadoPago: registra el aviso de pago cuando se aprueba."""
     try:

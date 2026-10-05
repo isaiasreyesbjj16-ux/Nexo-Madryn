@@ -5,6 +5,7 @@ import io
 import re
 import base64
 import json
+import queue
 import secrets
 import time
 import zipfile
@@ -1029,9 +1030,19 @@ def _init_db_body(db):
     db.commit()
 
 
+_SETTING_MISS = object()
+
+
 def get_setting(key, default=None):
-    row = get_db().execute('SELECT value FROM settings WHERE k=?', (key,)).fetchone()
-    return row['value'] if row else default
+    cache = getattr(g, '_settings_cache', None)
+    if cache is None:
+        cache = {}
+        g._settings_cache = cache
+    if key not in cache:
+        row = get_db().execute('SELECT value FROM settings WHERE k=?', (key,)).fetchone()
+        cache[key] = row['value'] if row else _SETTING_MISS
+    val = cache[key]
+    return default if val is _SETTING_MISS else val
 
 
 def set_setting(key, value):
@@ -1039,6 +1050,9 @@ def set_setting(key, value):
         'INSERT OR REPLACE INTO settings(k, value) VALUES(?,?)',
         (key, str(value)))
     get_db().commit()
+    cache = getattr(g, '_settings_cache', None)
+    if cache is not None:
+        cache.pop(key, None)
 
 
 def _hoy_academy():
@@ -1236,6 +1250,35 @@ _NOTIF_LINK_POR_TIPO = {
 }
 
 
+_PUSH_COLA = {'q': None, 'hilo': None}
+_PUSH_LOCK = threading.Lock()
+
+
+def _push_worker(q):
+    while True:
+        item = q.get()
+        if item is None:
+            return
+        user_id, titulo, mensaje, extra = item
+        try:
+            with app.app_context():
+                send_push(user_id, titulo, mensaje, extra=extra)
+        except Exception as e:
+            _log.debug('push diferido fallo: %s', e)
+
+
+def _push_async(user_id, titulo, mensaje, extra):
+    with _PUSH_LOCK:
+        if _PUSH_COLA['q'] is None:
+            _PUSH_COLA['q'] = queue.Queue()
+        hilo = _PUSH_COLA['hilo']
+        if hilo is None or not hilo.is_alive():
+            hilo = threading.Thread(target=_push_worker, args=(_PUSH_COLA['q'],), daemon=True)
+            hilo.start()
+            _PUSH_COLA['hilo'] = hilo
+        _PUSH_COLA['q'].put((user_id, titulo, mensaje, extra))
+
+
 def notify(user_id, titulo, mensaje, tipo='info', push=True, link=None):
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     if link is None:
@@ -1245,7 +1288,8 @@ def notify(user_id, titulo, mensaje, tipo='info', push=True, link=None):
         (user_id, titulo, mensaje, tipo, now, link))
     get_db().commit()
     if push:
-        send_push(user_id, titulo, mensaje, extra={'url': '/app?sec=' + link if link else '/app'})
+        _push_async(user_id, titulo, mensaje,
+                    {'url': '/app?sec=' + link if link else '/app'})
 
 
 def aviso_cuotas_automatico():
@@ -1668,12 +1712,28 @@ def _avisos_periodicos():
             pass
 
 
-def cuota_status(alumno):
+def _pagos_del_mes(mes, anio):
+    """Mapa alumno_id -> ultimo pago del mes, resuelto en una sola query.
+
+    Reemplaza la query por alumno que hacian cuota_status y dias_deuda cuando
+    se listan todos: con N alumnos eran 2N queries.
+    """
+    out = {}
+    for p in get_db().execute('SELECT * FROM pagos WHERE mes=? AND anio=? ORDER BY id',
+                              (mes, anio)).fetchall():
+        out[p['alumno_id']] = p
+    return out
+
+
+def cuota_status(alumno, pagos_mes=None):
     """Estado de la cuota del alumno en el mes actual."""
     hoy = _hoy_academy()
-    pago = get_db().execute(
-        'SELECT * FROM pagos WHERE alumno_id=? AND mes=? AND anio=? ORDER BY id DESC LIMIT 1',
-        (alumno['id'], hoy.month, hoy.year)).fetchone()
+    if pagos_mes is None:
+        pago = get_db().execute(
+            'SELECT * FROM pagos WHERE alumno_id=? AND mes=? AND anio=? ORDER BY id DESC LIMIT 1',
+            (alumno['id'], hoy.month, hoy.year)).fetchone()
+    else:
+        pago = pagos_mes.get(alumno['id'])
     due_day = to_int(get_setting('due_day', '10')) or 10
     try:
         beca = int(alumno['beca'] or 0)
@@ -1751,7 +1811,7 @@ def en_pausa(alumno, fecha=None):
     return d <= hoy <= h
 
 
-def dias_deuda(alumno):
+def dias_deuda(alumno, pagos_mes=None):
     """Días de atraso de la cuota: 0 si está al día, y 0 también si está en pausa.
 
     Antes usaba la fecha del último pago, así que un alumno que pagó bien en
@@ -1773,9 +1833,12 @@ def dias_deuda(alumno):
     # esta al dia. Asi el numero de dias que muestra el panel no contradice el
     # estado, y un alumno que pago el mes vigente no queda marcado con la deuda
     # de un mes anterior que ya se regularizo o se condono.
-    pago = get_db().execute(
-        'SELECT id FROM pagos WHERE alumno_id=? AND mes=? AND anio=? LIMIT 1',
-        (alumno['id'], hoy.month, hoy.year)).fetchone()
+    if pagos_mes is not None:
+        pago = pagos_mes.get(alumno['id'])
+    else:
+        pago = get_db().execute(
+            'SELECT id FROM pagos WHERE alumno_id=? AND mes=? AND anio=? LIMIT 1',
+            (alumno['id'], hoy.month, hoy.year)).fetchone()
     if pago:
         return 0
     try:
@@ -2894,13 +2957,15 @@ def api_alumnos():
            FROM familia_miembros fm JOIN familias f ON f.id=fm.familia_id""").fetchall():
         fam_map[fm['user_id']] = fm
         fam_count[fm['fam_id']] = fam_count.get(fm['fam_id'], 0) + 1
+    hoy = _hoy_academy()
+    pagos_mes = _pagos_del_mes(hoy.month, hoy.year)
     alumnos = []
     for r in rows:
         d = user_public(r)
         d['asistencias'] = r['asistencias']
         d['pagos_totales'] = r['pagos_totales']
-        d['cuota'] = cuota_status(r)
-        d['dias_deuda'] = dias_deuda(r)
+        d['cuota'] = cuota_status(r, pagos_mes)
+        d['dias_deuda'] = dias_deuda(r, pagos_mes)
         if 'notas_internas' in r.keys():
             d['notas_internas'] = r['notas_internas']
         if 'proximo_examen' in r.keys():
@@ -3867,17 +3932,19 @@ def api_pagos_delete(pid):
 def api_deudores():
     rows = get_db().execute(
         "SELECT * FROM users WHERE role IN ('alumno','profesor') AND activo=1 AND cuota_mensual IS NOT NULL ORDER BY nombre").fetchall()
+    hoy = _hoy_academy()
+    pagos_mes = _pagos_del_mes(hoy.month, hoy.year)
     deudores = []
     for r in rows:
         if en_pausa(r):
             continue
-        st = cuota_status(r)
+        st = cuota_status(r, pagos_mes)
         if st['estado'] in ('deuda', 'por_vencer'):
             deudores.append({
                 **user_public(r),
                 'estado': st['estado'],
                 'cuota': st['cuota'],
-                'dias_deuda': dias_deuda(r),
+                'dias_deuda': dias_deuda(r, pagos_mes),
             })
     return jsonify({'deudores': deudores})
 
@@ -3889,12 +3956,14 @@ def api_notify_deuda():
     # transaccion quedo abortada: recuperarla antes de tocar la base.
     _recuperar_conexion()
     data = parse_json()
+    hoy = _hoy_academy()
+    pagos_mes = _pagos_del_mes(hoy.month, hoy.year)
     alumno_id = to_int(data.get('alumno_id'))
     if alumno_id:
         ids = [alumno_id]
     else:
         rows = get_db().execute("SELECT * FROM users WHERE role IN ('alumno','profesor') AND activo=1 AND cuota_mensual IS NOT NULL").fetchall()
-        ids = [r['id'] for r in rows if not en_pausa(r) and cuota_status(r)['estado'] in ('deuda', 'por_vencer')]
+        ids = [r['id'] for r in rows if not en_pausa(r) and cuota_status(r, pagos_mes)['estado'] in ('deuda', 'por_vencer')]
     who = current_user()['nombre']
     enviados = 0
     errores = 0
@@ -3903,7 +3972,7 @@ def api_notify_deuda():
             alumno = get_db().execute('SELECT * FROM users WHERE id=?', (aid,)).fetchone()
             if not alumno:
                 continue
-            st = cuota_status(alumno)
+            st = cuota_status(alumno, pagos_mes)
             if st.get('estado') == 'becado':
                 continue
             monto_txt = to_int(st.get('cuota') or 0)

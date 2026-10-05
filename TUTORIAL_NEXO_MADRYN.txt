@@ -1,25 +1,81 @@
 ═══════════════════════════════════════════════════════
         TUTORIAL NEXO MADRYN - PWA
         Guía rápida de uso para la academia
+        Versión 2 - PWA instalable en el celu y la PC
 ═══════════════════════════════════════════════════════
 
+  La app de Nexo Madryn es una PWA (Progressive Web App).
+  No está en la Play Store ni en la App Store: se instala
+  desde el navegador, en un solo paso, y después funciona
+  como una app normal (con ícono propio, sin barra de
+  direcciones y con notificaciones).
+
+  Dirección: https://nexo-madryn.onrender.com
+
 
 ┌─────────────────────────────────────────────────────┐
-│  1. CÓMO ENTRAR A LA APP                            │
+│  1. CÓMO DESCARGAR E INSTALAR LA APP                │
 └─────────────────────────────────────────────────────┘
 
-Opción A - Desde la PC:
-  1. Abrí el navegador y entrá a: https://nexo-madryn.onrender.com
+  📱 ANDROID (Chrome)
+  ────────────────────
+  1. Abrí Chrome y entrá a https://nexo-madryn.onrender.com
+  2. Tocá los 3 puntitos ⋮ (arriba a la derecha)
+  3. Tocá "Instalar app" o "Agregar a pantalla de inicio"
+  4. Confirmá en "Instalar"
+  5. Listo. Te aparece el ícono de Nexo Madryn en tu pantalla
+     de inicio, con el fondo morado de la academia.
 
-Opción B - Desde el celular:
-  1. Abrí Chrome (o tu navegador) en android y safari en apple 
-  2. Entrá a: https://nexo-madryn.onrender.com
-  3. Tocá los 3 puntos (menú) → "Agregar a pantalla de inicio" o Descargar app en android (seccion perfil)
-  4. ¡Listo! Ahora aparece como una app en tu celular
+  📱 iPHONE / iPAD (Safari)
+  ─────────────────────────
+  IMPORTANTE: tiene que ser con Safari. Con Chrome en iPhone
+  no se puede instalar.
+
+  1. Abrí Safari y entrá a https://nexo-madryn.onrender.com
+  2. Tocá el botón Compartir ⬆ (el cuadrado con la flecha
+     hacia arriba, abajo en el medio de la pantalla)
+  3. Bajá hasta "Agregar a pantalla de inicio"
+  4. Tocá "Agregar" arriba a la derecha
+  5. Listo. El ícono queda en tu pantalla de inicio.
+
+  💻 PC (Chrome o Edge)
+  ─────────────────────
+  1. Abrí Chrome o Edge en https://nexo-madryn.onrender.com
+  2. Opción A: tocá el ícono de instalación (una pantalla con
+     una flecha) que aparece a la derecha de la barra de
+     direcciones
+     Opción B: los 3 puntitos ⋮ → "Instalar" o "Instalar app"
+  3. Confirmá en "Instalar"
+  4. Queda como programa en tu PC, con su ícono. La encontrás
+     en el menú de inicio o en el escritorio.
+
+  💡 TIP: es la MISMA app para todos. No tenés que buscar nada
+     en ninguna tienda. Nunca se actualiza sola a una versión
+     vieja: cuando hay una versión nueva, refrescás y listo.
 
 
 ┌─────────────────────────────────────────────────────┐
-│  2. CREAR TU CUENTA                                 │
+│  2. CÓMO VERIFICAR QUE QUEDÓ BIEN INSTALADA         │
+└─────────────────────────────────────────────────────┘
+
+  ABRILA desde el ícono del celular o de la PC, no desde el
+  navegador.
+
+  Si la abriste bien instalada:
+    ✔ No ves la barra de direcciones del navegador
+    ✔ Arriba no aparece la URL
+    ✔ Abajo (en el celu) está la barra de la app, no la del
+      navegador
+    ✔ El ícono de la pantalla de inicio es el logo de Nexo
+      Madryn sobre fondo morado
+
+  Si seguís viendo la barra de direcciones, te la estás
+  abriendo desde el navegador. Cerrá esa pestaña y tocá el
+  ícono.
+
+
+┌─────────────────────────────────────────────────────┐
+│  3. CREAR TU CUENTA                                 │
 └─────────────────────────────────────────────────────┘
 
 Si sos ALUMNO:
@@ -50,7 +106,7 @@ Si ya tenés cuenta:
 
 
 ┌─────────────────────────────────────────────────────┐
-│  3. NAVEGACIÓN EN LA APP                            │
+│  4. NAVEGACIÓN EN LA APP                            │
 └─────────────────────────────────────────────────────┘
 
 La app tiene un menú inferior con 5 secciones:
@@ -65,25 +121,56 @@ La app tiene un menú inferior con 5 secciones:
 
 
 ┌─────────────────────────────────────────────────────┐
-│  4. ESTADO DE TU CUOTA (ALUMNOS)                    │
+│  5. PAGAR LA CUOTA (ALUMNOS)                        │
 └─────────────────────────────────────────────────────┘
 
 Para ver si tenés la cuota al día:
   1. Tocá "Cuota" en el menú inferior
   2. Ahí ves si estás al día o si debes
 
-Para pagar:
+Para pagar por transferencia:
   1. Pedile al admin o profesor el alias/CVU para transferir
   2. Hacé la transferencia por tu banco
-  3. Subí el comprobante desde la app (foto o captura)
-  4. El profesor o admin lo revisa y confirma
-  5. ¡Recibís una notificación cuando se confirme!
+  3. En la app, tocá "🧾 Mandar comprobante de pago"
+  4. Elegí la foto, la captura o el PDF del comprobante
+  5. Tocá "📤 Enviar aviso"
+  6. Listo: si la cuota estaba a tiempo, se acredita al
+     instante y te llega la notificación de "Pago acreditado ✓"
 
-⚠️ Si pagás después del día de vencimiento, se aplica recargo automático.
+Para pagar con MercadoPago:
+  1. En la misma pantalla de tu cuota, tocá el botón azul
+     "💳 Pagar con MercadoPago"
+  2. Te abre la página de MercadoPago
+  3. Pagás como en cualquier compra
+  4. Volvés a la app y la cuota ya está acreditada
+
+🧾 ¿CÓMO VE EL ADMIN LOS COMPROBANTES?
+  Todos los comprobantes quedan guardados. El admin los ve en
+  la sección "Pagos" del panel, en dos listas:
+
+  ⏳ Comprobantes para revisar
+     Son los que llegaron con la cuota YA VENCIDA. Ahí el
+     admin decide si se acreditan y si va con recargo por
+     demora.
+
+  🗂 Comprobantes acreditados
+     Son los que el sistema acreditó solo al recibirlos.
+     El admin los puede abrir y ver cuando quiera, por
+     control o por cualquier consulta.
+
+  Tocando cualquiera de los dos se abre la foto o el PDF del
+  comprobante.
+
+⚠️ RECARGO POR DEMORA
+  Tu cuota se considera paga hasta el día que figure en la
+  pantalla (por defecto el día 10). Si pagás después, el
+  sistema no te la acredita solo: la deja para que el admin la
+  revise y decida si aplica el recargo. Si pagás dentro del
+  plazo, no hay recargo.
 
 
 ┌─────────────────────────────────────────────────────┐
-│  5. ASISTENCIA CON QR                               │
+│  6. ASISTENCIA CON QR                               │
 └─────────────────────────────────────────────────────┘
 
 En el gimnasio hay un código QR para marcar asistencia:
@@ -94,9 +181,13 @@ En el gimnasio hay un código QR para marcar asistencia:
 
 También podés marcar asistencia desde la cámara web de la PC.
 
+La primera vez te va a pedir permiso para usar la cámara.
+Si lo rechazaste, andá a Ajustes del navegador → Permisos →
+cámara → Permitir.
+
 
 ┌─────────────────────────────────────────────────────┐
-│  6. VIDEOS DE TÉCNICAS                              │
+│  7. VIDEOS DE TÉCNICAS                              │
 └─────────────────────────────────────────────────────┘
 
 En la sección "Videos":
@@ -111,22 +202,37 @@ Tipos de videos:
 
 
 ┌─────────────────────────────────────────────────────┐
-│  7. NOTIFICACIONES                                  │
+│  8. NOTIFICACIONES                                  │
 └─────────────────────────────────────────────────────┘
 
-La campanita 🔔 en la esquina superior derecha muestra tus notificaciones:
-  - Cuando se confirma tu pago
+La campanita 🔔 en la esquina superior derecha muestra tus
+notificaciones:
+  - Cuando se acredita tu pago
+  - Cuando tu comprobante queda pendiente de revisión
   - Cuando vence tu cuota
   - Mensajes del admin o profesores
   - Recordatorios de asistencia
 
-Para activar notificaciones push en el celular:
-  1. Cuando entrés a la app, aceptá permitir notificaciones
-  2. Así recibís avisos aunque no estés en la app
+Para activar las notificaciones push en el celular:
+  1. Andá a "👤 Perfil" y tocá "Activar notificaciones"
+  2. Aceptá el permiso cuando el navegador te lo pida
+  3. Avisá si te sale algún error: en el perfil hay un
+     detalle de diagnóstico
+
+⚠️ EN IPHONE Y IPAD HAY UNA CONDICIÓN EXTRA
+  Las notificaciones push SOLO funcionan con la app instalada.
+  Si la abrís desde el navegador de Safari, no llegan.
+  Necesitás: iOS 16.4 o superior, y abrir la app desde el
+  ícono del home (no desde Safari).
+
+  Orden correcto en iPhone:
+    1. Agregá la app a la pantalla de inicio (punto 1)
+    2. Abrila desde el ícono
+    3. Recién ahí activá las notificaciones
 
 
 ┌─────────────────────────────────────────────────────┐
-│  8. TU PERFIL                                       │
+│  9. TU PERFIL                                       │
 └─────────────────────────────────────────────────────┘
 
 En la sección "Perfil" podés:
@@ -143,7 +249,7 @@ Para recuperar contraseña olvidada:
 
 
 ┌─────────────────────────────────────────────────────┐
-│  9. MODO OSCURO / CLARO                             │
+│  10. MODO OSCURO / CLARO                            │
 └─────────────────────────────────────────────────────┘
 
 Para cambiar el tema de la app:
@@ -153,7 +259,7 @@ Para cambiar el tema de la app:
 
 
 ┌─────────────────────────────────────────────────────┐
-│  10. FUNCIONES ESPECIALES                           │
+│  11. FUNCIONES ESPECIALES                           │
 └─────────────────────────────────────────────────────┘
 
 📱 Muro de la academia:
@@ -173,8 +279,31 @@ Para cambiar el tema de la app:
 
 
 ┌─────────────────────────────────────────────────────┐
-│  11. SOLUCIÓN DE PROBLEMAS                          │
+│  12. SOLUCIÓN DE PROBLEMAS                          │
 └─────────────────────────────────────────────────────┘
+
+"No aparece la opción de instalar" (celular)
+  - Android: actualizá Chrome y volvé a abrir la página.
+    Chrome muestra "Instalar app" solo cuando la cargó
+    del todo; si estás apurado, esperá unos segundos.
+  - iPhone: tiene que ser SAFARI. Con Chrome no se instala.
+
+"El ícono de la app me quedó raro" (con fondo blanco o
+con la barra del navegador adentro)
+  - Te quedó una versión vieja del ícono cacheada.
+  - En Android: mantené apretado el ícono → "Quitar de la
+    pantalla de inicio", volvé a entrar a la web y reinstalá.
+  - En iPhone: borrá la app y volvé a instalarla.
+  - La versión actual usa el ícono oficial sobre fondo morado.
+
+"La app me muestra todo viejo / no me carga lo nuevo"
+  - Tirala hacia abajo para refrescar (pull to refresh).
+  - Si sigue igual, cerrá la app por completo y abrila de nuevo
+    desde el ícono.
+  - Última opción: desinstalala y volvé a instalarla.
+
+"Cambié la contraseña y no me deja entrar"
+  - Usá "¿Olvidaste tu contraseña?" en la pantalla de login.
 
 "No me puedo registrar":
   - Verificá que todos los campos obligatorios estén completos
@@ -182,11 +311,18 @@ Para cambiar el tema de la app:
 
 "No me puedo loguear":
   - Revisá que usuario y contraseña sean correctos
-  - Usá "¿Olvidaste tu contraseña?" si es necesario
+  - Fijate que no tengas Caps Lock activado
 
 "No llegan las notificaciones":
-  - Revisá que hayas aceptado permitir notificaciones
-  - Verificá que la app tenga permisos en tu celular
+  - Revisá que hayas aceptado el permiso
+  - En iPhone/iPad: la app tiene que estar INSTALADA y
+    necesitás iOS 16.4 o superior
+  - Verificá que no tengas la app en modo "No molestar"
+  - Volvé a activar las notificaciones desde el Perfil
+
+"No me abre la cámara para el QR":
+  - Fijate en el candado que aparece al lado de la URL:
+    tocá el candado → Permisos → Cámara → Permitir
 
 "El video no carga":
   - Verificá tu conexión a internet

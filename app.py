@@ -1764,6 +1764,23 @@ def cuota_status(alumno, pagos_mes=None):
     }
 
 
+def _vencimiento(mes, anio):
+    """Día de vencimiento de la cuota de un mes (due_day, con fallback)."""
+    due_day = to_int(get_setting('due_day', '10')) or 10
+    try:
+        return date(anio, mes, due_day)
+    except ValueError:
+        # si due_day no existe (ej 31 en feb) usar último día del mes
+        import calendar
+        last = calendar.monthrange(anio, mes)[1]
+        return date(anio, mes, last)
+
+
+def _vencido(mes, anio, fecha=None):
+    """True si la cuota de ese mes ya pasó su vencimiento."""
+    return (fecha or _hoy_academy()) > _vencimiento(mes, anio)
+
+
 def calcular_demora(monto, mes=None, anio=None, fecha=None):
     """Aplica el cargo por pago con demora (después del día de vencimiento).
 
@@ -1773,19 +1790,11 @@ def calcular_demora(monto, mes=None, anio=None, fecha=None):
     if base <= 0:
         return base, 0, base
     hoy = fecha or _hoy_academy()
-    due_day = to_int(get_setting('due_day', '10')) or 10
     pct = to_float(get_setting('cargo_demora_pct', '10')) or 0
     # Mes objetivo del pago (por defecto el mes actual)
     tmes = mes or hoy.month
     tanio = anio or hoy.year
-    # Determinar el vencimiento: el día due_day del mes del pago
-    try:
-        venc = date(tanio, tmes, due_day)
-    except ValueError:
-        # si due_day no existe (ej 31 en feb) usar último día del mes
-        import calendar
-        last = calendar.monthrange(tanio, tmes)[1]
-        venc = date(tanio, tmes, last)
+    venc = _vencimiento(tmes, tanio)
     if hoy > venc and pct > 0:
         cargo = round(base * pct / 100)
         return base, cargo, base + cargo
@@ -4257,10 +4266,51 @@ def api_mis_pagos():
            LEFT JOIN users pr ON pr.id=p.profesor_id
            WHERE p.alumno_id=? ORDER BY p.id DESC LIMIT 100""", (u['id'],)).fetchall()
     aviso = get_db().execute(
-        "SELECT * FROM avisos_pago WHERE alumno_id=? AND estado='pendiente' ORDER BY id DESC LIMIT 1",
+        "SELECT id, mes, anio, monto, nota, estado, fecha FROM avisos_pago "
+        "WHERE alumno_id=? AND estado='pendiente' ORDER BY id DESC LIMIT 1",
+        (u['id'],)).fetchone()
+    # Con la acreditación automática el comprobante ya no queda pendiente: sin
+    # esto el alumno volvía a ver el botón "mandar comprobante" de un pago que
+    # el propio sistema ya le acreditó. Sin la columna comprobante a propósito:
+    # es un data-URL de hasta 12MB y la pantalla no lo usa.
+    ultimo = get_db().execute(
+        'SELECT id, mes, anio, monto, nota, estado, fecha, confirmado_fecha '
+        'FROM avisos_pago WHERE alumno_id=? ORDER BY id DESC LIMIT 1',
         (u['id'],)).fetchone()
     return jsonify({'pagos': [dict(r) for r in rows],
-                    'aviso_pendiente': dict(aviso) if aviso else None})
+                    'aviso_pendiente': dict(aviso) if aviso else None,
+                    'ultimo_aviso': dict(ultimo) if ultimo else None})
+
+
+def _acreditar_aviso(db, aviso, monto_base, quien_id=None, aplicar_cargo=None):
+    """Registra el pago de un aviso de pago y lo deja confirmado.
+
+    La crea el alumno al mandar el comprobante (quien_id=None, automatico) o el
+    admin/profe al revisarlo. Devuelve (base, cargo, final, pago_id).
+    aplicar_cargo=None usa el recargo que corresponde por fecha; False lo anula
+    (el admin lo desmarca cuando el alumno pago antes del vencimiento).
+    """
+    base, cargo, final = calcular_demora(monto_base, aviso['mes'], aviso['anio'])
+    if aplicar_cargo is False:
+        cargo, final = 0, base
+    concepto = ('Acreditado automaticamente al recibir el comprobante' if quien_id is None
+                else 'Confirmado desde aviso de pago')
+    if cargo:
+        concepto += f' (recargo por demora ${cargo:,.0f})'.replace(',', '.')
+    ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    db.execute(
+        'INSERT INTO pagos(alumno_id, profesor_id, monto, mes, anio, metodo, concepto, nota, fecha, registrado_por) VALUES(?,?,?,?,?,?,?,?,?,?)',
+        (aviso['alumno_id'], None, final, aviso['mes'], aviso['anio'], 'Aviso', 'Cuota mensual',
+         concepto, ahora, quien_id))
+    pago_id = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+    # Sin esto el pago entra a la academia pero los profes que dirigieron las
+    # actividades del alumno nunca lo cobraban: el alumno pagaba y el profe no
+    # veía nada en su reparto.
+    _registrar_reparto(db, pago_id, aviso['alumno_id'], final)
+    db.execute(
+        "UPDATE avisos_pago SET estado='confirmado', confirmado_por=?, confirmado_fecha=? WHERE id=?",
+        (quien_id, ahora, aviso['id']))
+    return base, cargo, final, pago_id
 
 
 @app.route('/api/avisar_pago', methods=['POST'])
@@ -4268,17 +4318,28 @@ def api_mis_pagos():
 def api_avisar_pago():
     u = current_user()
     data = parse_json()
+    db = get_db()
     hoy = _hoy_academy()
     mes = to_int(data.get('mes')) or hoy.month
     anio = to_int(data.get('anio')) or hoy.year
     mes, anio, err = validar_mes_anio(mes, anio)
     if err:
         return jsonify({'error': err}), 400
-    ex = get_db().execute(
-        "SELECT * FROM avisos_pago WHERE alumno_id=? AND mes=? AND anio=? AND estado='pendiente'",
+    # El bloqueo tiene que mirar los avisos de cualquier estado y tambien la
+    # tabla pagos. Antes solo frenaba los pendientes: como ahora la acreditacion
+    # es automatica, un aviso ya confirmado no impedia el segundo envio y el
+    # alumno se cobraba dos veces el mismo mes.
+    ex = db.execute(
+        'SELECT estado FROM avisos_pago WHERE alumno_id=? AND mes=? AND anio=? ORDER BY id DESC LIMIT 1',
         (u['id'], mes, anio)).fetchone()
     if ex:
-        return jsonify({'error': 'Ya enviaste un aviso para este mes. Esperá la confirmación.'}), 400
+        return jsonify({'error': f'Ya mandaste el comprobante de {mes}/{anio}. '
+                                 + ('Esperá la confirmación del profe/admin.'
+                                    if ex['estado'] == 'pendiente'
+                                    else 'Tu cuota de ese mes ya está acreditada.')}), 400
+    if db.execute('SELECT id FROM pagos WHERE alumno_id=? AND mes=? AND anio=? LIMIT 1',
+                  (u['id'], mes, anio)).fetchone():
+        return jsonify({'error': f'La cuota de {mes}/{anio} ya figura como pagada.'}), 400
     monto = to_float(data.get('monto'))
     if not monto:
         monto = to_float(u['cuota_mensual']) or 0
@@ -4287,28 +4348,80 @@ def api_avisar_pago():
         return jsonify({'error': 'Tenés que subir el comprobante de pago (foto, captura o PDF)'}), 400
     if len(comp) > 12 * 1024 * 1024:
         return jsonify({'error': 'El comprobante es muy grande (máx 12MB)'}), 400
-    get_db().execute(
+    ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    db.execute(
         'INSERT INTO avisos_pago(alumno_id, monto, mes, anio, nota, comprobante, estado, fecha) VALUES(?,?,?,?,?,?,?,?)',
-        (u['id'], monto, mes, anio, data.get('nota') or 'Cuota mensual', comp, 'pendiente',
-         datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-    get_db().commit()
-    staff = get_db().execute(
+        (u['id'], monto, mes, anio, data.get('nota') or 'Cuota mensual', comp, 'pendiente', ahora))
+    aviso_id = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+    staff = db.execute(
         "SELECT id FROM users WHERE role IN ('admin','profesor') AND activo=1").fetchall()
+
+    # Si la cuota ya vencio no se acredita sola: el recargo por demora es una
+    # decision del admin. Queda pendiente y se le avisa para que lo revise.
+    if _vencido(mes, anio, hoy):
+        db.commit()
+        for s in staff:
+            notify(s['id'], '⏰ Comprobante vencido por revisar',
+                   f'{u["nombre"]} mandó el comprobante de {mes}/{anio} y esa cuota venció el '
+                   f'{_vencimiento(mes, anio).day}. Revisá el comprobante y confirmá el pago '
+                   f'(con o sin recargo por demora).', 'pago')
+        return jsonify({'ok': True, 'auto': False, 'aviso_id': aviso_id,
+                        'msg': 'Comprobante enviado. La cuota ya venció, así que el '
+                               'profe/admin tiene que revisarlo antes de acreditarlo.'})
+
+    aviso = db.execute('SELECT * FROM avisos_pago WHERE id=?', (aviso_id,)).fetchone()
+    base, cargo, final, pago_id = _acreditar_aviso(db, aviso, monto)
+    db.commit()
+    notify(u['id'], 'Pago acreditado ✓',
+           f'Recibimos tu comprobante de la cuota {mes}/{anio} por '
+           f'${final:,.0f} y quedó acreditada al instante.'.replace(',', '.'), 'pago')
     for s in staff:
-        notify(s['id'], 'Aviso de pago con comprobante',
-               f'{u["nombre"]} avisó que pagó la cuota de {mes}/{anio}. Revisá el comprobante y confirmá el pago.',
-               'pago')
-    return jsonify({'ok': True})
+        notify(s['id'], '🧾 Comprobante acreditado automáticamente',
+               f'{u["nombre"]} mandó el comprobante de {mes}/{anio} por '
+               f'${final:,.0f} y se acreditó solo. Queda guardado el comprobante por '
+               f'si lo querés revisar.'.replace(',', '.'), 'pago')
+    return jsonify({'ok': True, 'auto': True, 'aviso_id': aviso_id, 'base': base,
+                    'cargo': cargo, 'monto': final, 'pago_id': pago_id})
 
 
-@app.route('/api/avisos_pago')
+@app.route('/api/avisos_pago', methods=['GET'])
 @role_required('admin', 'profesor')
 def api_avisos_pago():
+    # Sin la columna comprobante a proposito: es un data-URL de hasta 12MB y
+    # mandarlos todos en el listado hacia que la pantalla de pagos cargara
+    # megabytes de imagenes. El archivo se pide on-demand con
+    # /api/avisos_pago/<id>/comprobante. Los pendientes van primero.
     rows = get_db().execute(
-        """SELECT a.*, u.nombre AS alumno_nombre
+        """SELECT a.id, a.alumno_id, a.monto, a.mes, a.anio, a.nota, a.estado, a.fecha,
+                  a.confirmado_por, a.confirmado_fecha,
+                  (a.comprobante IS NOT NULL) AS tiene_comprobante,
+                  u.nombre AS alumno_nombre
            FROM avisos_pago a JOIN users u ON u.id=a.alumno_id
-           ORDER BY a.estado, a.id DESC LIMIT 300""").fetchall()
+           ORDER BY a.estado='pendiente' DESC, a.id DESC LIMIT 300""").fetchall()
     return jsonify({'avisos': [dict(r) for r in rows]})
+
+
+@app.route('/api/avisos_pago/<int:aid>/comprobante', methods=['GET'])
+@login_required
+def api_aviso_comprobante(aid):
+    """Devuelve el comprobante de un aviso, para el admin o el propio alumno."""
+    db = get_db()
+    a = db.execute(
+        """SELECT a.*, u.nombre AS alumno_nombre
+           FROM avisos_pago a JOIN users u ON u.id=a.alumno_id WHERE a.id=?""",
+        (aid,)).fetchone()
+    if not a:
+        return jsonify({'error': 'Aviso no encontrado'}), 404
+    if a['alumno_id'] != current_user()['id'] and current_user()['role'] == 'alumno':
+        return jsonify({'error': 'No es tu comprobante'}), 403
+    if not a['comprobante']:
+        return jsonify({'error': 'Este aviso no tiene comprobante'}), 404
+    return jsonify({
+        'ok': True, 'id': a['id'], 'comprobante': a['comprobante'],
+        'alumno_nombre': a['alumno_nombre'], 'mes': a['mes'], 'anio': a['anio'],
+        'monto': a['monto'], 'nota': a['nota'], 'estado': a['estado'], 'fecha': a['fecha'],
+        'confirmado_fecha': a['confirmado_fecha'],
+    })
 
 
 @app.route('/api/avisos_pago/<int:aid>/confirmar', methods=['POST'])
@@ -4327,22 +4440,8 @@ def api_avisos_confirmar(aid):
     # se suma como antes; se desactiva si el alumno pagó antes del vencimiento).
     monto_base = to_float(data.get('monto')) or (a['monto'] or 0)
     aplicar_cargo = as_bool(data.get('aplicar_cargo'), default=False)
-    base, cargo, final = calcular_demora(monto_base, a['mes'], a['anio'])
-    if not aplicar_cargo:
-        cargo, final = 0, base
-    db.execute(
-        'INSERT INTO pagos(alumno_id, profesor_id, monto, mes, anio, metodo, concepto, nota, fecha, registrado_por) VALUES(?,?,?,?,?,?,?,?,?,?)',
-        (a['alumno_id'], None, final, a['mes'], a['anio'], 'Aviso', 'Cuota mensual',
-         'Confirmado desde aviso de pago' + (f' (recargo por demora ${cargo:,.0f})'.replace(',', '.') if cargo else ''),
-         datetime.now().strftime('%Y-%m-%d %H:%M:%S'), who['id']))
-    pid_pago = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
-    # Sin esto el pago entra a la academia pero los profes que dirigieron las
-    # actividades del alumno nunca lo cobraban: el alumno pagaba y el profe no
-    # veía nada en su reparto.
-    _registrar_reparto(db, pid_pago, a['alumno_id'], final)
-    db.execute(
-        "UPDATE avisos_pago SET estado='confirmado', confirmado_por=?, confirmado_fecha=? WHERE id=?",
-        (who['id'], datetime.now().strftime('%Y-%m-%d %H:%M:%S'), aid))
+    base, cargo, final, _pid = _acreditar_aviso(db, a, monto_base, quien_id=who['id'],
+                                                aplicar_cargo=aplicar_cargo)
     db.commit()
     nota = f' (incluye ${cargo:,.0f} de recargo por demora)'.replace(',', '.') if cargo else ''
     notify(a['alumno_id'], 'Pago confirmado',
@@ -5851,6 +5950,12 @@ def api_mp_webhook():
             now = datetime.now().strftime('%Y-%m-%d %H:%M')
             hoy = _hoy_academy()
             db = get_db()
+            # Un alumno inexistente reventaba el INSERT por la foreign key y
+            # devolvia 500, con lo que MercadoPago reintentaba el POST para
+            # siempre. Se responde 200 para cortar los reintentos.
+            if not db.execute('SELECT id FROM users WHERE id=?', (alumno_id,)).fetchone():
+                _log.warning('mp_webhook: alumno %s no existe, se ignora', alumno_id)
+                return jsonify({'ok': True, 'ignorado': 'alumno_inexistente'})
             # Idempotencia: MercadoPago reintenta el POST y cada intento creaba
             # un aviso nuevo. La llave va en la nota, que es lo unico que hay
             # disponible sin cambiar el esquema.
@@ -5868,13 +5973,24 @@ def api_mp_webhook():
                 'INSERT INTO avisos_pago(alumno_id, monto, mes, anio, nota, comprobante, estado, fecha) '
                 'VALUES(?,?,?,?,?,?,?,?)',
                 (alumno_id, monto, hoy.month, hoy.year, nota, None, 'pendiente', now))
-            db.commit()
             aviso_id = cur.lastrowid
+            aviso = db.execute('SELECT * FROM avisos_pago WHERE id=?', (aviso_id,)).fetchone()
+            # La firma de MercadoPago ya valido que la plata entro, asi que el
+            # pago se acredita solo. Antes quedaba esperando que alguien lo
+            # confirmara a mano y era el paso que mas se atrasaba.
+            _b, _c, final, _pid = _acreditar_aviso(db, aviso, monto)
+            db.commit()
+            notify(alumno_id, 'Pago acreditado ✓',
+                   'Recibimos tu pago por MercadoPago de la cuota %d/%d por $%s y quedó '
+                   'acreditado al instante.'
+                   % (hoy.month, hoy.year, f'{final:,.0f}'.replace(',', '.')),
+                   'pago')
             # notificar a staff
             staff = db.execute("SELECT id FROM users WHERE role IN ('admin','profesor') AND activo=1").fetchall()
             for s in staff:
-                notify(s['id'], '🧾 Nuevo pago por MercadoPago',
-                       'El alumno pagó por MercadoPago. Revisá y confirmá el aviso #%d.' % aviso_id,
+                notify(s['id'], '🧾 Pago por MercadoPago acreditado',
+                       'El alumno pagó por MercadoPago y se acreditó solo (aviso #%d). '
+                       'Queda guardado por si lo querés revisar.' % aviso_id,
                        'info', push=True)
         return jsonify({'ok': True})
     except Exception as e:

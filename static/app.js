@@ -1314,7 +1314,7 @@ async function renderInicio(el) {
             </div>
             <button class="btn ghost small" onclick="showSec('mispagos')">Ver mi cuenta</button>
           </div>
-          ${estado !== 'al_dia' ? `<p class="small" style="color:#ff9b8f;margin-bottom:0">⚠️ Aboná tu cuota y <b>mandá el comprobante de pago</b>${me.pago_alias ? ' (por transferencia al alias/CVU de la academia)' : ''}. El pago se confirma solo cuando el profe/admin lo revisa.</p><button class="btn primary btn-block mt" onclick="avisarPago()">🧾 Mandar comprobante de pago</button>${me.pago_link ? `<a class="btn primary btn-block mt" href="${esc(me.pago_link)}" target="_blank" rel="noopener noreferrer" onclick="marcarLinkPago(this)">🔗 Pagar online</a>` : ''}` : ''}
+          ${estado !== 'al_dia' ? `<p class="small" style="color:#ff9b8f;margin-bottom:0">⚠️ Aboná tu cuota y <b>mandá el comprobante de pago</b>${me.pago_alias ? ' (por transferencia al alias/CVU de la academia)' : ''}. Queda acreditado apenas lo recibimos.</p><button class="btn primary btn-block mt" onclick="avisarPago()">🧾 Mandar comprobante de pago</button>${me.pago_link ? `<a class="btn primary btn-block mt" href="${esc(me.pago_link)}" target="_blank" rel="noopener noreferrer" onclick="marcarLinkPago(this)">🔗 Pagar online</a>` : ''}` : ''}
         </div>
 
         <div class="feed-card">
@@ -2408,6 +2408,20 @@ async function quitarInscripcion(iid) {
 /* =====================================================================
    PAGOS (admin / profesor)
    ===================================================================== */
+function filaAviso(a) {
+  const pend = a.estado === 'pendiente';
+  return `<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+    <button class="btn ghost" onclick="verComprobante(${a.id})" style="width:44px;height:44px;padding:0;font-size:19px;border-radius:8px;flex-shrink:0" title="Ver comprobante">🧾</button>
+    <div style="flex:1;min-width:0">
+      <div><b>${esc(a.alumno_nombre)}</b> · ${a.mes}/${a.anio} · <b>$${num(a.monto)}</b></div>
+      <div class="small" style="color:var(--muted)">${esc(a.fecha)}${a.nota && a.nota !== 'Cuota mensual' ? ' · ' + esc(a.nota) : ''}${a.tiene_comprobante ? '' : ' · sin comprobante'}</div>
+    </div>
+    <div class="flex" style="gap:6px;flex-shrink:0">
+      ${pend ? `<button class="btn primary small" onclick="verComprobante(${a.id})">Revisar</button>` : ''}
+      ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${a.id})">🗑</button>` : ''}
+    </div>
+  </div>`;
+}
 async function renderPagos(el) {
   const R = USER.role;
   const [pagos, alumnos, profesores, avisos] = await Promise.all([
@@ -2416,26 +2430,24 @@ async function renderPagos(el) {
     api('/api/avisos_pago')]);
   PROFESORES_CACHE = profesores.profesores;
   const mes = new Date().getMonth() + 1, anio = new Date().getFullYear();
-  const pendientes = (avisos.avisos || []).filter(a => a.estado === 'pendiente');
+  const lista = avisos.avisos || [];
+  const pendientes = lista.filter(a => a.estado === 'pendiente');
+  const acreditados = lista.filter(a => a.estado === 'confirmado' && a.tiene_comprobante);
   AVISOS_CACHE = {};
-  pendientes.forEach(a => { AVISOS_CACHE[a.id] = a; });
+  lista.forEach(a => { AVISOS_CACHE[a.id] = a; });
   el.innerHTML = `
     ${secHeader('Registrar pago')}
     ${pendientes.length ? `
     <div class="card">
-      <h3>⏳ Avisos de pago pendientes (${pendientes.length})</h3>
-      ${pendientes.map(a => `
-        <div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)">
-          <div><b>${esc(a.alumno_nombre)}</b> avisó que pagó la cuota de <b>${a.mes}/${a.anio}</b>${a.monto ? ' por <b>$' + num(a.monto) + '</b>' : ''}</div>
-          <div class="small" style="color:var(--muted)">${esc(a.fecha)}${a.nota && a.nota !== 'Cuota mensual' ? ' · ' + esc(a.nota) : ''}</div>
-          ${a.comprobante ? (a.comprobante.indexOf('data:image/') === 0
-            ? `<div class="mt"><img src="${esc(a.comprobante)}" onclick="verComprobante(${a.id})" style="width:72px;height:72px;object-fit:cover;border-radius:8px;cursor:pointer" title="Ver comprobante"></div>`
-            : `<div class="mt"><div onclick="verComprobante(${a.id})" style="width:72px;height:72px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border-radius:8px;cursor:pointer;font-size:28px" title="Ver comprobante (PDF)">📄</div></div>`) : ''}
-          <div class="flex mt" style="gap:8px">
-            <button class="btn primary small" onclick="verComprobante(${a.id})">🧾 Ver comprobante y confirmar</button>
-            ${R === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${a.id})">🗑 Descartar</button>` : ''}
-          </div>
-        </div>`).join('')}
+      <h3>⏳ Comprobantes para revisar (${pendientes.length})</h3>
+      <p class="small">Llegaron después del vencimiento, así que no se acreditaron solos. Decidí si se acreditan y si va con recargo por demora.</p>
+      ${pendientes.map(filaAviso).join('')}
+    </div>` : ''}
+    ${acreditados.length ? `
+    <div class="card">
+      <h3>🗂 Comprobantes acreditados (${acreditados.length})</h3>
+      <p class="small">Los que el sistema acreditó solo al recibirlos. Quedan guardados por si los necesitás revisar.</p>
+      ${acreditados.map(filaAviso).join('')}
     </div>` : ''}
     <div class="card">
       <form id="pagoForm" class="grid2">
@@ -2700,29 +2712,46 @@ async function abrirMetricas() {
       <button class="btn ghost btn-block" onclick="closeModal()">Cerrar</button>`);
   } catch (e) { toast(e.message); }
 }
-function verComprobante(id) {
+async function verComprobante(id) {
   const a = AVISOS_CACHE[id];
-  if (!a || !a.comprobante) { toast('No hay comprobante'); return; }
+  if (!a) { toast('No hay comprobante'); return; }
   AVISO_AUMENTO = true;
-  const esImg = a.comprobante.indexOf('data:image/') === 0;
+  openModal('<h3>🧾 Comprobante</h3><p class="small" style="color:var(--muted)">Cargando…</p>');
+  let d;
+  try { d = await api('/api/avisos_pago/' + id + '/comprobante'); }
+  catch (e) { closeModal(); toast(e.message); return; }
+  const esImg = d.comprobante.indexOf('data:image/') === 0;
   const cuerpo = esImg
-    ? `<img src="${esc(a.comprobante)}" style="width:100%;border-radius:10px;background:#fff">`
+    ? `<img src="${esc(d.comprobante)}" style="width:100%;border-radius:10px;background:#fff">`
     : `<div class="flex center" style="flex-direction:column;gap:10px;padding:20px 0;color:var(--muted)"><div style="font-size:44px">📄</div><p style="margin:0">Comprobante en formato PDF</p>
-       <a class="btn primary small" href="${esc(a.comprobante)}" download="comprobante-${esc(a.alumno_nombre || id)}.pdf" style="text-decoration:none">⬇ Descargar PDF</a>
-       <a class="btn ghost small" href="${esc(a.comprobante)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Ver PDF</a></div>`;
-  openModal(`
-    <h3>🧾 Comprobante · ${esc(a.alumno_nombre)}</h3>
-    <p class="small">Cuota de <b>${a.mes}/${a.anio}</b> por <b>$${num(a.monto)}</b>${a.nota && a.nota !== 'Cuota mensual' ? ' · ' + esc(a.nota) : ''}</p>
+       <a class="btn primary small" href="${esc(d.comprobante)}" download="comprobante-${esc(d.alumno_nombre || id)}.pdf" style="text-decoration:none">⬇ Descargar PDF</a>
+       <a class="btn ghost small" href="${esc(d.comprobante)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Ver PDF</a></div>`;
+  const cabeza = `<h3>🧾 Comprobante · ${esc(d.alumno_nombre)}</h3>
+    <p class="small">Cuota de <b>${d.mes}/${d.anio}</b> por <b>$${num(d.monto)}</b>${d.nota && d.nota !== 'Cuota mensual' ? ' · ' + esc(d.nota) : ''}</p>`;
+
+  // Ya acreditado: ficha de solo lectura. El sistema lo acreditó al recibir el
+  // comprobante, asi que acá no hay nada que confirmar.
+  if (d.estado === 'confirmado') {
+    $('#modalBody').innerHTML = `${cabeza}
+      <div class="tag tag-al-dia" style="display:inline-block;margin-bottom:10px">✓ Acreditado${d.confirmado_fecha ? ' el ' + esc(d.confirmado_fecha) : ''}</div>
+      ${cuerpo}
+      <div class="flex mt" style="gap:8px">
+        ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${d.id})">🗑 Descartar</button>` : ''}
+        <button class="btn ghost small" onclick="closeModal()">Cerrar</button>
+      </div>`;
+    return;
+  }
+  $('#modalBody').innerHTML = `${cabeza}
     ${cuerpo}
     <div class="field"><label>Monto a registrar (ajustalo si pagó el valor anterior)</label>
-      <input type="number" id="avMonto" value="${a.monto || ''}" min="1">
+      <input type="number" id="avMonto" value="${d.monto || ''}" min="1">
       <p class="small" style="margin:2px 0 0;color:var(--muted)">El recargo por demora se calcula sobre este monto.</p></div>
     <button type="button" id="avAumBtn" class="btn small btn-block" style="margin:0 0 10px" onclick="toggleAvisoAumento()"></button>
     <div class="flex mt" style="gap:8px">
-      <button class="btn primary small" onclick="confirmarAviso(${a.id})">✅ Confirmar y registrar</button>
-      ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${a.id})">🗑 Descartar</button>` : ''}
+      <button class="btn primary small" onclick="confirmarAviso(${d.id})">✅ Confirmar y registrar</button>
+      ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${d.id})">🗑 Descartar</button>` : ''}
     </div>
-  `);
+  `;
   actualizarBotonAumento();
 }
 function actualizarBotonAumento() {
@@ -2763,6 +2792,13 @@ async function renderMisPagos(el) {
   const cls = estado === 'al_dia' || estado === 'becado' ? 'tag-al-dia' : estado === 'por_vencer' ? 'tag-por-vencer' : 'tag-deuda';
   const lbl = estado === 'al_dia' ? 'Al día ✓' : estado === 'becado' ? '🎖 Becado' : estado === 'por_vencer' ? 'Por vencer' : 'Debe la cuota';
   const aviso = pagos.aviso_pendiente;
+  const ultimo = pagos.ultimo_aviso;
+  // Solo cuenta el acreditado si es de la cuota de hoy: si mando el
+  // comprobante de un mes viejo y este sigue impago, igual tiene que ver
+  // el boton para mandar el de ahora.
+  const acreditado = ultimo && ultimo.estado === 'confirmado'
+    && ultimo.mes === c.mes && ultimo.anio === c.anio ? ultimo : null;
+  if (acreditado) { AVISOS_CACHE = {}; AVISOS_CACHE[acreditado.id] = acreditado; }
   const becado = estado === 'becado';
   const exento = becado;
   el.innerHTML = `
@@ -2775,22 +2811,23 @@ async function renderMisPagos(el) {
         </div>
         <div class="tag ${cls}" style="font-size:14px;padding:6px 14px">${lbl}</div>
       </div>
-      ${exento ? '' : `<p class="small mt">💰 Aboná ${c.cuota ? '$' + num(c.cuota) : 'tu cuota'}${me.pago_alias ? ' por transferencia al alias/CVU de la academia' : ''} y <b>sí o sí mandá el comprobante de pago</b>: sin comprobante, el pago no se confirma.</p>`}
-      ${aviso && !exento ? `<p class="small mt" style="color:var(--warn)">⏳ Comprobante de ${aviso.mes}/${aviso.anio} enviado. Esperá la confirmación.</p>` : ''}
-      ${!exento && estado !== 'al_dia' && !aviso ? `<button class="btn primary btn-block" onclick="avisarPago()">🧾 Mandar comprobante de pago</button>` : ''}
-      ${!exento && me.mp_habilitado && estado !== 'al_dia' && !aviso ? `<button class="btn primary btn-block" style="background:linear-gradient(90deg,#00c3ff,#0aa2e0);border:none" onclick="pagarMercadoPago()">💳 Pagar con MercadoPago</button>` : ''}
+      ${exento ? '' : `<p class="small mt">💰 Aboná ${c.cuota ? '$' + num(c.cuota) : 'tu cuota'}${me.pago_alias ? ' por transferencia al alias/CVU de la academia' : ''} y <b>sí o sí mandá el comprobante de pago</b>: tu cuota queda acreditada apenas lo recibimos.</p>`}
+      ${acreditado && !exento ? `<p class="small mt" style="color:var(--ok,#7fd87f)">✅ Comprobante de ${acreditado.mes}/${acreditado.anio} recibido y acreditado.</p><button class="btn ghost btn-block" onclick="verComprobante(${acreditado.id})">🧾 Ver mi comprobante</button>` : ''}
+      ${aviso && !exento ? `<p class="small mt" style="color:var(--warn)">⏳ Comprobante de ${aviso.mes}/${aviso.anio} enviado. Tu cuota ya venció, así que el profe/admin lo revisa antes de acreditarlo.</p>` : ''}
+      ${!exento && estado !== 'al_dia' && !aviso && !acreditado ? `<button class="btn primary btn-block" onclick="avisarPago()">🧾 Mandar comprobante de pago</button>` : ''}
+      ${!exento && me.mp_habilitado && estado !== 'al_dia' && !aviso && !acreditado ? `<button class="btn primary btn-block" style="background:linear-gradient(90deg,#00c3ff,#0aa2e0);border:none" onclick="pagarMercadoPago()">💳 Pagar con MercadoPago</button>` : ''}
     </div>
     ${me.pago_alias ? `
     <div class="card">
       <h3>🏦 Pagar por transferencia</h3>
-      <p class="small">Págale al alias/CVU de la academia y después <b>mandá el comprobante</b> (foto o captura). El pago se confirma cuando lo revisa el profe/admin.</p>
+      <p class="small">Págale al alias/CVU de la academia y después <b>mandá el comprobante</b> (foto o captura). Queda acreditado al instante.</p>
       <div class="alias-box" id="aliasBox">${esc(me.pago_alias)}</div>
       <button class="btn ghost btn-block" onclick="copiarAlias()">📋 Copiar alias / CVU</button>
     </div>` : ''}
     ${me.pago_link ? `
     <div class="card">
       <h3>🔗 Pagar online</h3>
-      <p class="small">Te llevamos al link de pago de la academia. Después <b>mandá el comprobante</b> (foto o captura) para que el profe/admin confirme tu cuota.</p>
+      <p class="small">Te llevamos al link de pago de la academia. MercadoPago nos avisa solo y acreditamos tu cuota al instante.</p>
       <a class="btn primary btn-block" href="${esc(me.pago_link)}" target="_blank" rel="noopener noreferrer" onclick="marcarLinkPago(this)">💳 Pagar con MercadoPago</a>
       <div class="small" style="color:var(--muted);margin-top:8px;word-break:break-all">${esc(me.pago_link)}</div>
     </div>` : ''}
@@ -2825,14 +2862,14 @@ function marcarLinkPago(a) {
 async function avisarPago() {
   openModal(`
     <h3>🧾 Mandar comprobante de pago</h3>
-    <p class="small">Subí una <b>foto, captura o PDF</b> del comprobante de pago. El profe/admin lo va a revisar y confirmar tu cuota.</p>
+    <p class="small">Subí una <b>foto, captura o PDF</b> del comprobante de pago. Si tu cuota está a tiempo, queda acreditada al instante.</p>
     <div class="field"><label>Comprobante (JPG, PNG o PDF)</label>
       <input type="file" id="avComprobante" accept="image/*,application/pdf">
       <div id="avPreview" class="mt" style="display:none"><img id="avPreviewImg" style="max-width:100%;border-radius:10px;background:#fff"></div>
       <div id="avFileName" class="small mt" style="display:none;color:var(--muted)"></div>
     </div>
     <button class="btn primary btn-block" id="avEnviar">📤 Enviar aviso</button>
-    <p class="small" style="color:var(--muted)">No vas a poder volver a avisar hasta que confirmen o descarten tu aviso.</p>
+    <p class="small" style="color:var(--muted)">Si mandás el comprobante con la cuota vencida, el profe/admin lo revisa antes de acreditarlo.</p>
   `);
   const input = $('#avComprobante');
   input.addEventListener('change', () => {
@@ -2858,9 +2895,14 @@ async function avisarPago() {
     const r = new FileReader();
     r.onload = async () => {
       try {
-        await api('/api/avisar_pago', { method: 'POST', body: { comprobante: r.result } });
+        const res = await api('/api/avisar_pago', { method: 'POST', body: { comprobante: r.result } });
         closeModal();
-        toast('Aviso enviado ✓ Te avisamos cuando lo confirmen.');
+        if (res.auto) {
+          toast('Pago acreditado ✓ Ya quedó registrado tu comprobante.'
+            + (res.cargo ? ' Incluye $' + num(res.cargo) + ' de recargo por demora.' : ''));
+        } else {
+          toast(res.msg || 'Comprobante enviado. Te avisamos cuando lo confirmen.');
+        }
         renderMisPagos($('#sec-mispagos'));
       } catch (e) { toast(e.message); }
     };

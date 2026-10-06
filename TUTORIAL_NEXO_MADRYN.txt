@@ -274,6 +274,21 @@ Para cambiar el tema de la app:
   - Ve cuánto cobraste este mes y en total
   - Historial de pagos recibidos
 
+💰 Cómo se reparte cada cuota:
+  - 60% para los profes
+  - 30% tatami y academia
+  - 10% administrativo
+  - El 60% de los profes se divide en partes
+    iguales entre los que dan las actividades
+    del alumno: si el alumno entrena con los
+    dos profes, 50/50 de ese 60%.
+  - La cuota de un profesor, los becados y los
+    ingresos extra NO se reparten: entran
+    enteros al fondo de la academia.
+  - El admin lo ve desglosado en
+    Reparto de dinero → "Cómo se dividió
+    lo cobrado".
+
 📋 Ranking:
   - Ve el ranking de asistencia de todos los alumnos
 

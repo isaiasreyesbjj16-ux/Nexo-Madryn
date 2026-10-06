@@ -8,6 +8,8 @@ const slugTipo = (t) => String(t || 'Gi').toLowerCase().replace(/[^a-z0-9]+/g, '
 const BELTS_KIDS = window.BELTS_KIDS || ['Gris', 'Amarillo', 'Naranja', 'Verde', 'Blanco'];
 const BELTS_JUV = window.BELTS_JUV || ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde'];
 const catLabel = (c) => esc({ adulto: 'Adulto', juveniles: 'Juveniles', kids: 'Kids' })[c] || esc(c);
+// Destinos de una cuota que no le tocan a un profesor (reparto 60/30/10).
+const DESTINO_LABEL = { tatami: 'Tatami y academia', administrativo: 'Administrativo' };
 window._secCache = window._secCache || {};
 let filtroAlumnosCat = 'todos';
 const BELTS_POR_CAT = { kids: BELTS_KIDS, juveniles: BELTS_JUV, adulto: BELTS_ADULT };
@@ -2459,7 +2461,7 @@ async function renderPagos(el) {
           <option value="">— Elegí el alumno —</option>
           ${alumnos.alumnos.map(a => `<option value="${a.id}" data-cuota="${a.cuota_mensual || 0}" data-acts="${esc(a.actividades || '')}">${esc(a.nombre)}</option>`).join('')}</select></div>
         <div class="field"><label>Reparto del dinero</label><select id="pProfe">
-          <option value="0">Automático — 50/50 según sus actividades</option>
+          <option value="0">Automático — 60% entre los profes (30% academia, 10% admin)</option>
           ${profesores.profesores.map(p => `<option value="${p.id}">Todo a ${esc(p.nombre)}</option>`).join('')}</select></div>
         <div class="field" style="grid-column:1/-1" id="pRepartoBox"></div>
         <div class="field"><label>Monto ($)</label><input type="number" step="0.01" id="pMonto" required></div>
@@ -2514,8 +2516,15 @@ async function renderPagos(el) {
       box.innerHTML = '<small style="color:var(--muted)">Ningún profesor da las actividades de este alumno, el pago quedará sin repartir (o asignalo a mano arriba).</small>';
       return;
     }
-    const partes = profs.length ? `Se reparte en partes iguales entre ${profs.length} profesor${profs.length > 1 ? 'es' : ''}: ${profs.map(p => esc(p.nombre)).join('  ·  ')}.` : '';
-    const mitad = monto ? `<br><small style="color:var(--good)">Cada uno se lleva $${num(monto / profs.length)}</small>` : '';
+    const partes = `El 60% se reparte en partes iguales entre ${profs.length} profesor${profs.length > 1 ? 'es' : ''}: ${profs.map(p => esc(p.nombre)).join('  ·  ')}.`;
+    let mitad = '';
+    if (monto) {
+      const r2 = (x) => Math.round(x * 100) / 100;
+      const mTatami = r2(monto * 30 / 100), mAdmin = r2(monto * 10 / 100);
+      const mProfes = r2(monto - mTatami - mAdmin);
+      const cadaUno = r2(mProfes / profs.length);
+      mitad = `<br><small style="color:var(--good)">Profes $${num(mProfes)} ($${num(cadaUno)} c/u) · Tatami y academia $${num(mTatami)} · Administrativo $${num(mAdmin)}</small>`;
+    }
     box.innerHTML = `<small style="color:var(--muted)">Actividades: ${acts.map(a => esc(a)).join(', ')}. ${partes}${mitad}</small>`;
   }
   $('#pAlumno').addEventListener('change', (e) => {
@@ -2537,9 +2546,12 @@ async function renderPagos(el) {
       const res = await api('/api/pagos', { method: 'POST', body });
       let msg = res.cargo ? `Pago registrado ✓ (incluye $${num(res.cargo)} de recargo por demora)` : 'Pago registrado ✓';
       if (res.reparto && res.reparto.length > 1) {
-        msg += ` · Reparto: ${res.reparto.map(r => `${r.profesor} $${num(r.monto)}`).join(' / ')}`;
+        msg += ` · Profes: ${res.reparto.map(r => `${r.profesor} $${num(r.monto)}`).join(' / ')}`;
       } else if (res.reparto && res.reparto.length === 1) {
-        msg += ` · Todo para ${res.reparto[0].profesor}`;
+        msg += ` · Profes: todo para ${res.reparto[0].profesor}`;
+      }
+      if (res.destinos && res.destinos.length) {
+        msg += ` · ${res.destinos.map(d => `${DESTINO_LABEL[d.destino] || d.destino} $${num(d.monto)}`).join(' · ')}`;
       }
       toast(msg);
       renderPagos($('#sec-pagos'));
@@ -4597,24 +4609,48 @@ async function agregarMiembroFamilia(fid) {
 
 async function renderMiDinero(el) {
   const esAdmin = USER.role === 'admin';
-  el.innerHTML = secHeader(esAdmin ? 'Reparto de dinero' : 'Mi dinero') + '<div class="small" style="color:var(--muted);padding:0 4px 10px">Cada cuota mensual se reparte en partes iguales entre los profesores que dan las actividades del alumno.</div>';
+  el.innerHTML = secHeader(esAdmin ? 'Reparto de dinero' : 'Mi dinero');
   try {
     const d = await api('/api/mi_dinero');
+    const p = d.pct || { profes: 60, tatami: 30, administrativo: 10 };
     const tot = d.total_mes || 0;
-    let html = `
-    <div class="card">
-      <div class="home-grid">
+    const cobrado = d.cobrado_mes || 0;
+    const sub = esAdmin
+      ? `Cada cuota se parte en <b>${p.profes}% para los profes</b>, ${p.tatami}% tatami y academia y ${p.administrativo}% administrativo. El ${p.profes}% se divide en partes iguales entre los profes que dan las actividades del alumno.`
+      : `Te corresponde el <b>${p.profes}% de cada cuota</b>, en partes iguales entre los profes que dan las actividades del alumno.`;
+    el.innerHTML = secHeader(esAdmin ? 'Reparto de dinero' : 'Mi dinero')
+      + `<div class="small" style="color:var(--muted);padding:0 4px 10px">${sub}</div>`;
+    let html = '';
+    if (esAdmin) {
+      const dmap = {};
+      (d.destinos || []).forEach(x => { dmap[x.destino] = x.monto; });
+      const buckets = [
+        { lbl: `Profes (${p.profes}%)`, val: tot, color: 'var(--good)' },
+        { lbl: `Tatami y academia (${p.tatami}%)`, val: dmap.tatami || 0, color: '#7c6cf0' },
+        { lbl: `Administrativo (${p.administrativo}%)`, val: dmap.administrativo || 0, color: '#e0a13a' },
+      ];
+      html += `<div class="card"><h3>💼 Cómo se dividió lo cobrado</h3>
+        <div class="home-grid">
+          ${buckets.map(b => `<div class="stat-card"><div class="num" style="color:${b.color}">$${num(b.val)}</div><div class="lbl">${b.lbl}</div></div>`).join('')}
+        </div>
+        <div class="small" style="color:var(--muted);margin-top:8px">
+          Total cobrado ${d.mes}/${d.anio}: $${num(cobrado)} · ${(d.pagos || []).length} partes de profes
+        </div>
+        ${cobrado > 0 && !dmap.tatami ? `<div class="small" style="color:var(--muted)">Tatami y administrativo aparecen desde que se activó el reparto 60/30/10: los pagos anteriores no se dividen.</div>` : ''}
+      </div>`;
+    } else {
+      html += `<div class="card"><div class="home-grid">
         <div class="stat-card"><div class="num" style="color:var(--good)">$${num(tot)}</div><div class="lbl">${d.mes}/${d.anio}</div></div>
-        ${esAdmin ? `<div class="stat-card"><div class="num">${(d.pagos || []).length}</div><div class="lbl">Partes generadas</div></div>` : ''}
-      </div>
-    </div>`;
+      </div></div>`;
+    }
     if (esAdmin && (d.por_profesor || []).length) {
+      const base = cobrado || tot;
       html += `<div class="card"><h3>👥 Cuánto le tocó a cada profesor</h3>
         <div style="overflow:auto"><table>
-          <tr><th>Profesor</th><th>Total ${d.mes}/${d.anio}</th><th>Barra</th></tr>
-          ${d.por_profesor.map(p => {
-            const pct = tot > 0 ? Math.round((p.total / tot) * 100) : 0;
-            return `<tr><td>${esc(p.nombre || 'Sin nombre')}</td><td><b>$${num(p.total)}</b></td>
+          <tr><th>Profesor</th><th>Total ${d.mes}/${d.anio}</th><th>% de lo cobrado</th></tr>
+          ${d.por_profesor.map(pr => {
+            const pct = base > 0 ? Math.round((pr.total / base) * 100) : 0;
+            return `<tr><td>${esc(pr.nombre || 'Sin nombre')}</td><td><b>$${num(pr.total)}</b></td>
               <td style="min-width:120px"><div style="background:rgba(255,255,255,.08);border-radius:6px;height:10px;overflow:hidden">
                 <div style="background:var(--good);height:100%;width:${pct}%"></div></div>
                 <span class="small" style="color:var(--muted)">${pct}%</span></td></tr>`;
@@ -4623,7 +4659,7 @@ async function renderMiDinero(el) {
     }
     html += `<div class="card"><h3>🧾 Detalle de pagos</h3>
       <div style="overflow:auto"><table>
-        <tr><th>Fecha</th><th>Alumno</th><th>Actividad</th>${esAdmin ? '<th>Profesor</th>' : ''}<th>Mes</th><th>Método</th><th>Mi parte</th></tr>
+        <tr><th>Fecha</th><th>Alumno</th><th>Actividad</th>${esAdmin ? '<th>Profesor</th>' : ''}<th>Mes</th><th>Método</th><th>${esAdmin ? 'Parte del profesor' : 'Mi parte'}</th></tr>
         ${(d.pagos || []).length ? d.pagos.map(p => `<tr>
           <td>${esc(p.fecha)}</td>
           <td>${esc(p.alumno || '—')}</td>

@@ -298,6 +298,13 @@ METODOS_PAGO = ['Efectivo', 'Transferencia', 'Débito', 'Crédito', 'Otro']
 DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 MESES_NOMBRE = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
+# Reparto de cada cuota: 60% para los profes (en partes iguales entre los que
+# dan las actividades del alumno), 30% tatami y academia, 10% administrativo.
+# Fijo en el codigo: cambiar aca cambia solo los pagos nuevos.
+PCT_PROFES, PCT_TATAMI, PCT_ADMIN = 60, 30, 10
+# Nombre visible de cada destino no-profesional en reportes y notificaciones.
+DESTINOS_PAGO = {'tatami': 'Tatami y academia', 'administrativo': 'Administrativo'}
+
 # Link de pago online de la academia. Se puede overridear en Ajustes > pago_link.
 PAGO_LINK_DEFAULT = ''
 
@@ -458,8 +465,10 @@ CREATE TABLE IF NOT EXISTS avisos_pago (
     confirmado_fecha TEXT
 );
 
--- Reparto 50/50: por cada pago de un alumno, una fila por profesor que se
--- lleva su parte. PermiteLiquidar a cada profe lo que le corresponde.
+-- Reparto 60/30/10: por cada pago de un alumno, una fila por profesor con el
+-- 60% que le toca (partido entre los que dan sus actividades) y dos filas en
+-- pago_destino (30% tatami/academia, 10% administrativo). PermiteLiquidar a
+-- cada profe lo que le corresponde.
 CREATE TABLE IF NOT EXISTS pago_reparto (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     pago_id INTEGER NOT NULL REFERENCES pagos(id) ON DELETE CASCADE,
@@ -467,6 +476,17 @@ CREATE TABLE IF NOT EXISTS pago_reparto (
     monto REAL NOT NULL,
     actividad TEXT,
     nota TEXT,
+    fecha TEXT
+);
+
+-- Destino del dinero que NO se lleva un profesor: 30% tatami/academia y 10%
+-- administrativo. Se genera junto con pago_reparto y solo en los pagos que se
+-- reparten (la cuota de un profesor, los becados y los ingresos extra no).
+CREATE TABLE IF NOT EXISTS pago_destino (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pago_id INTEGER NOT NULL REFERENCES pagos(id) ON DELETE CASCADE,
+    destino TEXT NOT NULL,
+    monto REAL NOT NULL,
     fecha TEXT
 );
 
@@ -2064,11 +2084,13 @@ def _precio_actividad(n):
 
 
 def _reparto_por_actividades(alumno_id, monto, profesor_manual_id=None):
-    """Divide el pago de un alumno entre los profes que dan SUS actividades.
+    """Divide monto entre los profes que dan las actividades del alumno.
 
-    El alumno entrena Gi+NoGi y cada actividad la da un profe distinto => 50/50.
-    Si un solo prof da todas sus actividades, se lleva el 100%. Si no hay prof que
-    den alguna actividad, cae al profe elegido a mano (o queda sin reparto).
+    Recibe YA la parte que le toca a los profes (el 60% de la cuota, ver
+    _registrar_reparto). El alumno entrena Gi+NoGi y cada actividad la da un
+    profe distinto => 50/50 de esos 60%. Si un solo prof da todas sus
+    actividades, se lleva ese 60% entero. Si no hay prof que den alguna
+    actividad, cae al profe elegido a mano (o queda sin reparto).
     Devuelve [(profesor_id, montoParte, actividad_csv)].
     """
     db = get_db()
@@ -2128,25 +2150,49 @@ def _rol_de(db, user_id):
         return row[0]
 
 
+def _destinos_del_reparto(monto):
+    """Parte del pago que no se lleva un profesor.
+
+    Devuelve (monto_para_profes, [(destino, monto), ...]). El 30% va al tatami
+    y academia y el 10% al administrativo; el monto para profes absorbe el
+    redondeo para que las tres sumen exacto la cuota.
+    """
+    m_tatami = round(monto * PCT_TATAMI / 100, 2)
+    m_admin = round(monto * PCT_ADMIN / 100, 2)
+    m_profes = round(monto - m_tatami - m_admin, 2)
+    return m_profes, [('tatami', m_tatami), ('administrativo', m_admin)]
+
+
 def _registrar_reparto(db, pago_id, alumno_id, monto, profesor_manual_id=None,
                        sin_reparto=False):
-    """Guarda el desglose del pago en pago_reparto y devuelve las partes.
+    """Guarda el desglose del pago en pago_reparto + pago_destino y devuelve
+    las partes de los profes.
 
-    La cuota de un PROFESOR nunca se reparte: esa plata entra a la academia, no
-    va a los profesores. El chequeo del rol va aca adentro y no en los endpoints
-    a proposito: si quedara en el llamador, cualquier camino nuevo (el cobro
-    familiar, otro profe que registre el pago, el webhook) volveria a pagarle al
-    profesor su propia cuota desde la propia academia.
+    Reparto 60/30/10: 60% para los profes (en partes iguales entre los que dan
+    las actividades del alumno), 30% tatami y academia, 10% administrativo.
+
+    La cuota de un PROFESOR, los becados (sin_reparto) y los pagos de un alumno
+    sin actividades no se dividen: esa plata entra a la academia entera. El
+    chequeo del rol va aca adentro y no en los endpoints a proposito: si
+    quedara en el llamador, cualquier camino nuevo (el cobro familiar, otro
+    profe que registre el pago, el webhook) volveria a pagarle al profesor su
+    propia cuota desde la propia academia.
     """
     if sin_reparto:
         return []
     if _rol_de(db, alumno_id) == 'profesor':
         return []
-    partes = _reparto_por_actividades(alumno_id, monto, profesor_manual_id)
+    m_profes, destinos = _destinos_del_reparto(monto)
+    partes = _reparto_por_actividades(alumno_id, m_profes, profesor_manual_id)
+    if not partes:
+        return []
     ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     for pid, parte, act, _nombre in partes:
         db.execute("""INSERT INTO pago_reparto(pago_id, profesor_id, monto, actividad, fecha)
                       VALUES(?,?,?,?,?)""", (pago_id, pid, parte, act, ahora))
+    for destino, m in destinos:
+        db.execute("""INSERT INTO pago_destino(pago_id, destino, monto, fecha)
+                      VALUES(?,?,?,?)""", (pago_id, destino, m, ahora))
     return partes
 
 
@@ -3817,9 +3863,10 @@ def api_pagos_create():
          current_user()['id']))
     get_db().commit()
     pago_id = get_db().execute('SELECT last_insert_rowid() AS id').fetchone()['id']
-    # reparto 50/50 segun las actividades del alumno
+    # reparto 60% profes / 30% tatami-academia / 10% administrativo
     partes = _registrar_reparto(get_db(), pago_id, alumno_id, monto, profesor_id,
                                 sin_reparto=propio)
+    destinos = _destinos_del_reparto(monto)[1] if partes else []
     get_db().commit()
     alumno = get_db().execute('SELECT * FROM users WHERE id=?', (alumno_id,)).fetchone()
     nota_extra = f' (incluye ${cargo:,.0f} de recargo por demora)'.replace(',', '.') if cargo else '.'
@@ -3831,7 +3878,7 @@ def api_pagos_create():
     for pid, parte, act_prof, nombre in partes:
         if pid == who['id']:
             continue
-        detalle = f' (reparto 50/50: {act_prof})' if len(partes) > 1 and act_prof else ''
+        detalle = f' ({PCT_PROFES}% entre los profes: {act_prof})' if len(partes) > 1 and act_prof else ''
         notify(pid, 'Te toca parte de un pago',
                f'{alumno["nombre"]} pagó ${monto:,.0f}: te corresponden ${parte:,.0f}{detalle}.'.replace(',', '.'),
                'pago', link='dinero')
@@ -3843,7 +3890,8 @@ def api_pagos_create():
                    f'{alumno["nombre"]} pagó ${monto:,.0f} registrado por {who["nombre"]}.',
                    'pago')
     return jsonify({'ok': True, 'base': base, 'cargo': cargo, 'monto': monto,
-                    'reparto': [{'profesor': n, 'monto': p, 'actividad': a} for _i, p, a, n in partes]})
+                    'reparto': [{'profesor': n, 'monto': p, 'actividad': a} for _i, p, a, n in partes],
+                    'destinos': [{'destino': d, 'monto': m} for d, m in destinos]})
 
 
 @app.route('/api/pagos/familia', methods=['POST'])
@@ -5090,12 +5138,14 @@ def api_estadisticas():
 @app.route('/api/mi_dinero')
 @role_required('admin', 'profesor')
 def api_mi_dinero():
-    """Detalle del dinero del profesor: cada pago y cuanto le toco (reparto 50/50)."""
+    """Detalle del dinero del profesor (su parte del 60%) y, para el admin,
+    cómo se dividió todo lo cobrado: profes / tatami y academia / administrativo."""
     u = current_user()
     hoy = _hoy_academy()
     mes = to_int(request.args.get('mes')) or hoy.month
     anio = to_int(request.args.get('anio')) or hoy.year
     db = get_db()
+    cobrado_mes, destinos = None, []
     if u['role'] == 'admin':
         filas = db.execute(
             """SELECT r.monto, r.actividad, r.fecha, p.mes, p.anio, p.metodo,
@@ -5116,6 +5166,15 @@ def api_mi_dinero():
                LEFT JOIN users pr ON pr.id=r.profesor_id
                WHERE p.mes=? AND p.anio=? GROUP BY r.profesor_id, pr.nombre
                ORDER BY total DESC""", (mes, anio)).fetchall()
+        cobrado_mes = db.execute(
+            'SELECT COALESCE(SUM(monto),0) AS n FROM pagos WHERE mes=? AND anio=?',
+            (mes, anio)).fetchone()['n']
+        destinos = db.execute(
+            """SELECT d.destino AS destino, COALESCE(SUM(d.monto),0) AS monto
+               FROM pago_destino d
+               JOIN pagos p ON p.id=d.pago_id
+               WHERE p.mes=? AND p.anio=?
+               GROUP BY d.destino ORDER BY d.destino""", (mes, anio)).fetchall()
     else:
         filas = db.execute(
             """SELECT r.monto, r.actividad, r.fecha, p.mes, p.anio, p.metodo,
@@ -5133,6 +5192,9 @@ def api_mi_dinero():
         por_profe = []
     return jsonify({
         'mes': mes, 'anio': anio, 'total_mes': tot_mes,
+        'cobrado_mes': cobrado_mes,
+        'destinos': [dict(x) for x in destinos],
+        'pct': {'profes': PCT_PROFES, 'tatami': PCT_TATAMI, 'administrativo': PCT_ADMIN},
         'pagos': [dict(f) for f in filas],
         'por_profesor': [dict(x) for x in por_profe],
     })
@@ -6427,10 +6489,20 @@ def api_exportar_alumnos():
         if rp['pago_id'] == reparto[a_id]['pago_id']:
             reparto[a_id]['partes'].append(rp)
 
+    destinos_por_pago = {}
+    for dp in get_db().execute(
+            "SELECT pago_id, destino, monto FROM pago_destino ORDER BY pago_id, id").fetchall():
+        destinos_por_pago.setdefault(dp['pago_id'], []).append(dp)
+
     def _m(v):
         if v is None:
             return ''
         return str(int(v)) if float(v) == int(v) else ('%g' % v)
+
+    def _destinos_txt(pago_id):
+        return '; '.join('%s $%s' % (
+            DESTINOS_PAGO.get(d['destino'], d['destino']), _m(d['monto']))
+            for d in (destinos_por_pago.get(pago_id) or []))
 
     def col_pago(r):
         nombre = r['nombre']
@@ -6443,6 +6515,9 @@ def api_exportar_alumnos():
                 pn = x['prof_nombre'] or ('Profesor #%s' % x['profesor_id'])
                 act = (' [%s]' % x['actividad']) if x['actividad'] else ''
                 partes.append('%s $%s%s' % (pn, _m(x['monto_prof']), act))
+            extra = _destinos_txt(r['id'])
+            if extra:
+                partes.append(extra)
         out = ['Pago: %s' % quien, 'Imputado a: %s' % nombre]
         out.append(('Reparto: ' + '; '.join(partes)) if partes
                    else 'Reparto: sin reparto registrado')
@@ -6648,6 +6723,11 @@ def api_exportar_pagos():
                ORDER BY pr.pago_id, pr.id""").fetchall():
         partes_por_pago.setdefault(rp['pago_id'], []).append(rp)
 
+    destinos_por_pago = {}
+    for dp in db.execute(
+            "SELECT pago_id, destino, monto FROM pago_destino ORDER BY pago_id, id").fetchall():
+        destinos_por_pago.setdefault(dp['pago_id'], []).append(dp)
+
     pagador_por_alumno = {}
     for fm in db.execute(
             """SELECT fm.user_id, t.nombre AS titular_nombre
@@ -6664,10 +6744,14 @@ def api_exportar_pagos():
         partes = partes_por_pago.get(p['id']) or []
         if not partes:
             return 'sin reparto registrado'
-        return '; '.join('%s $%s%s' % (
+        filas = ['%s $%s%s' % (
             x['prof_nombre'] or ('Profesor #%s' % x['profesor_id']),
             _m(x['monto']), (' [%s]' % x['actividad']) if x['actividad'] else '')
-            for x in partes)
+            for x in partes]
+        filas.extend('%s $%s' % (DESTINOS_PAGO.get(d['destino'], d['destino']),
+                                 _m(d['monto']))
+                     for d in (destinos_por_pago.get(p['id']) or []))
+        return '; '.join(filas)
 
     def col_quien_pago(p):
         nombre = p['alumno']
@@ -6692,7 +6776,7 @@ def api_exportar_pagos():
     headers_resumen = ['Mes', 'Total cobrado ($)', 'Cantidad pagos', 'Alumnos que pagaron',
                        'Deudores', '% pagó', '% morosidad']
     headers_detalle = ['ID', 'Fecha', 'Alumno', 'Quién pagó / a quién', 'Método', 'Concepto',
-                       'Monto ($)', 'Reparto entre profesores', 'Registrado por', 'Mes', 'Año']
+                       'Monto ($)', 'Reparto del pago', 'Registrado por', 'Mes', 'Año']
     sh1 = sheet_xml(headers_resumen, resumen)
     sh2 = sheet_xml(headers_detalle,
                     [[p['id'], p['fecha'], p['alumno'], col_quien_pago(p), p['metodo'],

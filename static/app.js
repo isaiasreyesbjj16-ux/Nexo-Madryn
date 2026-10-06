@@ -1,6 +1,10 @@
 /* Academia BJJ - app.js */
 const BELTS_ADULT = window.BELTS_ADULT || ['Blanco', 'Azul', 'Púrpura', 'Marrón', 'Negro'];
 const TIPOS_ACTIVIDAD = window.ACTIVIDADES || ['Gi', 'NoGi', 'JJ Kids', 'MMA', 'Muay Thai', 'Sipalki', 'Clase personalizada'];
+// "Muay Thai" -> "muay-thai". Sin esto, toLowerCase() deja un espacio y el
+// tipo queda como dos clases de CSS ("muay" y "thai"): ni el color del tag
+// ni el borde del bloque se aplicaban y la clase se veia sin estilo.
+const slugTipo = (t) => String(t || 'Gi').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const BELTS_KIDS = window.BELTS_KIDS || ['Gris', 'Amarillo', 'Naranja', 'Verde', 'Blanco'];
 const BELTS_JUV = window.BELTS_JUV || ['Blanco', 'Gris', 'Amarillo', 'Naranja', 'Verde'];
 const catLabel = (c) => esc({ adulto: 'Adulto', juveniles: 'Juveniles', kids: 'Kids' })[c] || esc(c);
@@ -735,7 +739,7 @@ async function renderMiAsistencia(el) {
         ${d.asistencia.length ? d.asistencia.map(a => `
           <div style="padding:8px 0;border-bottom:1px solid var(--line)">
             <div class="flex space-between">
-              <div><b>${esc(a.dia)} ${esc(a.hora)}</b> · <span class="tag ${a.tipo.toLowerCase()}">${esc(a.tipo)}</span></div>
+              <div><b>${esc(a.dia)} ${esc(a.hora)}</b> · <span class="tag ${slugTipo(a.tipo)}">${esc(a.tipo)}</span></div>
               <div class="small">${esc(a.fecha)} · ${esc(a.profesor || 'Sin profesor')}</div>
             </div>
             ${a.valorada
@@ -1320,8 +1324,8 @@ async function renderInicio(el) {
         <div class="feed-card">
           <div class="small mb">📅 Clases de hoy</div>
           ${hoyClases.length ? hoyClases.map(h => `
-            <div class="clase-item ${(h.tipo || 'Gi').toLowerCase()}">
-              <span class="hora">${esc(h.hora)}</span> · <span class="tag ${(h.tipo || 'Gi').toLowerCase()}">${esc(h.tipo || 'Gi')}</span> · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>
+            <div class="clase-item ${slugTipo(h.tipo)}">
+              <span class="hora">${esc(h.hora)}</span> · <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span> · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>
               <div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">📷 Marcar con QR</button>`}</div>
             </div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas. Mirá la sección Horarios.</div>'}
         </div>
@@ -1396,7 +1400,7 @@ async function renderInicio(el) {
         <div class="chips">${chips.join('')}</div>
         <div class="feed-card">
           <div class="small mb">📅 Clases de hoy</div>
-          ${hoyClases.length ? hoyClases.map(h => `<div class="clase-item ${(h.tipo || 'Gi').toLowerCase()}"><span class="hora">${esc(h.hora)}</span> · <span class="tag ${(h.tipo || 'Gi').toLowerCase()}">${esc(h.tipo || 'Gi')}</span> · ${esc(h.nivel || 'Todos')} · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>${R === 'profesor' ? `<div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">📷 Marcar con QR</button>`}</div>` : ''}</div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas.</div>'}
+          ${hoyClases.length ? hoyClases.map(h => `<div class="clase-item ${slugTipo(h.tipo)}"><span class="hora">${esc(h.hora)}</span> · <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span> · ${esc(h.nivel || 'Todos')} · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>${R === 'profesor' ? `<div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">📷 Marcar con QR</button>`}</div>` : ''}</div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas.</div>'}
         </div>
         ${cums.cumpleanios.length ? `<div class="feed-card">
           <div class="small mb">🎂 Cumpleaños de ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][cums.mes - 1]} <span class="small" style="color:var(--muted)">(${cums.cumpleanios.length})</span></div>
@@ -2006,8 +2010,8 @@ async function renderHorarios(el) {
     const items = d.horarios.filter(h => h.dia === i);
     return `<div class="dia-col"><h4>${dia}</h4>
       ${items.length ? items.map(h => `
-<div class="clase-item ${(h.tipo || 'Gi').toLowerCase()}">
-          <span class="hora">${esc(h.hora)}</span> · <span class="tag ${(h.tipo || 'Gi').toLowerCase()}">${esc(h.tipo || 'Gi')}</span>
+<div class="clase-item ${slugTipo(h.tipo)}">
+          <span class="hora">${esc(h.hora)}</span> · <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span>
           <div class="small">${esc(h.nivel || 'Todos')} · ${h.duracion || 60}min</div>
           <div class="profe">🧑‍🏫 ${esc(h.profesor_nombre || 'Sin profesor')}</div>
           ${R !== 'alumno' && h.rating ? `<button class="btn ghost small" style="margin-top:6px" onclick="verValoraciones(${h.id})">⭐ ${h.rating.promedio} (${h.rating.n})</button>` : ''}
@@ -3382,7 +3386,7 @@ async function verAsistenciaDia() {
     ${d.clases.length ? d.clases.map(c => `
       <div style="padding:8px 0;border-bottom:1px solid var(--line)">
         <div class="flex space-between">
-          <div><b>${esc(c.hora)}</b> · <span class="tag ${c.tipo.toLowerCase()}">${esc(c.tipo)}</span> · ${esc(c.nivel)}${c.profesor ? ' · <span class="profe">' + esc(c.profesor) + '</span>' : ''}</div>
+          <div><b>${esc(c.hora)}</b> · <span class="tag ${slugTipo(c.tipo)}">${esc(c.tipo)}</span> · ${esc(c.nivel)}${c.profesor ? ' · <span class="profe">' + esc(c.profesor) + '</span>' : ''}</div>
           <div class="small">✅ ${c.cantidad}</div>
         </div>
         ${c.presentes.length

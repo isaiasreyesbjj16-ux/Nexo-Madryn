@@ -291,7 +291,8 @@ def bjj_categoria(nacimiento, peso, genero, gi=True, anio=None):
     return base
 
 
-TIPOS_CLASE = ['Gi', 'NoGi', 'Kids', 'Juveniles', 'Abierto']
+TIPOS_CLASE = ['Gi', 'NoGi', 'Kids', 'Juveniles', 'Abierto',
+               'Muay Thai', 'MMA', 'Sipalki']
 ACTIVIDADES = ['Gi', 'NoGi', 'JJ Kids', 'MMA', 'Muay Thai', 'Sipalki', 'Clase personalizada']
 METODOS_PAGO = ['Efectivo', 'Transferencia', 'Débito', 'Crédito', 'Otro']
 DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']

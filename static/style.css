@@ -327,6 +327,11 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .tag.profesor { background: rgba(231,76,60,.3); color: #ff9b8f; }
 .tag.alumno { background: rgba(58,160,255,.22); color: #7cc8ff; }
 .tag.admin { background: rgba(155,93,229,.28); color: var(--accent2); }
+.tag.abierto { background: rgba(255,255,255,.1); color: var(--muted); }
+.tag.muay-thai { background: rgba(231,126,52,.22); color: #ffb26b; }
+.tag.mma { background: rgba(232,72,76,.22); color: #ff9d95; }
+.tag.sipalki { background: rgba(0,206,201,.2); color: #6be5df; }
+.tag.clase-personalizada { background: rgba(155,93,229,.18); color: var(--accent2); }
 
 .belt { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .belt-dot { width: 18px; height: 8px; border-radius: 4px; display: inline-block; border: 1px solid rgba(255,255,255,.25); }
@@ -375,6 +380,11 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .clase-item.nogi { border-left-color: var(--accent); }
 .clase-item.kids { border-left-color: var(--warn); }
 .clase-item.juveniles { border-left-color: var(--good); }
+.clase-item.abierto { border-left-color: var(--muted); }
+.clase-item.muay-thai { border-left-color: #e77e34; }
+.clase-item.mma { border-left-color: #e8484c; }
+.clase-item.sipalki { border-left-color: #00cec9; }
+.clase-item.clase-personalizada { border-left-color: var(--accent2); }
 .clase-item .hora { font-weight: 800; color: var(--accent2); }
 .clase-item .profe { color: var(--muted); font-size: 12px; }
 

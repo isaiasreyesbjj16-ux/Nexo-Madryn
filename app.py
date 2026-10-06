@@ -5530,11 +5530,43 @@ def api_chat_mensajes(chat_id):
     chat = db.execute('SELECT * FROM chats WHERE id=?', (chat_id,)).fetchone()
     if not chat or not miembro:
         return jsonify({'error': 'No tenés acceso a este chat'}), 403
+    # Sin us.foto: se habia pedido y nunca se usaba.
+    cols = ('m.id, m.user_id, m.mensaje, (m.adjunto IS NOT NULL) AS tiene_adjunto, '
+            'm.adjunto_tipo, m.fecha, us.nombre')
+    # El poll de la app corre cada 5 segundos. Con ?desde= solo se devuelven los
+    # mensajes nuevos: antes se bajaban los 200 (con sus adjuntos de hasta
+    # 25 MB cada uno) en cada tick aunque no hubiera nada nuevo.
+    desde = to_int(request.args.get('desde')) or 0
+    if desde:
+        filas = db.execute(
+            'SELECT %s FROM chat_messages m JOIN users us ON us.id=m.user_id '
+            'WHERE m.chat_id=? AND m.id>? ORDER BY m.id ASC LIMIT 200' % cols,
+            (chat_id, desde)).fetchall()
+        return jsonify({'mensajes': [_chat_msg_public(r) for r in filas]})
     filas = db.execute(
-        'SELECT m.id, m.user_id, m.mensaje, m.adjunto, m.adjunto_tipo, m.fecha, us.nombre, us.foto '
-        'FROM chat_messages m JOIN users us ON us.id=m.user_id '
-        'WHERE m.chat_id=? ORDER BY m.id ASC LIMIT 200', (chat_id,)).fetchall()
-    return jsonify({'mensajes': [dict(r) for r in filas], 'chat': dict(chat)})
+        'SELECT %s FROM chat_messages m JOIN users us ON us.id=m.user_id '
+        'WHERE m.chat_id=? ORDER BY m.id ASC LIMIT 200' % cols, (chat_id,)).fetchall()
+    return jsonify({'mensajes': [_chat_msg_public(r) for r in filas], 'chat': dict(chat)})
+
+
+def _chat_msg_public(r):
+    """El adjunto se pide on-demand: es un data-URL de hasta 25 MB."""
+    d = dict(r)
+    d['adjunto'] = '/api/chat_adjunto/%d' % d['id'] if d.pop('tiene_adjunto') else None
+    return d
+
+
+@app.route('/api/chat_adjunto/<int:mid>')
+@login_required
+def api_chat_adjunto(mid):
+    u = current_user()
+    r = get_db().execute(
+        'SELECT m.adjunto FROM chat_messages m '
+        'JOIN chat_members cm ON cm.chat_id=m.chat_id AND cm.user_id=? '
+        'WHERE m.id=?', (u['id'], mid)).fetchone()
+    if not r or not r['adjunto']:
+        return jsonify({'error': 'Adjunto no encontrado'}), 404
+    return _foto_response(r['adjunto'], default_mime='application/octet-stream')
 
 
 @app.route('/api/chats/<int:chat_id>/mensajes', methods=['POST'])
@@ -5796,21 +5828,71 @@ def api_alumno_proximo_examen(uid):
 # Muro + galería de fotos
 # ---------------------------------------------------------------------------
 
+def _foto_response(data_url, default_mime='image/jpeg'):
+    """Sirve un data-URL guardado en la base como imagen normal (bytes + mime).
+
+    El feed referenciaba las fotos como data-URL dentro del JSON, asi que
+    /api/muro tenia que bajar TODAS las fotos de TODOS los posts de la base
+    aunque el alumno solo mirara los primeros. Ahora el listado manda
+    /api/muro_foto/<id> y la base solo se lee para la foto que el navegador
+    pide. Igual para los avatares y las fotos de eventos.
+    """
+    m = re.match(r'^data:([^;]+);base64,(.+)$', data_url or '', re.S)
+    if not m:
+        return jsonify({'error': 'Imagen dañada'}), 500
+    try:
+        raw = base64.b64decode(m.group(2))
+    except Exception:
+        return jsonify({'error': 'Imagen dañada'}), 500
+    return Response(raw, mimetype=m.group(1) or default_mime)
+
+
+@app.route('/api/muro_foto/<int:fid>')
+@login_required
+def api_muro_foto(fid):
+    r = get_db().execute('SELECT data FROM muro_fotos WHERE id=?', (fid,)).fetchone()
+    if not r:
+        return jsonify({'error': 'Foto no encontrada'}), 404
+    return _foto_response(r['data'])
+
+
+@app.route('/api/evento_foto/<int:fid>')
+@login_required
+def api_evento_foto(fid):
+    r = get_db().execute('SELECT data FROM evento_fotos WHERE id=?', (fid,)).fetchone()
+    if not r:
+        return jsonify({'error': 'Foto no encontrada'}), 404
+    return _foto_response(r['data'])
+
+
+@app.route('/api/avatar/<int:uid>')
+@login_required
+def api_avatar(uid):
+    r = get_db().execute('SELECT foto FROM users WHERE id=?', (uid,)).fetchone()
+    if not r or not r['foto']:
+        return jsonify({'error': 'Sin foto de perfil'}), 404
+    return _foto_response(r['foto'])
+
+
 @app.route('/api/muro')
 @login_required
 def api_muro():
     db = get_db()
+    # Sin us.foto: son ~40 KB por fila y aca entran hasta 100 posts. El
+    # avatar se pide on-demand igual que las fotos del post.
     filas = db.execute(
-        'SELECT m.*, us.nombre, us.cinturon, us.foto '
+        'SELECT m.*, us.nombre, us.cinturon '
         'FROM muro m JOIN users us ON us.id=m.user_id ORDER BY m.id DESC LIMIT 100').fetchall()
     out = []
     for r in filas:
-        fotos = [f['data'] for f in db.execute('SELECT data FROM muro_fotos WHERE muro_id=?', (r['id'],)).fetchall()]
+        ids = [f['id'] for f in db.execute(
+            'SELECT id FROM muro_fotos WHERE muro_id=?', (r['id'],)).fetchall()]
         v = db.execute('SELECT id, url, tipo FROM muro_videos WHERE muro_id=? ORDER BY id LIMIT 1', (r['id'],)).fetchone()
         vd = dict(v) if v else None
         if vd and _is_storage_url(vd['url']):
             vd['url'] = '/api/muro_video/%d' % vd['id']
-        out.append({**dict(r), 'fotos': fotos, 'video': vd})
+        out.append({**dict(r), 'foto': '/api/avatar/%d' % r['user_id'],
+                    'fotos': ['/api/muro_foto/%d' % i for i in ids], 'video': vd})
     return jsonify({'muro': out})
 
 
@@ -5975,9 +6057,12 @@ def api_eventos():
     for r in filas:
         asisten = db.execute('SELECT COUNT(*) AS n FROM evento_asistencias WHERE evento_id=?', (r['id'],)).fetchone()['n']
         voy = db.execute('SELECT 1 FROM evento_asistencias WHERE evento_id=? AND user_id=?', (r['id'], u['id'])).fetchone()
-        fotos = [f['data'] for f in db.execute(
-            'SELECT data FROM evento_fotos WHERE evento_id=? ORDER BY id', (r['id'],)).fetchall()]
-        out.append({**dict(r), 'asisten_conf': asisten, 'voy': 1 if voy else 0, 'fotos': fotos})
+        # Ids, no data-URLs: el listado de eventos era todavia mas grande que
+        # el muro (sin LIMIT de eventos) y aca solo se pide lo que se mira.
+        fotos = [f['id'] for f in db.execute(
+            'SELECT id FROM evento_fotos WHERE evento_id=? ORDER BY id', (r['id'],)).fetchall()]
+        out.append({**dict(r), 'asisten_conf': asisten, 'voy': 1 if voy else 0,
+                    'fotos': ['/api/evento_foto/%d' % i for i in fotos]})
     return jsonify({'eventos': out})
 
 
@@ -7128,10 +7213,12 @@ def _after_req(resp):
                 resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
             else:
                 resp.headers['Cache-Control'] = 'public, max-age=86400'
-        elif path.startswith('/api/video/') or path.startswith('/api/muro_video/'):
+        elif path.startswith('/api/video/') or path.startswith('/api/muro_video/') \
+                or path.startswith('/api/muro_foto/') or path.startswith('/api/evento_foto/') \
+                or path.startswith('/api/avatar/') or path.startswith('/api/chat_adjunto/'):
             # Media: el navegador del alumno puede cachear (repetir una tecnica no
             # debe re-bajar 10MB cada vez), pero 'private' para que ningun proxy
-            # compartido guarde videos que son de otra categoria/cinturon.
+            # compartido guarde videos que no le corresponden a esa categoria/cinturon.
             resp.headers['Cache-Control'] = 'private, max-age=3600'
         else:
             resp.headers.setdefault('Cache-Control', 'no-store, max-age=0')

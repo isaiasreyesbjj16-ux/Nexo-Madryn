@@ -3973,13 +3973,25 @@ async function abrirChatId(cid) {
 }
 
 async function actualizarChatMsgs() {
-  const d = await api('/api/chats/' + CHAT_ACTIVO + '/mensajes').catch(() => null);
+  // El servidor devuelve solo los mensajes posteriores a CHAT_LAST_MSG: bajar
+  // los 200 cada 5 segundos significaba releer todos los adjuntos (hasta 25 MB
+  // c/u) de la base aunque no hubiera nada nuevo.
+  const incremental = CHAT_LAST_MSG > 0;
+  const url = '/api/chats/' + CHAT_ACTIVO + '/mensajes'
+    + (incremental ? '?desde=' + CHAT_LAST_MSG : '');
+  const d = await api(url).catch(() => null);
   if (!d || !$('#chatMsgs')) return;
   const box = $('#chatMsgs');
   const msgs = d.mensajes || [];
-  const nuevoUltimo = msgs.length ? msgs[msgs.length - 1].id : 0;
-  if (nuevoUltimo === CHAT_LAST_MSG) return; // sin cambios: no re-crear (evita cortar videos)
-  CHAT_LAST_MSG = nuevoUltimo;
+  if (incremental) {
+    if (!msgs.length) return; // sin cambios: no re-crear (evita cortar videos)
+    const eraAbajo = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+    CHAT_LAST_MSG = msgs[msgs.length - 1].id;
+    box.insertAdjacentHTML('beforeend', msgs.map(m => chatMsgHTML(m)).join(''));
+    if (eraAbajo) box.scrollTop = box.scrollHeight;
+    return;
+  }
+  CHAT_LAST_MSG = msgs.length ? msgs[msgs.length - 1].id : 0;
   const eraAbajo = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
   box.innerHTML = msgs.map(m => chatMsgHTML(m)).join('') || '<div class="empty">Decí hola 👋</div>';
   if (eraAbajo) box.scrollTop = box.scrollHeight;
@@ -3988,7 +4000,7 @@ async function actualizarChatMsgs() {
 function chatMsgHTML(m) {
   const adj = m.adjunto ? (m.adjunto_tipo === 'video'
     ? `<video controls playsinline preload="metadata" style="max-width:100%;max-height:260px;border-radius:10px;margin-top:6px;display:block"><source src="${esc(m.adjunto)}"></video>`
-    : `<img src="${esc(m.adjunto)}" style="max-width:100%;max-height:260px;border-radius:10px;margin-top:6px;display:block;cursor:pointer" onclick="abrirAdjunto(this.src)">`) : '';
+    : `<img loading="lazy" decoding="async" src="${esc(m.adjunto)}" style="max-width:100%;max-height:260px;border-radius:10px;margin-top:6px;display:block;cursor:pointer" onclick="abrirAdjunto(this.src, 'imagen')">`) : '';
   const texto = m.mensaje ? `<div class="chat-bubble">${esc(m.mensaje)}</div>` : '';
   return `<div class="chat-msg ${m.user_id === USER.id ? 'own' : ''}">
       ${texto}
@@ -3997,11 +4009,11 @@ function chatMsgHTML(m) {
     </div>`;
 }
 
-function abrirAdjunto(src) {
-  const isImg = src.indexOf('data:image/') === 0;
-  openModal(isImg
-    ? `<img src="${src}" style="width:100%;border-radius:10px">`
-    : `<video src="${src}" controls autoplay style="width:100%;border-radius:10px"></video>`);
+function abrirAdjunto(src, tipo) {
+  const esImagen = tipo === 'imagen' || src.indexOf('data:image/') === 0;
+  openModal(esImagen
+    ? `<img src="${esc(src)}" style="width:100%;border-radius:10px">`
+    : `<video src="${esc(src)}" controls autoplay style="width:100%;border-radius:10px"></video>`);
 }
 
 async function enviarChat() {

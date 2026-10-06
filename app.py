@@ -4399,6 +4399,14 @@ def _aviso_profesor(aviso):
         return None
 
 
+# Columnas de avisos_pago que NO son el comprobante. El comprobante es un
+# data-URL de hasta 12 MB: leerlo de mas cuesta egress de la base por cada
+# confirmacion, borrado o webhook. El archivo se pide solo en
+# /api/avisos_pago/<id>/comprobante.
+_AVISO_COLS = ('id, alumno_id, monto, mes, anio, nota, estado, fecha, '
+               'confirmado_por, confirmado_fecha, profesor_id')
+
+
 def _acreditar_aviso(db, aviso, monto_base, quien_id=None, aplicar_cargo=None):
     """Registra el pago de un aviso de pago y lo deja confirmado.
 
@@ -4510,7 +4518,8 @@ def api_avisar_pago():
                         'msg': 'Comprobante enviado. La cuota ya venció, así que el '
                                'profe/admin tiene que revisarlo antes de acreditarlo.'})
 
-    aviso = db.execute('SELECT * FROM avisos_pago WHERE id=?', (aviso_id,)).fetchone()
+    aviso = db.execute('SELECT %s FROM avisos_pago WHERE id=?' % _AVISO_COLS,
+                       (aviso_id,)).fetchone()
     base, cargo, final, pago_id, partes = _acreditar_aviso(db, aviso, monto)
     db.commit()
     notify(u['id'], 'Pago acreditado ✓',
@@ -4585,7 +4594,7 @@ def api_aviso_comprobante(aid):
 @role_required('admin', 'profesor')
 def api_avisos_confirmar(aid):
     db = get_db()
-    a = db.execute('SELECT * FROM avisos_pago WHERE id=?', (aid,)).fetchone()
+    a = db.execute('SELECT %s FROM avisos_pago WHERE id=?' % _AVISO_COLS, (aid,)).fetchone()
     if not a:
         return jsonify({'error': 'Aviso no encontrado'}), 404
     if a['estado'] == 'confirmado':
@@ -4600,7 +4609,7 @@ def api_avisos_confirmar(aid):
                 "SELECT id FROM users WHERE id=? AND role='profesor'", (pid,)).fetchone():
             return jsonify({'error': 'Ese profesor no existe'}), 400
         db.execute('UPDATE avisos_pago SET profesor_id=? WHERE id=?', (pid, aid))
-        a = db.execute('SELECT * FROM avisos_pago WHERE id=?', (aid,)).fetchone()
+        a = db.execute('SELECT %s FROM avisos_pago WHERE id=?' % _AVISO_COLS, (aid,)).fetchone()
     # El admin puede ajustar el monto real (ej: pagó con el valor de la cuota
     # anterior) y decidir si se suma el aumento/recargo por demora (por defecto
     # se suma como antes; se desactiva si el alumno pagó antes del vencimiento).
@@ -4626,7 +4635,7 @@ def api_avisos_confirmar(aid):
 @app.route('/api/avisos_pago/<int:aid>', methods=['DELETE'])
 @role_required('admin')
 def api_avisos_delete(aid):
-    a = get_db().execute('SELECT * FROM avisos_pago WHERE id=?', (aid,)).fetchone()
+    a = get_db().execute('SELECT %s FROM avisos_pago WHERE id=?' % _AVISO_COLS, (aid,)).fetchone()
     if not a:
         return jsonify({'error': 'Aviso no encontrado'}), 404
     get_db().execute('DELETE FROM avisos_pago WHERE id=?', (aid,))
@@ -5173,7 +5182,8 @@ def api_video_archivo(vid):
 def api_videos_view(vid):
     u = current_user()
     db = get_db()
-    v = db.execute('SELECT * FROM videos WHERE id=?', (vid,)).fetchone()
+    v = db.execute('SELECT belt, tipo, subido_por, titulo FROM videos WHERE id=?',
+                   (vid,)).fetchone()
     if not v:
         return jsonify({'error': 'Video no encontrado'}), 404
     if u['role'] == 'alumno' and v['belt'] != 'Todos' and v['belt'] != u['cinturon']:
@@ -5210,7 +5220,7 @@ def api_videos_views(vid):
 def api_videos_delete(vid):
     u = current_user()
     db = get_db()
-    v = db.execute('SELECT * FROM videos WHERE id=?', (vid,)).fetchone()
+    v = db.execute('SELECT subido_por, url FROM videos WHERE id=?', (vid,)).fetchone()
     if not v:
         return jsonify({'error': 'Video no encontrado'}), 404
     if u['role'] != 'admin' and v['subido_por'] != u['id']:
@@ -5589,7 +5599,9 @@ def api_video_progress(vid):
     if dur <= 0 and seg > 0:
         dur = seg
     db = get_db()
-    v = db.execute('SELECT * FROM videos WHERE id=?', (vid,)).fetchone()
+    # Nunca SELECT * aca: la columna `data` pesa hasta ~67 MB y este endpoint se
+    # llama cada 5 s desde ontimeupdate. Solo hace falta saber quien lo subio.
+    v = db.execute('SELECT subido_por, titulo FROM videos WHERE id=?', (vid,)).fetchone()
     if not v:
         return jsonify({'error': 'Video no encontrado'}), 404
     completado = 1 if (dur > 0 and seg >= dur * 0.95 and watched >= dur * 0.8) else 0
@@ -6161,7 +6173,8 @@ def api_mp_webhook():
                 'VALUES(?,?,?,?,?,?,?,?)',
                 (alumno_id, monto, hoy.month, hoy.year, nota, None, 'pendiente', now))
             aviso_id = cur.lastrowid
-            aviso = db.execute('SELECT * FROM avisos_pago WHERE id=?', (aviso_id,)).fetchone()
+            aviso = db.execute('SELECT %s FROM avisos_pago WHERE id=?' % _AVISO_COLS,
+                               (aviso_id,)).fetchone()
             # La firma de MercadoPago ya valido que la plata entro, asi que el
             # pago se acredita solo. Antes quedaba esperando que alguien lo
             # confirmara a mano y era el paso que mas se atrasaba.

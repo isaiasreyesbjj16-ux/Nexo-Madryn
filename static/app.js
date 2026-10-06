@@ -672,7 +672,7 @@ function urlBase64ToUint8Array(base64) {
 function avatarHTML(foto, nombre, size) {
   const initial = esc((nombre || '?')[0].toUpperCase());
   const cls = 'avatar ' + (size || '');
-  return `<span class="${cls}">${foto ? `<img src="${esc(foto)}" onerror="this.parentNode.innerHTML='${initial}'">` : initial}</span>`;
+  return `<span class="${cls}">${foto ? `<img loading="lazy" decoding="async" src="${esc(foto)}" onerror="this.parentNode.innerHTML='${initial}'">` : initial}</span>`;
 }
 
 function setupFoto() {

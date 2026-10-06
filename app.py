@@ -852,6 +852,9 @@ if not _logging.getLogger().handlers:
 
 
 def init_db():
+    # Si una migracion agrega o quita columnas, el cache de columnas de users
+    # quedo desactualizado; se recalcula en el proximo request.
+    _cols_de_users.clear()
     if DB_MODE == 'postgres':
         db = dbadapter.connect_postgres()
     elif DB_MODE == 'mysql':
@@ -1355,9 +1358,10 @@ def aviso_cuotas_automatico():
         if hoy.day < due_day:
             return 0
         deudores = get_db().execute(
-            """SELECT u.* FROM users u WHERE u.role IN ('alumno','profesor') AND u.activo=1
-               AND u.cuota_mensual IS NOT NULL AND (u.beca IS NULL OR u.beca=0)
-               AND NOT EXISTS (SELECT 1 FROM pagos p WHERE p.alumno_id=u.id AND p.mes=? AND p.anio=?)""",
+            ("SELECT %s FROM users u WHERE u.role IN ('alumno','profesor') AND u.activo=1"
+             " AND u.cuota_mensual IS NOT NULL AND (u.beca IS NULL OR u.beca=0)"
+             " AND NOT EXISTS (SELECT 1 FROM pagos p WHERE p.alumno_id=u.id AND p.mes=? AND p.anio=?)"
+             % columnas_de_users('u.')),
             (hoy.month, hoy.year)).fetchall()
         enviados = 0
         for d in deudores:
@@ -1490,10 +1494,34 @@ def _ya_logro(user_id, tipo, valor):
 # Utilidades de sesion / auth
 # ---------------------------------------------------------------------------
 
+# Columnas binarias de users: foto de perfil y firmas de TyC/autorizacion, que
+# se guardan como data-URL (el canvas se sube entero como PNG). Son decenas de
+# KB por fila y SELECT * las traia en cada request autenticado y en cada
+# listado: ese era el otro foco del agotamiento del egress de Neon.
+_BLOBS_DE_USERS = ('foto', 'firma_tyc', 'firma_foto')
+_cols_de_users = []
+
+
+def columnas_de_users(pref=''):
+    """Columnas de users sin los blobs, con prefijo opcional ('u.' o '')."""
+    if not _cols_de_users:
+        desc = get_db().execute('SELECT * FROM users LIMIT 0').description
+        _cols_de_users.append([_nombre_columna(c) for c in desc])
+    return ','.join(pref + c for c in _cols_de_users[0] if c not in _BLOBS_DE_USERS)
+
+
+def _nombre_columna(c):
+    # sqlite3 devuelve tuplas, psycopg3 Column con .name.
+    n = getattr(c, 'name', None)
+    return n if isinstance(n, str) else c[0]
+
+
 def current_user():
     if 'user_id' not in session:
         return None
-    return get_db().execute('SELECT * FROM users WHERE id=?', (session['user_id'],)).fetchone()
+    return get_db().execute(
+        'SELECT %s FROM users WHERE id=?' % columnas_de_users(),
+        (session['user_id'],)).fetchone()
 
 
 def login_required(f):
@@ -1682,7 +1710,8 @@ def user_public(u):
         'bjj_categoria': (u['bjj_categoria'] or '') if 'bjj_categoria' in u.keys() else '',
         'actividades': (u['actividades'] or '') if 'actividades' in u.keys() else '',
         'cuota_mensual': u['cuota_mensual'],
-        'foto': u['foto'] if 'foto' in u.keys() else None,
+        'foto': (u['foto'] if ('foto' in u.keys() and u['foto'])
+                 else '/api/avatar/%s' % u['id']),
         'tel': u['tel'] if 'tel' in u.keys() else None,
         'nacimiento': u['nacimiento'] if 'nacimiento' in u.keys() else None,
         'medic_info': u['medic_info'] if 'medic_info' in u.keys() else None,
@@ -1945,7 +1974,8 @@ def run_auto_mensajes():
     inact_dias = to_int(get_setting('auto_inact_dias', '15')) or 15
     deuda_dias = to_int(get_setting('auto_deuda_dias', '30')) or 30
     alumnos = get_db().execute(
-        "SELECT * FROM users WHERE role IN ('alumno','profesor') AND activo=1").fetchall()
+        "SELECT %s FROM users WHERE role IN ('alumno','profesor') AND activo=1"
+        % columnas_de_users()).fetchall()
     enviados = []
     for a in alumnos:
         if en_pausa(a):
@@ -2824,7 +2854,7 @@ def api_torneos():
         por_id = {t['id']: t for t in trs}
         for i in db.execute(
                 'SELECT i.id, i.torneo_id, i.alumno_id, i.categoria, i.medalla, i.nota,'
-                '       u.nombre, u.cinturon, u.foto'
+                '       u.nombre, u.cinturon'
                 ' FROM torneo_inscripciones i JOIN users u ON u.id = i.alumno_id'
                 ' ORDER BY i.id').fetchall():
             if i['torneo_id'] not in por_id:
@@ -2832,7 +2862,8 @@ def api_torneos():
             por_id[i['torneo_id']]['inscripciones'].append({
                 'id': i['id'], 'alumno_id': i['alumno_id'],
                 'nombre': i['nombre'] or '',
-                'cinturon': i['cinturon'] or '', 'foto': i['foto'],
+                'cinturon': i['cinturon'] or '',
+                'foto': '/api/avatar/%d' % i['alumno_id'],
                 'categoria': i['categoria'] or '',
                 'medalla': i['medalla'] or '', 'nota': i['nota'] or '',
             })
@@ -2998,7 +3029,7 @@ def api_torneos_ranking():
         asegurar_torneos()
         filas = get_db().execute(
             'SELECT * FROM ('
-            '  SELECT u.id, u.nombre, u.cinturon, u.foto,'
+            '  SELECT u.id, u.nombre, u.cinturon,'
             '         COUNT(DISTINCT i.torneo_id) AS n_torneos,'
             "         SUM(CASE WHEN i.medalla='oro' THEN 1 ELSE 0 END) AS n_oro,"
             "         SUM(CASE WHEN i.medalla='plata' THEN 1 ELSE 0 END) AS n_plata,"
@@ -3007,7 +3038,7 @@ def api_torneos_ranking():
             '  JOIN torneos t ON t.id = i.torneo_id'
             '  JOIN users u ON u.id = i.alumno_id'
             "  WHERE u.role IN ('alumno','profesor') AND t.fecha IS NOT NULL AND t.fecha <> ''"
-            '  GROUP BY u.id, u.nombre, u.cinturon, u.foto'
+            '  GROUP BY u.id, u.nombre, u.cinturon'
             ') r'
             ' ORDER BY r.n_torneos DESC, (r.n_oro + r.n_plata + r.n_bronce) DESC,'
             '          r.n_oro DESC, r.n_plata DESC, r.nombre ASC').fetchall()
@@ -3019,7 +3050,7 @@ def api_torneos_ranking():
         out.append({
             'alumno_id': f['id'],
             'nombre': f['nombre'] or '',
-            'cinturon': f['cinturon'] or '', 'foto': f['foto'],
+            'cinturon': f['cinturon'] or '', 'foto': '/api/avatar/%d' % f['id'],
             'torneos': f['n_torneos'] or 0,
             'oro': oro, 'plata': plata, 'bronce': bronce,
             'medallas': oro + plata + bronce,
@@ -3037,10 +3068,11 @@ def api_torneos_ranking():
 def api_alumnos():
     db = get_db()
     rows = db.execute(
-        """SELECT u.*,
-            (SELECT COUNT(*) FROM asistencia a WHERE a.alumno_id=u.id AND a.presente=1) AS asistencias,
-            (SELECT COUNT(*) FROM pagos p WHERE p.alumno_id=u.id) AS pagos_totales
-           FROM users u WHERE u.role IN ('alumno','profesor') ORDER BY u.nombre""").fetchall()
+        "SELECT %s,"
+        "  (SELECT COUNT(*) FROM asistencia a WHERE a.alumno_id=u.id AND a.presente=1) AS asistencias,"
+        "  (SELECT COUNT(*) FROM pagos p WHERE p.alumno_id=u.id) AS pagos_totales"
+        " FROM users u WHERE u.role IN ('alumno','profesor') ORDER BY u.nombre"
+        % columnas_de_users('u.')).fetchall()
     # mapa alumno -> familia (nombre, titular, relacion) y conteo de miembros
     fam_map = {}
     fam_count = {}
@@ -3247,9 +3279,10 @@ def api_alumnos_cuota(uid):
 @role_required('admin', 'profesor')
 def api_profesores():
     rows = get_db().execute(
-        """SELECT u.*,
-            (SELECT COUNT(*) FROM classes c WHERE c.profesor_id=u.id) AS clases
-           FROM users u WHERE u.role='profesor' ORDER BY u.nombre""").fetchall()
+        "SELECT %s,"
+        "  (SELECT COUNT(*) FROM classes c WHERE c.profesor_id=u.id) AS clases"
+        " FROM users u WHERE u.role='profesor' ORDER BY u.nombre"
+        % columnas_de_users('u.')).fetchall()
     return jsonify({'profesores': [dict(user_public(r), **{'clases': r['clases']}) for r in rows]})
 
 
@@ -3464,12 +3497,13 @@ def api_familias():
     familias = []
     for f in rows:
         miem = db.execute(
-            """SELECT u.*, fm.relacion,
-                      (CASE WHEN f.titular_id=u.id THEN 1 ELSE 0 END) AS es_titular
-               FROM familia_miembros fm
-               JOIN users u ON u.id=fm.user_id
-               JOIN familias f ON f.id=fm.familia_id
-               WHERE fm.familia_id=? ORDER BY es_titular DESC, u.nombre""",
+            "SELECT %s, fm.relacion,"
+            "  (CASE WHEN f.titular_id=u.id THEN 1 ELSE 0 END) AS es_titular"
+            " FROM familia_miembros fm"
+            " JOIN users u ON u.id=fm.user_id"
+            " JOIN familias f ON f.id=fm.familia_id"
+            " WHERE fm.familia_id=? ORDER BY es_titular DESC, u.nombre"
+            % columnas_de_users('u.'),
             (f['id'],)).fetchall()
         lista = []
         total = 0
@@ -3477,7 +3511,7 @@ def api_familias():
             base, desc, final = familia_cuota(dict(m), len(miem))
             total += final
             lista.append({'id': m['id'], 'nombre': m['nombre'], 'cinturon': m['cinturon'],
-                          'foto': m['foto'], 'relacion': m['relacion'],
+                          'foto': '/api/avatar/%d' % m['id'], 'relacion': m['relacion'],
                           'es_titular': bool(m['es_titular']), 'cuota': base,
                           'descuento': desc, 'cuota_final': final})
         familias.append({'id': f['id'], 'nombre': f['nombre'], 'titular_id': f['titular_id'],
@@ -3587,17 +3621,18 @@ def api_mi_familia():
     if not fam_id:
         return jsonify({'familia': None, 'descuento': 0, 'escala': _escala_descuento()})
     miem = db.execute(
-        """SELECT u.*, fm.relacion,
-                  (CASE WHEN f.titular_id=u.id THEN 1 ELSE 0 END) AS es_titular
-           FROM familia_miembros fm
-           JOIN users u ON u.id=fm.user_id
-           JOIN familias f ON f.id=fm.familia_id
-           WHERE fm.familia_id=? ORDER BY es_titular DESC, u.nombre""", (fam_id,)).fetchall()
+        "SELECT %s, fm.relacion,"
+        "  (CASE WHEN f.titular_id=u.id THEN 1 ELSE 0 END) AS es_titular"
+        " FROM familia_miembros fm"
+        " JOIN users u ON u.id=fm.user_id"
+        " JOIN familias f ON f.id=fm.familia_id"
+        " WHERE fm.familia_id=? ORDER BY es_titular DESC, u.nombre"
+        % columnas_de_users('u.'), (fam_id,)).fetchall()
     lista = []
     for m in miem:
         base, desc, final = familia_cuota(dict(m), len(miem))
         lista.append({'id': m['id'], 'nombre': m['nombre'], 'cinturon': m['cinturon'],
-                      'foto': m['foto'], 'relacion': m['relacion'],
+                      'foto': '/api/avatar/%d' % m['id'], 'relacion': m['relacion'],
                       'es_titular': bool(m['es_titular']), 'cuota': base,
                       'descuento': desc, 'cuota_final': final})
     descto = _descuento_familiar_pct(len(miem))
@@ -3799,10 +3834,16 @@ def api_familia_hijo_quitar(uid):
 @login_required
 def api_diario():
     rows = get_db().execute(
-        """SELECT d.*, u.nombre AS autor_nombre, u.foto AS autor_foto
-           FROM diario d JOIN users u ON u.id=d.user_id
-           ORDER BY d.fecha DESC, d.id DESC LIMIT 120""").fetchall()
-    return jsonify({'diario': [dict(r) for r in rows],
+        "SELECT d.*, u.nombre AS autor_nombre, u.id AS autor_id"
+        " FROM diario d JOIN users u ON u.id=d.user_id"
+        " ORDER BY d.fecha DESC, d.id DESC LIMIT 120").fetchall()
+    out = []
+    for r in rows:
+        e = dict(r)
+        # El avatar del autor no viaja en cada entrada: son hasta 120 blobs.
+        e['autor_foto'] = '/api/avatar/%d' % e['autor_id']
+        out.append(e)
+    return jsonify({'diario': out,
                     'hoy': _hoy_academy().strftime('%Y-%m-%d')})
 
 
@@ -3968,13 +4009,14 @@ def api_pagos_familia():
     if not fam:
         return jsonify({'error': 'Ese alumno no es titular de ningún grupo familiar'}), 404
     miem = db.execute(
-        """SELECT u.*, fm.relacion,
-                  (CASE WHEN f.titular_id=u.id THEN 1 ELSE 0 END) AS es_titular
-           FROM familia_miembros fm
-           JOIN users u ON u.id=fm.user_id
-           JOIN familias f ON f.id=fm.familia_id
-           WHERE fm.familia_id=?
-           ORDER BY es_titular DESC, u.nombre""", (fam['id'],)).fetchall()
+        "SELECT %s, fm.relacion,"
+        "  (CASE WHEN f.titular_id=u.id THEN 1 ELSE 0 END) AS es_titular"
+        " FROM familia_miembros fm"
+        " JOIN users u ON u.id=fm.user_id"
+        " JOIN familias f ON f.id=fm.familia_id"
+        " WHERE fm.familia_id=?"
+        " ORDER BY es_titular DESC, u.nombre" % columnas_de_users('u.'),
+        (fam['id'],)).fetchall()
     if not miem:
         return jsonify({'error': 'El grupo no tiene integrantes'}), 404
     if profesor_id == -1 or profesor_id is None:
@@ -4040,7 +4082,8 @@ def api_pagos_delete(pid):
 @role_required('admin', 'profesor')
 def api_deudores():
     rows = get_db().execute(
-        "SELECT * FROM users WHERE role IN ('alumno','profesor') AND activo=1 AND cuota_mensual IS NOT NULL ORDER BY nombre").fetchall()
+        "SELECT %s FROM users WHERE role IN ('alumno','profesor') AND activo=1 AND cuota_mensual IS NOT NULL ORDER BY nombre"
+        % columnas_de_users()).fetchall()
     hoy = _hoy_academy()
     pagos_mes = _pagos_del_mes(hoy.month, hoy.year)
     deudores = []
@@ -4071,7 +4114,9 @@ def api_notify_deuda():
     if alumno_id:
         ids = [alumno_id]
     else:
-        rows = get_db().execute("SELECT * FROM users WHERE role IN ('alumno','profesor') AND activo=1 AND cuota_mensual IS NOT NULL").fetchall()
+        rows = get_db().execute(
+            "SELECT %s FROM users WHERE role IN ('alumno','profesor') AND activo=1 AND cuota_mensual IS NOT NULL"
+            % columnas_de_users()).fetchall()
         ids = [r['id'] for r in rows if not en_pausa(r) and cuota_status(r, pagos_mes)['estado'] in ('deuda', 'por_vencer')]
     who = current_user()['nombre']
     enviados = 0
@@ -4159,7 +4204,8 @@ def api_asistencia_por_dia():
     for r in rows:
         por_clase.setdefault(r['clase_id'], []).append(r['alumno_id'])
     alumnos = {r['id']: r for r in db.execute(
-        "SELECT * FROM users WHERE role IN ('alumno','profesor') AND activo=1").fetchall()}
+        "SELECT %s FROM users WHERE role IN ('alumno','profesor') AND activo=1"
+        % columnas_de_users()).fetchall()}
     res = []
     for c in clases:
         ids = por_clase.get(c['id'], [])
@@ -4254,10 +4300,11 @@ def api_estadisticas_asistencia():
     meses = _ultimos_meses()
     db = get_db()
     rows = db.execute(
-        """SELECT u.*,
-            (SELECT COUNT(*) FROM asistencia a WHERE a.alumno_id=u.id AND a.presente=1) AS total_asist
-           FROM users u WHERE u.role IN ('alumno','profesor') AND u.activo=1
-           ORDER BY total_asist DESC LIMIT 40""").fetchall()
+        "SELECT %s,"
+        "  (SELECT COUNT(*) FROM asistencia a WHERE a.alumno_id=u.id AND a.presente=1) AS total_asist"
+        " FROM users u WHERE u.role IN ('alumno','profesor') AND u.activo=1"
+        " ORDER BY total_asist DESC LIMIT 40"
+        % columnas_de_users('u.')).fetchall()
     alumnos = []
     for r in rows:
         serie = _serie_asistencia(r['id'], meses)
@@ -5456,7 +5503,7 @@ def api_chats():
                           'miembros': miembros})
         else:
             otro = db.execute(
-                'SELECT u.id, u.nombre, u.foto FROM users u JOIN chat_members m ON m.user_id=u.id '
+                'SELECT u.id, u.nombre FROM users u JOIN chat_members m ON m.user_id=u.id '
                 'WHERE m.chat_id=? AND u.id<>?', (c['id'], u['id'])).fetchone()
             chats.append({'id': c['id'], 'nombre': (otro['nombre'] if otro else 'Chat'),
                           'tipo': c['tipo']})
@@ -5607,13 +5654,13 @@ def api_contactos():
     u = current_user()
     if u['role'] == 'alumno':
         rows = get_db().execute(
-            "SELECT id, nombre, cinturon, foto FROM users WHERE activo=1 AND id<>? AND role IN ('admin','profesor')",
+            "SELECT id, nombre, cinturon FROM users WHERE activo=1 AND id<>? AND role IN ('admin','profesor')",
             (u['id'],)).fetchall()
     else:
         rows = get_db().execute(
-            "SELECT id, nombre, cinturon, categoria, foto FROM users WHERE activo=1 AND id<>? AND role IN ('alumno','profesor')",
+            "SELECT id, nombre, cinturon, categoria FROM users WHERE activo=1 AND id<>? AND role IN ('alumno','profesor')",
             (u['id'],)).fetchall()
-    return jsonify({'contactos': [dict(r) for r in rows]})
+    return jsonify({'contactos': [dict(r, foto='/api/avatar/%d' % r['id']) for r in rows]})
 
 
 # ---------------------------------------------------------------------------
@@ -5747,12 +5794,14 @@ def api_ranking():
     vmap = {v['uid']: v['n'] for v in vids}
     cmap = {c['uid']: c['n'] for c in comp}
     filas = db.execute(
-        "SELECT id, nombre, cinturon, categoria, foto FROM users WHERE activo=1 AND role IN ('alumno','profesor')").fetchall()
+        "SELECT id, nombre, cinturon, categoria FROM users"
+        " WHERE activo=1 AND role IN ('alumno','profesor')").fetchall()
     lista = []
     for r in filas:
         punt = (nmap.get(r['id'], 0) * 2) + (cmap.get(r['id'], 0) * 5) + (vmap.get(r['id'], 0) * 1)
         lista.append({'id': r['id'], 'nombre': r['nombre'], 'cinturon': r['cinturon'],
-                      'categoria': r['categoria'], 'asistencias': nmap.get(r['id'], 0),
+                      'categoria': r['categoria'], 'foto': '/api/avatar/%d' % r['id'],
+                      'asistencias': nmap.get(r['id'], 0),
                       'videos': vmap.get(r['id'], 0), 'completados': cmap.get(r['id'], 0), 'puntos': punt})
     lista.sort(key=lambda x: x['puntos'], reverse=True)
     return jsonify({'ranking': lista})
@@ -6693,10 +6742,11 @@ def qr_print_png():
 @role_required('admin', 'profesor')
 def api_exportar_alumnos():
     rows = get_db().execute(
-        """SELECT u.*,
-            (SELECT COUNT(*) FROM asistencia a WHERE a.alumno_id=u.id AND a.presente=1) AS asistencias,
-            (SELECT COUNT(*) FROM pagos p WHERE p.alumno_id=u.id) AS pagos_totales
-           FROM users u WHERE u.role IN ('alumno','profesor') AND u.activo=1 ORDER BY u.nombre""").fetchall()
+        "SELECT %s,"
+        "  (SELECT COUNT(*) FROM asistencia a WHERE a.alumno_id=u.id AND a.presente=1) AS asistencias,"
+        "  (SELECT COUNT(*) FROM pagos p WHERE p.alumno_id=u.id) AS pagos_totales"
+        " FROM users u WHERE u.role IN ('alumno','profesor') AND u.activo=1 ORDER BY u.nombre"
+        % columnas_de_users('u.')).fetchall()
 
     # --- datos para las columnas nuevas del export ---
     # Quien pago: el titular de la familia. A quien: el propio alumno.

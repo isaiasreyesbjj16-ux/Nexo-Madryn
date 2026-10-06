@@ -462,7 +462,11 @@ CREATE TABLE IF NOT EXISTS avisos_pago (
     estado TEXT DEFAULT 'pendiente',
     fecha TEXT,
     confirmado_por INTEGER,
-    confirmado_fecha TEXT
+    confirmado_fecha TEXT,
+    -- Profesor elegido por el alumno al mandar el comprobante (NULL = repartir
+    -- entre los que dan sus actividades). Va al final para que el ALTER de las
+    -- bases viejas agregue la misma columna en la misma posicion.
+    profesor_id INTEGER
 );
 
 -- Reparto 60/30/10: por cada pago de un alumno, una fila por profesor con el
@@ -977,6 +981,8 @@ def _migrar_columnas(c):
         c.execute('ALTER TABLE eventos ADD COLUMN recordado INTEGER DEFAULT 0')
     if 'comprobante' not in _columnas_de(c, 'avisos_pago'):
         c.execute('ALTER TABLE avisos_pago ADD COLUMN comprobante TEXT')
+    if 'profesor_id' not in _columnas_de(c, 'avisos_pago'):
+        c.execute('ALTER TABLE avisos_pago ADD COLUMN profesor_id INTEGER')
     v_cols = _columnas_de(c, 'videos')
     if 'data' not in v_cols:
         c.execute('ALTER TABLE videos ADD COLUMN data TEXT')
@@ -2087,13 +2093,23 @@ def _reparto_por_actividades(alumno_id, monto, profesor_manual_id=None):
     """Divide monto entre los profes que dan las actividades del alumno.
 
     Recibe YA la parte que le toca a los profes (el 60% de la cuota, ver
-    _registrar_reparto). El alumno entrena Gi+NoGi y cada actividad la da un
-    profe distinto => 50/50 de esos 60%. Si un solo prof da todas sus
-    actividades, se lleva ese 60% entero. Si no hay prof que den alguna
-    actividad, cae al profe elegido a mano (o queda sin reparto).
-    Devuelve [(profesor_id, montoParte, actividad_csv)].
+    _registrar_reparto).
+
+    Si el pago trae un profesor elegido a mano (profesor_manual_id), ese se
+    lleva el 60% entero, aunque el alumno entrene con varios: quien elige a
+    mano manda, ya sea el alumno al subir el comprobante o el staff al
+    registrar el cobro. Recién sin eleccion se reparte en partes iguales entre
+    los que dan sus actividades: Gi+NoGi con dos prof distintos => 50/50 de
+    esos 60%. Si no hay profe que den alguna actividad y tampoco hay eleccion,
+    queda sin reparto.
+    Devuelve [(profesor_id, montoParte, actividad_csv, nombre)].
     """
     db = get_db()
+    if profesor_manual_id:
+        prof = db.execute("SELECT nombre FROM users WHERE id=? AND role='profesor'",
+                          (profesor_manual_id,)).fetchone()
+        if prof:
+            return [(profesor_manual_id, round(monto, 2), '', prof['nombre'])]
     alumno = db.execute('SELECT actividades FROM users WHERE id=?', (alumno_id,)).fetchone()
     acts_alumno = {a.strip() for a in ((alumno['actividades'] or '') if alumno else '').split(',') if a.strip()}
     if acts_alumno:
@@ -2115,10 +2131,6 @@ def _reparto_por_actividades(alumno_id, monto, profesor_manual_id=None):
                 parte = round(monto - base * (n - 1), 2) if i == n - 1 else base
                 partes.append((pid, parte, act, nombre))
             return partes
-    # fallback: profe elegido a mano al 100%
-    if profesor_manual_id:
-        prof = db.execute('SELECT nombre FROM users WHERE id=?', (profesor_manual_id,)).fetchone()
-        return [(profesor_manual_id, round(monto, 2), '', prof['nombre'] if prof else '')]
     return []
 
 
@@ -3215,6 +3227,21 @@ def api_profesores():
             (SELECT COUNT(*) FROM classes c WHERE c.profesor_id=u.id) AS clases
            FROM users u WHERE u.role='profesor' ORDER BY u.nombre""").fetchall()
     return jsonify({'profesores': [dict(user_public(r), **{'clases': r['clases']}) for r in rows]})
+
+
+@app.route('/api/profesores_disponibles')
+@login_required
+def api_profesores_disponibles():
+    """Lista mínima id+nombre para que el alumno elija a quién le está pagando.
+
+    /api/profesores es de staff (devuelve la cuota y los datos del profe), así
+    que no se abre a los alumnos: esto alcanza para armar el selector del
+    comprobante.
+    """
+    rows = get_db().execute(
+        "SELECT id, nombre FROM users WHERE role='profesor' AND activo=1 ORDER BY nombre"
+    ).fetchall()
+    return jsonify({'profesores': [dict(r) for r in rows]})
 
 
 @app.route('/api/profesores', methods=['POST'])
@@ -4315,33 +4342,54 @@ def api_mis_pagos():
            LEFT JOIN users pr ON pr.id=p.profesor_id
            WHERE p.alumno_id=? ORDER BY p.id DESC LIMIT 100""", (u['id'],)).fetchall()
     aviso = get_db().execute(
-        "SELECT id, mes, anio, monto, nota, estado, fecha FROM avisos_pago "
-        "WHERE alumno_id=? AND estado='pendiente' ORDER BY id DESC LIMIT 1",
+        """SELECT a.id, a.mes, a.anio, a.monto, a.nota, a.estado, a.fecha, a.profesor_id,
+                  pr.nombre AS profesor_nombre
+           FROM avisos_pago a LEFT JOIN users pr ON pr.id=a.profesor_id
+           WHERE a.alumno_id=? AND a.estado='pendiente' ORDER BY a.id DESC LIMIT 1""",
         (u['id'],)).fetchone()
     # Con la acreditación automática el comprobante ya no queda pendiente: sin
     # esto el alumno volvía a ver el botón "mandar comprobante" de un pago que
     # el propio sistema ya le acreditó. Sin la columna comprobante a propósito:
     # es un data-URL de hasta 12MB y la pantalla no lo usa.
     ultimo = get_db().execute(
-        'SELECT id, mes, anio, monto, nota, estado, fecha, confirmado_fecha '
-        'FROM avisos_pago WHERE alumno_id=? ORDER BY id DESC LIMIT 1',
+        """SELECT a.id, a.mes, a.anio, a.monto, a.nota, a.estado, a.fecha,
+                  a.confirmado_fecha, a.profesor_id, pr.nombre AS profesor_nombre
+           FROM avisos_pago a LEFT JOIN users pr ON pr.id=a.profesor_id
+           WHERE a.alumno_id=? ORDER BY a.id DESC LIMIT 1""",
         (u['id'],)).fetchone()
     return jsonify({'pagos': [dict(r) for r in rows],
                     'aviso_pendiente': dict(aviso) if aviso else None,
                     'ultimo_aviso': dict(ultimo) if ultimo else None})
 
 
+def _aviso_profesor(aviso):
+    """Profesor que eligio el alumno al mandar el comprobante (o None).
+
+    Se lee con try/except a proposito: el aviso puede venir de un SELECT * de
+    una base todavia sin la columna (o de un dict armado a mano en un test),
+    y eso no tiene que tumbar la acreditacion.
+    """
+    try:
+        return to_int(aviso['profesor_id']) or None
+    except Exception:
+        return None
+
+
 def _acreditar_aviso(db, aviso, monto_base, quien_id=None, aplicar_cargo=None):
     """Registra el pago de un aviso de pago y lo deja confirmado.
 
     La crea el alumno al mandar el comprobante (quien_id=None, automatico) o el
-    admin/profe al revisarlo. Devuelve (base, cargo, final, pago_id).
+    admin/profe al revisarlo. Devuelve (base, cargo, final, pago_id, partes).
     aplicar_cargo=None usa el recargo que corresponde por fecha; False lo anula
     (el admin lo desmarca cuando el alumno pago antes del vencimiento).
+    El profesor que eligio el alumno al mandar el comprobante queda como
+    profesor_id del pago (para que figure en "Profesor que recibio") y se lleva
+    el 60% entero; sin eleccion el reparto es por actividades como siempre.
     """
     base, cargo, final = calcular_demora(monto_base, aviso['mes'], aviso['anio'])
     if aplicar_cargo is False:
         cargo, final = 0, base
+    profe_id = _aviso_profesor(aviso)
     concepto = ('Acreditado automaticamente al recibir el comprobante' if quien_id is None
                 else 'Confirmado desde aviso de pago')
     if cargo:
@@ -4349,17 +4397,18 @@ def _acreditar_aviso(db, aviso, monto_base, quien_id=None, aplicar_cargo=None):
     ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     db.execute(
         'INSERT INTO pagos(alumno_id, profesor_id, monto, mes, anio, metodo, concepto, nota, fecha, registrado_por) VALUES(?,?,?,?,?,?,?,?,?,?)',
-        (aviso['alumno_id'], None, final, aviso['mes'], aviso['anio'], 'Aviso', 'Cuota mensual',
+        (aviso['alumno_id'], profe_id, final, aviso['mes'], aviso['anio'], 'Aviso', 'Cuota mensual',
          concepto, ahora, quien_id))
     pago_id = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
     # Sin esto el pago entra a la academia pero los profes que dirigieron las
     # actividades del alumno nunca lo cobraban: el alumno pagaba y el profe no
     # veía nada en su reparto.
-    _registrar_reparto(db, pago_id, aviso['alumno_id'], final)
+    partes = _registrar_reparto(db, pago_id, aviso['alumno_id'], final,
+                                profesor_manual_id=profe_id)
     db.execute(
         "UPDATE avisos_pago SET estado='confirmado', confirmado_por=?, confirmado_fecha=? WHERE id=?",
         (quien_id, ahora, aviso['id']))
-    return base, cargo, final, pago_id
+    return base, cargo, final, pago_id, partes
 
 
 @app.route('/api/avisar_pago', methods=['POST'])
@@ -4397,10 +4446,22 @@ def api_avisar_pago():
         return jsonify({'error': 'Tenés que subir el comprobante de pago (foto, captura o PDF)'}), 400
     if len(comp) > 12 * 1024 * 1024:
         return jsonify({'error': 'El comprobante es muy grande (máx 12MB)'}), 400
+    # El alumno puede indicar a qué profesor le está pagando. Si no lo hace, el
+    # reparto se hace solo entre los que dan sus actividades (como siempre).
+    # "0"/null es el valor del select para "repartir automáticamente".
+    profe_raw = data.get('profesor_id')
+    profe_id = to_int(profe_raw) or None
+    if profe_id is None and profe_raw not in (None, '', 0, '0', False):
+        return jsonify({'error': 'Profesor no válido'}), 400
+    if profe_id:
+        if not db.execute("SELECT id FROM users WHERE id=? AND role='profesor'",
+                          (profe_id,)).fetchone():
+            return jsonify({'error': 'Ese profesor no existe'}), 400
     ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     db.execute(
-        'INSERT INTO avisos_pago(alumno_id, monto, mes, anio, nota, comprobante, estado, fecha) VALUES(?,?,?,?,?,?,?,?)',
-        (u['id'], monto, mes, anio, data.get('nota') or 'Cuota mensual', comp, 'pendiente', ahora))
+        'INSERT INTO avisos_pago(alumno_id, monto, mes, anio, nota, comprobante, estado, fecha, profesor_id) VALUES(?,?,?,?,?,?,?,?,?)',
+        (u['id'], monto, mes, anio, data.get('nota') or 'Cuota mensual', comp, 'pendiente', ahora,
+         profe_id))
     aviso_id = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
     staff = db.execute(
         "SELECT id FROM users WHERE role IN ('admin','profesor') AND activo=1").fetchall()
@@ -4409,28 +4470,44 @@ def api_avisar_pago():
     # decision del admin. Queda pendiente y se le avisa para que lo revise.
     if _vencido(mes, anio, hoy):
         db.commit()
+        quien = db.execute('SELECT nombre FROM users WHERE id=?', (profe_id,)).fetchone() if profe_id else None
+        detalle = f' El alumno indicó que le paga a {quien["nombre"]}' if quien else ''
         for s in staff:
             notify(s['id'], '⏰ Comprobante vencido por revisar',
                    f'{u["nombre"]} mandó el comprobante de {mes}/{anio} y esa cuota venció el '
                    f'{_vencimiento(mes, anio).day}. Revisá el comprobante y confirmá el pago '
-                   f'(con o sin recargo por demora).', 'pago')
+                   f'(con o sin recargo por demora).' + detalle, 'pago')
+        if quien:
+            notify(profe_id, '🧾 Comprobante tuyo para revisar',
+                   f'{u["nombre"]} mandó el comprobante de la cuota {mes}/{anio} y te indicó a vos '
+                   f'como profesor. La cuota está vencida, así que el admin la confirma antes de '
+                   f'que se acredite.', 'pago')
         return jsonify({'ok': True, 'auto': False, 'aviso_id': aviso_id,
                         'msg': 'Comprobante enviado. La cuota ya venció, así que el '
                                'profe/admin tiene que revisarlo antes de acreditarlo.'})
 
     aviso = db.execute('SELECT * FROM avisos_pago WHERE id=?', (aviso_id,)).fetchone()
-    base, cargo, final, pago_id = _acreditar_aviso(db, aviso, monto)
+    base, cargo, final, pago_id, partes = _acreditar_aviso(db, aviso, monto)
     db.commit()
     notify(u['id'], 'Pago acreditado ✓',
            f'Recibimos tu comprobante de la cuota {mes}/{anio} por '
            f'${final:,.0f} y quedó acreditada al instante.'.replace(',', '.'), 'pago')
+    # Si el alumno eligió al profe, ese es el único que cobra: se lo avisamos
+    # para que no se entere recién cuando liquide. El staff igual se entera.
     for s in staff:
         notify(s['id'], '🧾 Comprobante acreditado automáticamente',
                f'{u["nombre"]} mandó el comprobante de {mes}/{anio} por '
                f'${final:,.0f} y se acreditó solo. Queda guardado el comprobante por '
                f'si lo querés revisar.'.replace(',', '.'), 'pago')
+    if profe_id and profe_id != u['id']:
+        toca = next((p[1] for p in partes if p[0] == profe_id), None)
+        notify(profe_id, '💰 Te pagaron la cuota',
+               f'{u["nombre"]} te acreditó la cuota {mes}/{anio}'
+               + (f' y te corresponde ${toca:,.0f} de reparto'.replace(',', '.') if toca else '')
+               + '.', 'pago')
     return jsonify({'ok': True, 'auto': True, 'aviso_id': aviso_id, 'base': base,
-                    'cargo': cargo, 'monto': final, 'pago_id': pago_id})
+                    'cargo': cargo, 'monto': final, 'pago_id': pago_id,
+                    'profesor_id': profe_id})
 
 
 @app.route('/api/avisos_pago', methods=['GET'])
@@ -4442,10 +4519,13 @@ def api_avisos_pago():
     # /api/avisos_pago/<id>/comprobante. Los pendientes van primero.
     rows = get_db().execute(
         """SELECT a.id, a.alumno_id, a.monto, a.mes, a.anio, a.nota, a.estado, a.fecha,
-                  a.confirmado_por, a.confirmado_fecha,
+                  a.confirmado_por, a.confirmado_fecha, a.profesor_id,
+                  pr.nombre AS profesor_nombre,
                   (a.comprobante IS NOT NULL) AS tiene_comprobante,
                   u.nombre AS alumno_nombre
-           FROM avisos_pago a JOIN users u ON u.id=a.alumno_id
+           FROM avisos_pago a
+           JOIN users u ON u.id=a.alumno_id
+           LEFT JOIN users pr ON pr.id=a.profesor_id
            ORDER BY a.estado='pendiente' DESC, a.id DESC LIMIT 300""").fetchall()
     return jsonify({'avisos': [dict(r) for r in rows]})
 
@@ -4456,8 +4536,11 @@ def api_aviso_comprobante(aid):
     """Devuelve el comprobante de un aviso, para el admin o el propio alumno."""
     db = get_db()
     a = db.execute(
-        """SELECT a.*, u.nombre AS alumno_nombre
-           FROM avisos_pago a JOIN users u ON u.id=a.alumno_id WHERE a.id=?""",
+        """SELECT a.*, u.nombre AS alumno_nombre, pr.nombre AS profesor_nombre
+           FROM avisos_pago a
+           JOIN users u ON u.id=a.alumno_id
+           LEFT JOIN users pr ON pr.id=a.profesor_id
+           WHERE a.id=?""",
         (aid,)).fetchone()
     if not a:
         return jsonify({'error': 'Aviso no encontrado'}), 404
@@ -4470,6 +4553,7 @@ def api_aviso_comprobante(aid):
         'alumno_nombre': a['alumno_nombre'], 'mes': a['mes'], 'anio': a['anio'],
         'monto': a['monto'], 'nota': a['nota'], 'estado': a['estado'], 'fecha': a['fecha'],
         'confirmado_fecha': a['confirmado_fecha'],
+        'profesor_id': a['profesor_id'], 'profesor_nombre': a['profesor_nombre'],
     })
 
 
@@ -4484,19 +4568,35 @@ def api_avisos_confirmar(aid):
         return jsonify({'error': 'Este aviso ya fue confirmado'}), 400
     who = current_user()
     data = parse_json()
+    # El admin puede cambiar al profesor elegido por el alumno: es la ultima
+    # palabra sobre quién cobra el 60%.
+    if 'profesor_id' in data:
+        pid = to_int(data.get('profesor_id')) or None
+        if pid is not None and not db.execute(
+                "SELECT id FROM users WHERE id=? AND role='profesor'", (pid,)).fetchone():
+            return jsonify({'error': 'Ese profesor no existe'}), 400
+        db.execute('UPDATE avisos_pago SET profesor_id=? WHERE id=?', (pid, aid))
+        a = db.execute('SELECT * FROM avisos_pago WHERE id=?', (aid,)).fetchone()
     # El admin puede ajustar el monto real (ej: pagó con el valor de la cuota
     # anterior) y decidir si se suma el aumento/recargo por demora (por defecto
     # se suma como antes; se desactiva si el alumno pagó antes del vencimiento).
     monto_base = to_float(data.get('monto')) or (a['monto'] or 0)
     aplicar_cargo = as_bool(data.get('aplicar_cargo'), default=False)
-    base, cargo, final, _pid = _acreditar_aviso(db, a, monto_base, quien_id=who['id'],
-                                                aplicar_cargo=aplicar_cargo)
+    base, cargo, final, _pid2, partes = _acreditar_aviso(db, a, monto_base, quien_id=who['id'],
+                                                        aplicar_cargo=aplicar_cargo)
     db.commit()
     nota = f' (incluye ${cargo:,.0f} de recargo por demora)'.replace(',', '.') if cargo else ''
     notify(a['alumno_id'], 'Pago confirmado',
            f'Tu aviso de pago de la cuota {a["mes"]}/{a["anio"]} por ${final:,.0f} fue confirmado por {who["nombre"]}{nota}.'.replace(',', '.'),
            'pago')
-    return jsonify({'ok': True, 'base': base, 'cargo': cargo, 'monto': final})
+    for pid2, parte, _act, _nombre in partes:
+        if pid2 == who['id']:
+            continue
+        notify(pid2, '💰 Te pagaron la cuota',
+               f'{who["nombre"]} confirmó la cuota {a["mes"]}/{a["anio"]} de un alumno y te '
+               f'corresponde ${parte:,.0f} de reparto.'.replace(',', '.'), 'pago')
+    return jsonify({'ok': True, 'base': base, 'cargo': cargo, 'monto': final,
+                    'profesor_id': _aviso_profesor(a)})
 
 
 @app.route('/api/avisos_pago/<int:aid>', methods=['DELETE'])
@@ -6041,7 +6141,7 @@ def api_mp_webhook():
             # La firma de MercadoPago ya valido que la plata entro, asi que el
             # pago se acredita solo. Antes quedaba esperando que alguien lo
             # confirmara a mano y era el paso que mas se atrasaba.
-            _b, _c, final, _pid = _acreditar_aviso(db, aviso, monto)
+            _b, _c, final, _pid, _partes = _acreditar_aviso(db, aviso, monto)
             db.commit()
             notify(alumno_id, 'Pago acreditado ✓',
                    'Recibimos tu pago por MercadoPago de la cuota %d/%d por $%s y quedó '

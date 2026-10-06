@@ -2420,7 +2420,7 @@ function filaAviso(a) {
     <button class="btn ghost" onclick="verComprobante(${a.id})" style="width:44px;height:44px;padding:0;font-size:19px;border-radius:8px;flex-shrink:0" title="Ver comprobante">🧾</button>
     <div style="flex:1;min-width:0">
       <div><b>${esc(a.alumno_nombre)}</b> · ${a.mes}/${a.anio} · <b>$${num(a.monto)}</b></div>
-      <div class="small" style="color:var(--muted)">${esc(a.fecha)}${a.nota && a.nota !== 'Cuota mensual' ? ' · ' + esc(a.nota) : ''}${a.tiene_comprobante ? '' : ' · sin comprobante'}</div>
+      <div class="small" style="color:var(--muted)">${esc(a.fecha)}${a.nota && a.nota !== 'Cuota mensual' ? ' · ' + esc(a.nota) : ''}${a.tiene_comprobante ? '' : ' · sin comprobante'}${a.profesor_id ? ` · 💰 cobra ${esc(a.profesor_nombre || 'profesor')}` : ''}</div>
     </div>
     <div class="flex" style="gap:6px;flex-shrink:0">
       ${pend ? `<button class="btn primary small" onclick="verComprobante(${a.id})">Revisar</button>` : ''}
@@ -2505,13 +2505,29 @@ async function renderPagos(el) {
     if (!box) return;
     const sel = $('#pAlumno');
     const opt = sel && sel.selectedOptions[0];
-    const acts = (opt && opt.dataset.acts || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (!opt) { box.innerHTML = ''; return; }
+    const acts = (opt.dataset.acts || '').split(',').map(s => s.trim()).filter(Boolean);
+    const manual = +(($('#pProfe') || {}).value) || 0;
+    const monto = parseFloat(($('#pMonto') || {}).value || 0);
+    const r2 = (x) => Math.round(x * 100) / 100;
+    const mTatami = monto ? r2(monto * 30 / 100) : 0;
+    const mAdmin = monto ? r2(monto * 10 / 100) : 0;
+    const mProfes = monto ? r2(monto - mTatami - mAdmin) : 0;
+    // Elegido a mano: ese profesor se lleva el 60% entero, aunque el alumno
+    // entrene con varios. Es lo mismo que hace el backend.
+    if (manual) {
+      const p = (PROFESORES_CACHE || []).find(x => x.id === manual);
+      const nombre = p ? esc(p.nombre) : 'el profesor elegido';
+      box.innerHTML = `<small style="color:var(--muted)">Reparto elegido a mano: ${monto
+        ? `el 60% (<b style="color:var(--good)">$${num(mProfes)}</b>) para ${nombre}`
+        : `el 60% para ${nombre}`} · Tatami y academia $${num(mTatami)} · Administrativo $${num(mAdmin)}.</small>`;
+      return;
+    }
     if (!acts.length) { box.innerHTML = ''; return; }
     const profs = (PROFESORES_CACHE || []).filter(p => {
       const pa = (p.actividades || '').split(',').map(s => s.trim());
       return acts.some(a => pa.includes(a));
     });
-    const monto = parseFloat(($('#pMonto') || {}).value || 0);
     if (!profs.length) {
       box.innerHTML = '<small style="color:var(--muted)">Ningún profesor da las actividades de este alumno, el pago quedará sin repartir (o asignalo a mano arriba).</small>';
       return;
@@ -2519,9 +2535,6 @@ async function renderPagos(el) {
     const partes = `El 60% se reparte en partes iguales entre ${profs.length} profesor${profs.length > 1 ? 'es' : ''}: ${profs.map(p => esc(p.nombre)).join('  ·  ')}.`;
     let mitad = '';
     if (monto) {
-      const r2 = (x) => Math.round(x * 100) / 100;
-      const mTatami = r2(monto * 30 / 100), mAdmin = r2(monto * 10 / 100);
-      const mProfes = r2(monto - mTatami - mAdmin);
       const cadaUno = r2(mProfes / profs.length);
       mitad = `<br><small style="color:var(--good)">Profes $${num(mProfes)} ($${num(cadaUno)} c/u) · Tatami y academia $${num(mTatami)} · Administrativo $${num(mAdmin)}</small>`;
     }
@@ -2532,6 +2545,7 @@ async function renderPagos(el) {
     if (opt && opt.dataset.cuota) $('#pMonto').value = opt.dataset.cuota;
     mostrarRepartoPrevisto();
   });
+  $('#pProfe').addEventListener('change', mostrarRepartoPrevisto);
   $('#pMonto').addEventListener('input', mostrarRepartoPrevisto);
   mostrarRepartoPrevisto();
   $('#pagoForm').addEventListener('submit', async (e) => {
@@ -2743,7 +2757,7 @@ async function verComprobante(id) {
        <a class="btn primary small" href="${esc(d.comprobante)}" download="comprobante-${esc(d.alumno_nombre || id)}.pdf" style="text-decoration:none">⬇ Descargar PDF</a>
        <a class="btn ghost small" href="${esc(d.comprobante)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Ver PDF</a></div>`;
   const cabeza = `<h3>🧾 Comprobante · ${esc(d.alumno_nombre)}</h3>
-    <p class="small">Cuota de <b>${d.mes}/${d.anio}</b> por <b>$${num(d.monto)}</b>${d.nota && d.nota !== 'Cuota mensual' ? ' · ' + esc(d.nota) : ''}</p>`;
+    <p class="small">Cuota de <b>${d.mes}/${d.anio}</b> por <b>$${num(d.monto)}</b>${d.nota && d.nota !== 'Cuota mensual' ? ' · ' + esc(d.nota) : ''}${d.profesor_id ? ` · 💰 el 60% es para <b>${esc(d.profesor_nombre || 'profesor')}</b>` : ''}</p>`;
 
   // Ya acreditado: ficha de solo lectura. El sistema lo acreditó al recibir el
   // comprobante, asi que acá no hay nada que confirmar.
@@ -2757,11 +2771,33 @@ async function verComprobante(id) {
       </div>`;
     return;
   }
+  // Pendiente: el staff decide a qué profesor le paga antes de confirmar. El
+  // alumno solo ve la eleccion que hizo al subir el comprobante.
+  let campoProfe = '';
+  if (USER.role !== 'alumno') {
+    let profs = (await api('/api/profesores_disponibles').catch(() => ({ profesores: [] }))).profesores || [];
+    // Si el elegido quedó dado de baja no aparece en la lista: se agrega a mano
+    // para que no se pierda lo que eligió el alumno.
+    if (d.profesor_id && !profs.some(p => p.id === d.profesor_id)) {
+      profs = [{ id: d.profesor_id, nombre: d.profesor_nombre || 'Profesor' }].concat(profs);
+    }
+    if (profs.length) {
+      campoProfe = `<div class="field"><label>Profesor que cobra el 60%</label>
+        <select id="avProfeSel">
+          <option value="0">Repartir entre los profes de sus actividades</option>
+          ${profs.map(p => `<option value="${p.id}" ${p.id === d.profesor_id ? 'selected' : ''}>Todo a ${esc(p.nombre)}</option>`).join('')}
+        </select>
+        <p class="small" style="margin:4px 0 0;color:var(--muted)">Si lo cambiás acá, manda sobre lo que eligió el alumno.</p></div>`;
+    }
+  } else if (d.profesor_id) {
+    campoProfe = `<p class="small">💰 Le estás pagando a <b>${esc(d.profesor_nombre || 'profesor')}</b>.</p>`;
+  }
   $('#modalBody').innerHTML = `${cabeza}
     ${cuerpo}
     <div class="field"><label>Monto a registrar (ajustalo si pagó el valor anterior)</label>
       <input type="number" id="avMonto" value="${d.monto || ''}" min="1">
       <p class="small" style="margin:2px 0 0;color:var(--muted)">El recargo por demora se calcula sobre este monto.</p></div>
+    ${campoProfe}
     <button type="button" id="avAumBtn" class="btn small btn-block" style="margin:0 0 10px" onclick="toggleAvisoAumento()"></button>
     <div class="flex mt" style="gap:8px">
       <button class="btn primary small" onclick="confirmarAviso(${d.id})">✅ Confirmar y registrar</button>
@@ -2781,9 +2817,14 @@ async function confirmarAviso(id) {
   const mEl = $('#avMonto');
   let monto = mEl ? parseFloat(mEl.value) : (a.monto || 0);
   if (!monto || isNaN(monto) || monto <= 0) { toast('Ingresá un monto válido'); return; }
+  const selProfe = $('#avProfeSel');
+  // Se lee antes de cerrar el modal: define quién cobra el 60%.
+  const profesorId = selProfe ? (+selProfe.value || 0) : undefined;
   closeModal();
   try {
-    const res = await api('/api/avisos_pago/' + id + '/confirmar', { method: 'POST', body: { monto, aplicar_cargo: AVISO_AUMENTO } });
+    const body = { monto, aplicar_cargo: AVISO_AUMENTO };
+    if (profesorId !== undefined) body.profesor_id = profesorId;
+    const res = await api('/api/avisos_pago/' + id + '/confirmar', { method: 'POST', body });
     toast(res.cargo ? 'Pago confirmado ✓ (incluye $' + num(res.cargo) + ' de recargo por demora)' : 'Pago confirmado y registrado ✓ (sin aumento)');
     renderPagos($('#sec-pagos'));
   } catch (e) { toast(e.message); }
@@ -2828,8 +2869,8 @@ async function renderMisPagos(el) {
         <div class="tag ${cls}" style="font-size:14px;padding:6px 14px">${lbl}</div>
       </div>
       ${exento ? '' : `<p class="small mt">💰 Aboná ${c.cuota ? '$' + num(c.cuota) : 'tu cuota'}${me.pago_alias ? ' por transferencia al alias/CVU de la academia' : ''} y <b>sí o sí mandá el comprobante de pago</b>: tu cuota queda acreditada apenas lo recibimos.</p>`}
-      ${acreditado && !exento ? `<p class="small mt" style="color:var(--ok,#7fd87f)">✅ Comprobante de ${acreditado.mes}/${acreditado.anio} recibido y acreditado.</p><button class="btn ghost btn-block" onclick="verComprobante(${acreditado.id})">🧾 Ver mi comprobante</button>` : ''}
-      ${aviso && !exento ? `<p class="small mt" style="color:var(--warn)">⏳ Comprobante de ${aviso.mes}/${aviso.anio} enviado. Tu cuota ya venció, así que el profe/admin lo revisa antes de acreditarlo.</p>` : ''}
+      ${acreditado && !exento ? `<p class="small mt" style="color:var(--ok,#7fd87f)">✅ Comprobante de ${acreditado.mes}/${acreditado.anio} recibido y acreditado.${acreditado.profesor_id ? ` El 60% es para <b>${esc(acreditado.profesor_nombre || 'tu profesor')}</b>.` : ''}</p><button class="btn ghost btn-block" onclick="verComprobante(${acreditado.id})">🧾 Ver mi comprobante</button>` : ''}
+      ${aviso && !exento ? `<p class="small mt" style="color:var(--warn)">⏳ Comprobante de ${aviso.mes}/${aviso.anio} enviado.${aviso.profesor_id ? ` Le estás pagando a <b>${esc(aviso.profesor_nombre || 'tu profesor')}</b>.` : ''} Tu cuota ya venció, así que el profe/admin lo revisa antes de acreditarlo.</p>` : ''}
       ${!exento && estado !== 'al_dia' && !aviso && !acreditado ? `<button class="btn primary btn-block" onclick="avisarPago()">🧾 Mandar comprobante de pago</button>` : ''}
       ${!exento && me.mp_habilitado && estado !== 'al_dia' && !aviso && !acreditado ? `<button class="btn primary btn-block" style="background:linear-gradient(90deg,#00c3ff,#0aa2e0);border:none" onclick="pagarMercadoPago()">💳 Pagar con MercadoPago</button>` : ''}
     </div>
@@ -2876,6 +2917,9 @@ function marcarLinkPago(a) {
   toast('Abriendo el link de pago 🛒 Después mandá el comprobante.');
 }
 async function avisarPago() {
+  // El alumno puede decirle a qué profesor le está pagando. Si no elige, el
+  // sistema reparte entre los que dan sus actividades (como siempre).
+  const profs = (await api('/api/profesores_disponibles').catch(() => ({ profesores: [] }))).profesores || [];
   openModal(`
     <h3>🧾 Mandar comprobante de pago</h3>
     <p class="small">Subí una <b>foto, captura o PDF</b> del comprobante de pago. Si tu cuota está a tiempo, queda acreditada al instante.</p>
@@ -2884,6 +2928,14 @@ async function avisarPago() {
       <div id="avPreview" class="mt" style="display:none"><img id="avPreviewImg" style="max-width:100%;border-radius:10px;background:#fff"></div>
       <div id="avFileName" class="small mt" style="display:none;color:var(--muted)"></div>
     </div>
+    ${profs.length ? `
+    <div class="field"><label>¿A qué profesor le pagás? (opcional)</label>
+      <select id="avProfe">
+        <option value="0">Repartir entre los profes de mis actividades</option>
+        ${profs.map(p => `<option value="${p.id}">Todo a ${esc(p.nombre)}</option>`).join('')}
+      </select>
+      <p class="small" style="margin:4px 0 0;color:var(--muted)">Si elegís a un profe, ese se lleva el 60% de la cuota (30% academia, 10% admin). Si no, se divide entre los que dan tus actividades.</p>
+    </div>` : ''}
     <button class="btn primary btn-block" id="avEnviar">📤 Enviar aviso</button>
     <p class="small" style="color:var(--muted)">Si mandás el comprobante con la cuota vencida, el profe/admin lo revisa antes de acreditarlo.</p>
   `);
@@ -2911,10 +2963,15 @@ async function avisarPago() {
     const r = new FileReader();
     r.onload = async () => {
       try {
-        const res = await api('/api/avisar_pago', { method: 'POST', body: { comprobante: r.result } });
+        const res = await api('/api/avisar_pago', {
+          method: 'POST',
+          body: { comprobante: r.result, profesor_id: +(($('#avProfe') || {}).value) || 0 }
+        });
         closeModal();
+        const elegido = profs.find(p => p.id === (res.profesor_id || 0));
         if (res.auto) {
           toast('Pago acreditado ✓ Ya quedó registrado tu comprobante.'
+            + (elegido ? ' El 60% es para ' + elegido.nombre + '.' : '')
             + (res.cargo ? ' Incluye $' + num(res.cargo) + ' de recargo por demora.' : ''));
         } else {
           toast(res.msg || 'Comprobante enviado. Te avisamos cuando lo confirmen.');

@@ -282,6 +282,15 @@ Para cambiar el tema de la app:
     iguales entre los que dan las actividades
     del alumno: si el alumno entrena con los
     dos profes, 50/50 de ese 60%.
+  - Si el alumno le quiere pagar a un profe en
+    particular, lo elige al mandar el comprobante
+    ("¿A qué profesor le pagás?") y ese se lleva
+    el 60% entero. Lo mismo vale si el profe o el
+    admin lo cambian al confirmar el comprobante,
+    o si se elige "Todo a {profe}" en el formulario
+    de registrar pago.
+  - Sin esa elección, el reparto es por actividades
+    como siempre.
   - La cuota de un profesor, los becados y los
     ingresos extra NO se reparten: entran
     enteros al fondo de la academia.

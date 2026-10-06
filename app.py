@@ -1135,29 +1135,51 @@ def _vapid_reconstruida(priv, pub):
     return priv2, pub2
 
 
+_VAPID_KEY_CACHE = {}
+
+
 def ensure_vapid():
-    """Claves VAPID persistentes en la BD (Render pierde archivos al redeployar)."""
+    """Claves VAPID persistentes en la BD (Render pierde archivos al redeployar).
+
+    Devuelve la clave publica como applicationServerKey. Todo se cachea en
+    memoria: antes escribia las DOS claves en settings (2 commits) y reescribia
+    los archivos locales en cada llamada, y /api/vapid_public_key es el health
+    check de Render, asi que pasaba a hacer 2 commits cada ~30 segundos. Eso
+    mantenia el compute de Neon activo 24/7 y agotaba los 100 CU-hours del plan
+    free en ~17 dias. Si el proceso acaba de arrancar (o cambio el formato),
+    ahi si se persiste.
+    """
+    cached = _VAPID_KEY_CACHE.get('key')
+    if cached:
+        return cached
+    primera = not _VAPID_KEY_CACHE
     priv = get_setting('vapid_private')
     pub = get_setting('vapid_public')
+    escribir = False
     if not _vapid_valida(priv, pub):
         priv, pub = _generar_vapid()
-        set_setting('vapid_private', priv)
-        set_setting('vapid_public', pub)
+        escribir = True
     else:
         # normalizar el formato por si quedo raro en una version anterior
         try:
-            priv, pub = _vapid_reconstruida(priv, pub)
-            set_setting('vapid_private', priv)
-            set_setting('vapid_public', pub)
+            npriv, npub = _vapid_reconstruida(priv, pub)
+            if (npriv, npub) != (priv, pub):
+                priv, pub = npriv, npub
+                escribir = True
         except Exception:
             pass
-    # escribe archivos locales para pywebpush y compatibilidad
-    for path, pem in ((VAPID_PRIVATE, priv), (VAPID_PUBLIC, pub)):
-        try:
-            with open(path, 'w') as f:
-                f.write(pem)
-        except OSError:
-            pass
+    if escribir:
+        set_setting('vapid_private', priv)
+        set_setting('vapid_public', pub)
+    # archivos locales para pywebpush: una sola vez por arranque (Render usa
+    # filesystem efimero, asi que reescribirlos a cada rato no sirve de nada).
+    if escribir or primera:
+        for path, pem in ((VAPID_PRIVATE, priv), (VAPID_PUBLIC, pub)):
+            try:
+                with open(path, 'w') as f:
+                    f.write(pem)
+            except OSError:
+                pass
     # Para que el navegador pueda suscribirse, applicationServerKey debe ser el
     # "raw point" P-256 descomprimido (65 bytes, 04||X||Y), NO el DER/SPKI.
     try:
@@ -1166,13 +1188,15 @@ def ensure_vapid():
         raw_point = pubkey.public_bytes(
             serialization.Encoding.X962,
             serialization.PublicFormat.UncompressedPoint)
-        return base64.urlsafe_b64encode(raw_point).rstrip(b'=').decode()
+        key = base64.urlsafe_b64encode(raw_point).rstrip(b'=').decode()
     except Exception:
         pem = pub.replace('-----BEGIN PUBLIC KEY-----', '').replace('-----END PUBLIC KEY-----', '').strip()
         try:
-            return base64.urlsafe_b64encode(base64.b64decode(pem)).rstrip(b'=').decode()
+            key = base64.urlsafe_b64encode(base64.b64decode(pem)).rstrip(b'=').decode()
         except Exception:
-            return pem
+            key = pem
+    _VAPID_KEY_CACHE['key'] = key
+    return key
 
 
 def send_push(user_id, titulo, mensaje, extra=None, _diag=None):
@@ -6227,6 +6251,19 @@ def api_mensajes_broadcast():
         except Exception as e:
             errores.append({'id': r['id'], 'error': str(e)})
     return jsonify({'ok': True, 'destinatarios': len(rows), 'enviados': enviados, 'errores': errores[:5]})
+
+
+@app.route('/health')
+def api_health():
+    """Health check de Render: responde 200 sin tocar la base.
+
+    Render lo llama cada ~30 segundos las 24 horas. Apuntaba a
+    /api/vapid_public_key, que leia y escribia settings en la BD, asi que
+    mantenia el compute de Neon despierto todo el tiempo y agotaba la cuota
+    de 100 CU-hours del plan free. Tampoco dispara los avisos periodicos:
+    esa ruta no empieza con /api/.
+    """
+    return jsonify({'ok': True})
 
 
 @app.route('/api/vapid_public_key')

@@ -383,7 +383,7 @@ if ($('#content')) initDashboard();
 
 async function obligarNacimiento() {
   const R = USER.role;
-  if (R === 'admin') return;
+  if (esAdmin()) return;
   if (USER.nacimiento && String(USER.nacimiento).trim() !== '') return;
   openModal(`
     <h3>📅 Completá tu fecha de nacimiento</h3>
@@ -1090,7 +1090,7 @@ function videoCardHTML(v, isStaff) {
         <b>${esc(v.subidor_nombre || 'Profesor')}</b>
         <div class="small">${esc(v.fecha || '')} · <span class="${beltCls}">${esc(v.belt)}</span> ${v.categoria ? '<span class="tag alumno">' + catLabel(v.categoria) + '</span>' : ''} ${v.actividad ? '<span class="tag nogi">' + esc(v.actividad) + '</span>' : ''}</div>
       </div>
-      ${isStaff && v.subido_por === USER.id || USER.role === 'admin' ? `<button class="btn bad small" onclick="borrarVideo(${v.id})">🗑</button>` : ''}
+      ${isStaff && v.subido_por === USER.id || esAdmin() ? `<button class="btn bad small" onclick="borrarVideo(${v.id})">🗑</button>` : ''}
     </div>
     <div class="post-media">${videoMediaHTML(v)}</div>
     <div class="post-actions">
@@ -1398,7 +1398,7 @@ async function renderInicio(el) {
       `<button class="chip" onclick="showSec('planes')">📋 Planes</button>`,
       `<button class="chip" onclick="showSec('deudores')">⚠️ Deudas</button>`,
       `<button class="chip" onclick="showSec('videos')">🎥 Videos</button>`];
-    if (R === 'admin') chips.push(`<button class="chip" onclick="showSec('profesores')">🧑‍🏫 Profesores</button>`, `<button class="chip" onclick="showSec('config')">⚙️ Configuración</button>`);
+    if (esAdmin()) chips.push(`<button class="chip" onclick="showSec('profesores')">🧑‍🏫 Profesores</button>`, `<button class="chip" onclick="showSec('config')">⚙️ Configuración</button>`);
     chips.push(`<button class="chip" onclick="showSec('familias')">👨‍👩‍👧 Familias</button>`);
     chips.push(`<button class="chip" onclick="showSec('diario')">📓 Diario</button>`);
     chips.push(`<button class="chip" onclick="showSec('muro')">📢 Muro</button>`);
@@ -1412,7 +1412,7 @@ async function renderInicio(el) {
     chips.push(`<button class="chip" onclick="abrirMensajeMasivo()">📣 Mandar mensaje</button>`);
     chips.push(`<button class="chip" onclick="window.open('/qr_print','_blank')">📱 QR de asistencia</button>`);
     if (R === 'profesor') chips.push(`<button class="chip" onclick="showSec('mi_asistencia')">✅ Mi asistencia</button>`, `<button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>`);
-    chips.push(`<button class="chip" onclick="showSec('dinero')">💰 ${R === 'admin' ? 'Reparto de dinero' : 'Mi dinero'}</button>`);
+    chips.push(`<button class="chip" onclick="showSec('dinero')">💰 ${esAdmin() ? 'Reparto de dinero' : 'Mi dinero'}</button>`);
     chips.push(`<button class="chip" onclick="showSec('ingresos_extra')">🎁 Ingresos extra</button>`);
     chips.push(`<button class="chip" onclick="showSec('descuentos')">🏷️ Descuentos</button>`);
     el.innerHTML = `
@@ -2045,7 +2045,7 @@ async function renderHorarios(el) {
           ${R !== 'alumno' && h.rating ? `<button class="btn ghost small" style="margin-top:6px" onclick="verValoraciones(${h.id})">⭐ ${h.rating.promedio} (${h.rating.n})</button>` : ''}
           ${canEdit ? `<div class="flex" style="margin-top:6px">
             <button class="btn ghost small" onclick="editarHorario(${h.id},${h.dia},'${escJs(h.hora)}','${escJs(h.tipo || 'Gi')}','${escJs(h.nivel || 'Todos')}',${h.profesor_id != null ? h.profesor_id : 'null'},${h.duracion || 60})">✏️ Editar</button>
-            ${R === 'admin' ? `<button class="btn bad small" onclick="borrarHorario(${h.id})">🗑</button>` : ''}
+            ${esAdmin() ? `<button class="btn bad small" onclick="borrarHorario(${h.id})">🗑</button>` : ''}
           </div>` : ''}
         </div>`).join('') : '<p class="small" style="color:var(--muted)">Sin clases</p>'}
     </div>`;
@@ -2055,7 +2055,7 @@ async function renderHorarios(el) {
     ${d.avisos && d.avisos.length ? `<div class="card" style="border-color:var(--bad)">
       ${d.avisos.map(a => `<div class="small" style="color:var(--bad)">⚠ ${esc(a)}</div>`).join('')}
     </div>` : ''}
-    ${R !== 'alumno' ? `<div class="card flex space-between"><span class="small">Profesores pueden editar la tabla de horarios (${R === 'admin' ? 'solo admin puede eliminar' : 'edición permitida'}).</span>
+    ${R !== 'alumno' ? `<div class="card flex space-between"><span class="small">Profesores pueden editar la tabla de horarios (${esAdmin() ? 'solo admin puede eliminar' : 'edición permitida'}).</span>
       <button class="btn primary small" onclick="formHorario()">+ Agregar clase</button></div>` : ''}
     <div class="semana">${cols.join('')}</div>`;
 }
@@ -2231,7 +2231,7 @@ function torneoCalendarioHTML() {
             ${USER.role !== 'alumno' ? `<div class="flex" style="gap:6px;flex-shrink:0">
               <button class="btn primary small" onclick="inscribirEnTorneo(${t.id})">+ Inscribir</button>
               <button class="btn ghost small" onclick="editarTorneo(${t.id})">✏️</button>
-              ${USER.role === 'admin' ? `<button class="btn bad small" onclick="borrarTorneo(${t.id})">🗑</button>` : ''}
+              ${esAdmin() ? `<button class="btn bad small" onclick="borrarTorneo(${t.id})">🗑</button>` : ''}
             </div>` : ''}
           </div>
           ${torneoInscripcionesHTML(t)}
@@ -2450,7 +2450,7 @@ function filaAviso(a) {
     </div>
     <div class="flex" style="gap:6px;flex-shrink:0">
       ${pend ? `<button class="btn primary small" onclick="verComprobante(${a.id})">Revisar</button>` : ''}
-      ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${a.id})">🗑</button>` : ''}
+      ${esAdmin() ? `<button class="btn bad small" onclick="descartarAviso(${a.id})">🗑</button>` : ''}
     </div>
   </div>`;
 }
@@ -2458,7 +2458,7 @@ async function renderPagos(el) {
   const R = USER.role;
   const [pagos, alumnos, profesores, avisos] = await Promise.all([
     api('/api/pagos'), api('/api/alumnos'),
-    R === 'admin' ? api('/api/profesores') : Promise.resolve({ profesores: [USER] }),
+    esAdmin() ? api('/api/profesores') : Promise.resolve({ profesores: [USER] }),
     api('/api/avisos_pago')]);
   PROFESORES_CACHE = profesores.profesores;
   const mes = new Date().getMonth() + 1, anio = new Date().getFullYear();
@@ -2513,13 +2513,13 @@ async function renderPagos(el) {
     <div class="card">
       <h3>${R === 'profesor' ? 'Mis pagos recibidos' : 'Historial de pagos'}</h3>
       <div style="overflow:auto"><table>
-        <tr><th>Fecha</th><th>Alumno</th><th>Profesor</th><th>Mes</th><th>Método</th><th>Monto</th><th>Recibo</th>${R === 'admin' ? '<th></th>' : ''}</tr>
+        <tr><th>Fecha</th><th>Alumno</th><th>Profesor</th><th>Mes</th><th>Método</th><th>Monto</th><th>Recibo</th>${esAdmin() ? '<th></th>' : ''}</tr>
         ${pagos.pagos.length ? pagos.pagos.map(p => `<tr>
           <td>${esc(p.fecha)}</td><td><div class="flex" style="gap:8px">${avatarHTML('', p.alumno_nombre, 'sm')}<span>${esc(p.alumno_nombre)}</span></div></td>
           <td>${esc(p.profesor_nombre || '—')}</td><td>${p.mes}/${p.anio}</td>
           <td>${esc(p.metodo)}</td><td><b>$${num(p.monto)}</b></td>
           <td><a class="btn ghost small" href="/recibo/${p.id}" target="_blank" rel="noopener">🧾</a></td>
-          ${R === 'admin' ? `<td><button class="btn bad small" onclick="borrarPago(${p.id})">🗑</button></td>` : ''}</tr>`).join('')
+          ${esAdmin() ? `<td><button class="btn bad small" onclick="borrarPago(${p.id})">🗑</button></td>` : ''}</tr>`).join('')
           : '<tr><td colspan="7" class="empty">Todavía no hay pagos registrados</td></tr>'}
       </table></div>
     </div>`;
@@ -2793,7 +2793,7 @@ async function verComprobante(id) {
       <div class="tag tag-al-dia" style="display:inline-block;margin-bottom:10px">✓ Acreditado${d.confirmado_fecha ? ' el ' + esc(d.confirmado_fecha) : ''}</div>
       ${cuerpo}
       <div class="flex mt" style="gap:8px">
-        ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${d.id})">🗑 Descartar</button>` : ''}
+        ${esAdmin() ? `<button class="btn bad small" onclick="descartarAviso(${d.id})">🗑 Descartar</button>` : ''}
         <button class="btn ghost small" onclick="closeModal()">Cerrar</button>
       </div>`;
     return;
@@ -2830,7 +2830,7 @@ async function verComprobante(id) {
     <button type="button" id="avAumBtn" class="btn small btn-block" style="margin:0 0 10px" onclick="toggleAvisoAumento()"></button>
     <div class="flex mt" style="gap:8px">
       <button class="btn primary small" onclick="confirmarAviso(${d.id})">✅ Confirmar y registrar</button>
-      ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${d.id})">🗑 Descartar</button>` : ''}
+      ${esAdmin() ? `<button class="btn bad small" onclick="descartarAviso(${d.id})">🗑 Descartar</button>` : ''}
     </div>
   `;
   actualizarBotonAumento();
@@ -3073,9 +3073,9 @@ async function renderAlumnos(el) {
         <button class="btn good small" onclick="notificarDeuda(${a.id})">🔔</button>
         ${USER.role !== 'alumno' ? `<button class="btn ${a.activo ? 'bad' : 'good'} small" onclick="toggleActivo(${a.id},${a.activo ? 1 : 0})">${a.activo ? '🚫 Desactivar' : '✅ Reactivar'}</button>` : ''}
         ${USER.role !== 'alumno' ? `<button class="btn ${a.beca ? 'bad' : 'good'} small" title="${a.beca ? 'Quitar beca' : 'Becar (no paga nada)'}" onclick="toggleBeca(${a.id},${a.beca ? 1 : 0},'${escJs(a.nombre)}')">🎖</button>` : ''}
-        ${USER.role === 'admin' ? `<button class="btn ghost small" title="Convertir en profesor" onclick="hacerProfesor(${a.id},'${escJs(a.nombre)}')">👨‍🏫</button>` : ''}
-        ${USER.role === 'admin' ? `<button class="btn ghost small" onclick="reiniciarPassword(${a.id},'${escJs(a.nombre)}')">🔑</button>` : ''}
-        ${USER.role === 'admin' ? `<button class="btn bad small" onclick="eliminarAlumno(${a.id},'${escJs(a.nombre)}')">🗑</button>` : ''}
+        ${esAdmin() ? `<button class="btn ghost small" title="Convertir en profesor" onclick="hacerProfesor(${a.id},'${escJs(a.nombre)}')">👨‍🏫</button>` : ''}
+        ${esAdmin() ? `<button class="btn ghost small" onclick="reiniciarPassword(${a.id},'${escJs(a.nombre)}')">🔑</button>` : ''}
+        ${esAdmin() ? `<button class="btn bad small" onclick="eliminarAlumno(${a.id},'${escJs(a.nombre)}')">🗑</button>` : ''}
       </div>
     </div>`;
   };
@@ -3087,14 +3087,14 @@ async function renderAlumnos(el) {
     </div>`;
   };
   const total = d.alumnos.length;
-  const esStaff = USER.role === 'admin' || USER.role === 'profesor';
+  const esStaff = esAdmin() || USER.role === 'profesor';
   el.innerHTML = `
     ${secHeader('Alumnos', esStaff ? 'Se registran solos en la pantalla de ingreso, o los creás vos acá' : 'Los alumnos se registran solos en la pantalla de ingreso')}
     ${esStaff ? `<div class="card">
       <p class="small">Alta de perfil: creás la cuenta y le generás usuario y contraseña. Si los dejás vacíos se generan solos.</p>
       <button class="btn good" onclick="formAlumno()">+ Nuevo alumno</button>
     </div>` : ''}
-    ${USER.role === 'admin' || USER.role === 'profesor' ? `<div class="mb">
+    ${esAdmin() || USER.role === 'profesor' ? `<div class="mb">
       <button class="btn good" onclick="exportarAlumnosExcel()">📥 Exportar alumnos a Excel (Adultos / Juveniles / Kids)</button>
       <p class="small" style="margin:6px 0 0">Descarga un archivo .xlsx con los datos de los alumnos activos (nombre, DNI, dirección, teléfonos, categoría, etc.). Solo alumnos <b>activos</b>.</p>
     </div>` : ''}
@@ -3572,7 +3572,7 @@ function fmtFechaISO(f) {
 
 async function renderPlanes(el) {
   const R = USER.role;
-  const esStaff = R === 'admin' || R === 'profesor';
+  const esStaff = esAdmin() || R === 'profesor';
   const semanaSel = $('#planSemana') ? $('#planSemana').value : '';
   const d = await api('/api/planes' + (esStaff && semanaSel ? '?semana=' + semanaSel : ''));
   el.innerHTML = `
@@ -3670,10 +3670,10 @@ async function borrarPlan(id) {
    ===================================================================== */
 async function renderProfesores(el) {
   const d = await api('/api/profesores');
-  const alum = USER.role === 'admin' ? (await api('/api/alumnos').catch(() => ({ alumnos: [] }))).alumnos : [];
+  const alum = esAdmin() ? (await api('/api/alumnos').catch(() => ({ alumnos: [] }))).alumnos : [];
   el.innerHTML = `
     ${secHeader('Profesores')}
-    ${USER.role === 'admin' ? `
+    ${esAdmin() ? `
     <div class="card">
       <p class="small">⚡ Convertí un alumno existente en profesor <b>sin crearle otra cuenta</b> (conserva usuario, contraseña y datos):</p>
       <div class="flex" style="gap:8px;flex-wrap:wrap">
@@ -3697,7 +3697,7 @@ async function renderProfesores(el) {
           <td>@${esc(p.username)}</td><td>${p.clases}</td>
           <td>${p.cuota_mensual ? '$' + num(p.cuota_mensual) : '<span style="color:var(--warn)">sin cargar</span>'}</td>
           <td><div class="flex" style="gap:6px;flex-wrap:wrap">
-            ${USER.role === 'admin' ? `<button class="btn ghost small" onclick="cambiarCuotaProfe(${p.id},'${escJs(p.nombre)}',${p.cuota_mensual || 0})">💲</button>` : ''}
+            ${esAdmin() ? `<button class="btn ghost small" onclick="cambiarCuotaProfe(${p.id},'${escJs(p.nombre)}',${p.cuota_mensual || 0})">💲</button>` : ''}
             <button class="btn bad small" onclick="eliminarProfesor(${p.id},'${escJs(p.nombre)}')">🗑 Eliminar</button></div></td>
         </tr>`).join('') : '<tr><td colspan="8" class="empty">Todavía no hay profesores.</td></tr>'}
     </table></div></div>`;
@@ -4326,7 +4326,7 @@ async function renderEventos(el) {
           </div>
           <span>
             <button class="btn ${ev.voy ? 'ghost' : 'primary'} small" onclick="asistirEvento(${ev.id}, ${ev.voy ? 1 : 0})">${ev.voy ? 'No asistiré' : 'Voy a ir ✓'}</button>
-            ${USER.role === 'admin' ? `<button class="btn ghost small" onclick="borrarEvento(${ev.id})">🗑</button>` : ''}
+            ${esAdmin() ? `<button class="btn ghost small" onclick="borrarEvento(${ev.id})">🗑</button>` : ''}
           </span>
         </div>`).join('') : '<div class="empty">No hay eventos próximos.</div>'}
       </div>`;
@@ -4535,7 +4535,7 @@ async function recPaso2(user) {
    ===================================================================== */
 async function renderDiario(el) {
   const d = await api('/api/diario').catch(() => ({ diario: [] }));
-  const esStaff = USER.role === 'admin' || USER.role === 'profesor';
+  const esStaff = esAdmin() || USER.role === 'profesor';
   const hoy = d.hoy || fechaHoyLocal();
   const yaHoy = d.diario[0] && d.diario[0].fecha === hoy;
   const entradas = d.diario.map(e => `
@@ -4707,20 +4707,20 @@ async function agregarMiembroFamilia(fid) {
 
 
 async function renderMiDinero(el) {
-  const esAdmin = USER.role === 'admin';
-  el.innerHTML = secHeader(esAdmin ? 'Reparto de dinero' : 'Mi dinero');
+  const soyAdmin = esAdmin();
+  el.innerHTML = secHeader(soyAdmin ? 'Reparto de dinero' : 'Mi dinero');
   try {
     const d = await api('/api/mi_dinero');
     const p = d.pct || { profes: 60, tatami: 30, administrativo: 10 };
     const tot = d.total_mes || 0;
     const cobrado = d.cobrado_mes || 0;
-    const sub = esAdmin
+    const sub = soyAdmin
       ? `Cada cuota se parte en <b>${p.profes}% para los profes</b>, ${p.tatami}% tatami y academia y ${p.administrativo}% administrativo. El ${p.profes}% se divide en partes iguales entre los profes que dan las actividades del alumno.`
       : `Te corresponde el <b>${p.profes}% de cada cuota</b>, en partes iguales entre los profes que dan las actividades del alumno.`;
-    el.innerHTML = secHeader(esAdmin ? 'Reparto de dinero' : 'Mi dinero')
+    el.innerHTML = secHeader(soyAdmin ? 'Reparto de dinero' : 'Mi dinero')
       + `<div class="small" style="color:var(--muted);padding:0 4px 10px">${sub}</div>`;
     let html = '';
-    if (esAdmin) {
+    if (soyAdmin) {
       const dmap = {};
       (d.destinos || []).forEach(x => { dmap[x.destino] = x.monto; });
       const buckets = [
@@ -4742,7 +4742,7 @@ async function renderMiDinero(el) {
         <div class="stat-card"><div class="num" style="color:var(--good)">$${num(tot)}</div><div class="lbl">${d.mes}/${d.anio}</div></div>
       </div></div>`;
     }
-    if (esAdmin && (d.por_profesor || []).length) {
+    if (soyAdmin && (d.por_profesor || []).length) {
       const base = cobrado || tot;
       html += `<div class="card"><h3>👥 Cuánto le tocó a cada profesor</h3>
         <div style="overflow:auto"><table>
@@ -4758,12 +4758,12 @@ async function renderMiDinero(el) {
     }
     html += `<div class="card"><h3>🧾 Detalle de pagos</h3>
       <div style="overflow:auto"><table>
-        <tr><th>Fecha</th><th>Alumno</th><th>Actividad</th>${esAdmin ? '<th>Profesor</th>' : ''}<th>Mes</th><th>Método</th><th>${esAdmin ? 'Parte del profesor' : 'Mi parte'}</th></tr>
+        <tr><th>Fecha</th><th>Alumno</th><th>Actividad</th>${soyAdmin ? '<th>Profesor</th>' : ''}<th>Mes</th><th>Método</th><th>${soyAdmin ? 'Parte del profesor' : 'Mi parte'}</th></tr>
         ${(d.pagos || []).length ? d.pagos.map(p => `<tr>
           <td>${esc(p.fecha)}</td>
           <td>${esc(p.alumno || '—')}</td>
           <td>${p.actividad ? `<span class="tag">${esc(p.actividad)}</span>` : '—'}</td>
-          ${esAdmin ? `<td>${esc(p.profesor || '—')}</td>` : ''}
+          ${soyAdmin ? `<td>${esc(p.profesor || '—')}</td>` : ''}
           <td>${p.mes}/${p.anio}</td><td>${esc(p.metodo || '')}</td>
           <td><b style="color:var(--good)">$${num(p.monto)}</b></td></tr>`).join('')
           : '<tr><td colspan="7" class="empty">Todavía no hay pagos repartidos</td></tr>'}
@@ -4775,7 +4775,7 @@ async function renderMiDinero(el) {
 const DESTINOS_EXTRA = ['Fondo academia', 'Viaje a competencia', 'Seminario', 'Cuota de un día', 'Equipamiento', 'Otro'];
 
 async function renderIngresosExtra(el) {
-  const esAdmin = USER.role === 'admin';
+  const soyAdmin = esAdmin();
   el.innerHTML = secHeader('Ingresos extra') + `
     <div class="small" style="color:var(--muted);padding:0 4px 10px">
       Cobros puntuales que <b>no son la cuota mensual</b> y <b>no se reparten</b> entre los profesores: van al fondo de la academia.
@@ -4809,13 +4809,13 @@ async function renderIngresosExtra(el) {
         </table></div></div>` : ''}
       <div class="card"><h3>📋 Historial</h3>
         <div style="overflow:auto"><table>
-          <tr><th>Fecha</th><th>Concepto</th><th>Destino</th><th>Alumno</th><th>Mes</th><th>Método</th><th>Monto</th>${esAdmin ? '<th></th>' : ''}</tr>
+          <tr><th>Fecha</th><th>Concepto</th><th>Destino</th><th>Alumno</th><th>Mes</th><th>Método</th><th>Monto</th>${soyAdmin ? '<th></th>' : ''}</tr>
           ${(d.ingresos || []).length ? d.ingresos.map(x => `<tr>
             <td>${esc(x.fecha)}</td><td>${esc(x.concepto)}</td>
             <td>${esc(x.destino || '—')}</td><td>${esc(x.alumno || '—')}</td>
             <td>${x.mes}/${x.anio}</td><td>${esc(x.metodo || '')}</td>
             <td><b>$${num(x.monto)}</b></td>
-            ${esAdmin ? `<td><button class="btn bad small" onclick="borrarIngresoExtra(${x.id})">🗑</button></td>` : ''}
+            ${soyAdmin ? `<td><button class="btn bad small" onclick="borrarIngresoExtra(${x.id})">🗑</button></td>` : ''}
           </tr>`).join('') : '<tr><td colspan="8" class="empty">Todavía no hay ingresos extra</td></tr>'}
         </table></div></div>`;
 

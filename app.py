@@ -1058,15 +1058,6 @@ def _init_db_body(db):
     }
     for k, v in defaults.items():
         c.execute('INSERT OR IGNORE INTO settings(k, value) VALUES(?,?)', (k, v))
-    # Migracion de datos, una sola vez: Sebastian Torres queda con los dos roles.
-    # El rol principal sigue siendo 'profesor' (lista de profesores, reparto,
-    # cuota y asistencia no cambian); es_admin solo suma los permisos de admin.
-    promo = c.execute("SELECT value FROM settings WHERE k='_doble_rol_sebastian'").fetchone()
-    if not (promo and promo['value']):
-        c.execute("UPDATE users SET es_admin=1 WHERE nombre='Sebastian Torres'")
-        c.execute("UPDATE users SET es_admin=1 WHERE role='admin'")
-        c.execute(
-            "INSERT OR IGNORE INTO settings(k, value) VALUES('_doble_rol_sebastian','1')")
     # admin por defecto
     row = c.execute("SELECT id FROM users WHERE role='admin' LIMIT 1").fetchone()
     if not row:
@@ -1079,6 +1070,17 @@ def _init_db_body(db):
             "INSERT INTO users(username, password_hash, role, nombre) VALUES(?,?,?,?)",
             ('admin', generate_password_hash(clave), 'admin', 'Administrador'))
         _log.critical('ADMIN CREADO usuario=admin contrasena=%s (se muestra una sola vez, guardala)', clave)
+    # Migracion de datos, una sola vez: Sebastian Torres queda con los dos roles.
+    # El rol principal sigue siendo 'profesor' (lista de profesores, reparto,
+    # cuota y asistencia no cambian); es_admin solo suma los permisos de admin.
+    # Va DESPUES de crear el admin para que en una base nueva tambien quede con
+    # es_admin=1.
+    promo = c.execute("SELECT value FROM settings WHERE k='_doble_rol_sebastian'").fetchone()
+    if not (promo and promo['value']):
+        c.execute("UPDATE users SET es_admin=1 WHERE nombre='Sebastian Torres'")
+        c.execute("UPDATE users SET es_admin=1 WHERE role='admin'")
+        c.execute(
+            "INSERT OR IGNORE INTO settings(k, value) VALUES('_doble_rol_sebastian','1')")
     db.commit()
 
 
@@ -2668,7 +2670,7 @@ def api_usuario_password(uid):
     u = db.execute('SELECT nombre, role FROM users WHERE id=?', (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Usuario no encontrado'}), 404
-    if current_user()['role'] != 'admin' and u['role'] != 'alumno':
+    if not es_admin(current_user()) and u['role'] != 'alumno':
         return jsonify({'error': 'Solo un administrador puede reiniciar la clave de ese usuario'}), 403
     db.execute('UPDATE users SET password_hash=? WHERE id=?', (generate_password_hash(nueva), uid))
     db.commit()
@@ -4086,7 +4088,7 @@ def api_pagos_create():
     # Un profesor puede cargar su propia cuota (los profes pagan), pero ese pago
     # NO se reparte: la plata entra a la academia. Antes se bloqueaba entero y un
     # profe no podia darse de alta su cuota sin que lo hiciera un admin.
-    propio = (who['role'] != 'admin' and alumno_id == who['id'])
+    propio = (not es_admin(who) and alumno_id == who['id'])
     # El staff puede elegir uno o varios profesores: el 60% se divide en partes
     # iguales SOLO entre los elegidos. Si no elige ninguno (o manda el 0/-1 del
     # select), el reparto es automatico por actividades, como siempre.
@@ -5532,7 +5534,7 @@ def api_videos_delete(vid):
     v = db.execute('SELECT subido_por, url FROM videos WHERE id=?', (vid,)).fetchone()
     if not v:
         return jsonify({'error': 'Video no encontrado'}), 404
-    if u['role'] != 'admin' and v['subido_por'] != u['id']:
+    if not es_admin(u) and v['subido_por'] != u['id']:
         return jsonify({'error': 'Solo el profesor que lo subió o el admin pueden borrarlo'}), 403
     _storage_delete(v['url'])
     db.execute('DELETE FROM videos WHERE id=?', (vid,))
@@ -5589,7 +5591,7 @@ def api_mi_dinero():
     anio = to_int(request.args.get('anio')) or hoy.year
     db = get_db()
     cobrado_mes, destinos = None, []
-    if u['role'] == 'admin':
+    if es_admin(u):
         filas = db.execute(
             """SELECT r.monto, r.actividad, r.fecha, p.mes, p.anio, p.metodo,
                       p.concepto, a.nombre AS alumno, pr.nombre AS profesor, r.profesor_id
@@ -6845,7 +6847,7 @@ def api_planes_hecho(pid):
 @login_required
 def api_settings_get():
     u = current_user()
-    if u['role'] == 'admin':
+    if es_admin(u):
         keys = ['academy_name', 'default_cuota', 'due_day', 'cargo_demora_pct', 'academy_code', 'pago_link', 'pago_alias',
                 'auto_mensaje', 'auto_inact_dias', 'auto_deuda_dias', 'auto_mensaje_activo', 'logro_asist', 'logro_videos',
                 'asis_min_examen', 'mp_access_token', 'wp_numero', 'desc_familiar',

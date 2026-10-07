@@ -424,6 +424,12 @@ CREATE TABLE IF NOT EXISTS users (
     pausa_desde TEXT,
     pausa_hasta TEXT,
     beca INTEGER DEFAULT 0,
+    -- Permisos de administrador SIN cambiar el rol principal. Un profesor con
+    -- es_admin=1 sigue siendo profesor para todo lo demas (lista de profes,
+    -- reparto de cuotas, cuota propia, asistencia) y ademas entra al panel de
+    -- administracion. No se usa role='admin' para eso: el CHECK de arriba solo
+    -- admite un valor y cambiarlo lo sacaria de todas las listas de profesores.
+    es_admin INTEGER DEFAULT 0,
     creado TEXT
 );
 
@@ -976,8 +982,9 @@ def _migrar_columnas(c):
                      ('medic_lesiones', 'TEXT'), ('ficha_fecha', 'TEXT'),
                      ('firma_tyc', 'TEXT'), ('firma_foto', 'TEXT'), ('firma_fecha', 'TEXT'),
                      ('pausa_desde', 'TEXT'), ('pausa_hasta', 'TEXT'), ('beca', 'INTEGER DEFAULT 0'),
-                     ('actividades', 'TEXT'), ('genero', "TEXT DEFAULT ''"),
-                     ('bjj_categoria', "TEXT DEFAULT ''")]:
+                      ('actividades', 'TEXT'), ('genero', "TEXT DEFAULT ''"),
+                      ('bjj_categoria', "TEXT DEFAULT ''"),
+                      ('es_admin', 'INTEGER DEFAULT 0')]:
         if col not in cols:
             c.execute('ALTER TABLE users ADD COLUMN %s %s' % (col, ddl))
     if 'recordado' not in _columnas_de(c, 'eventos'):
@@ -1045,6 +1052,14 @@ def _init_db_body(db):
     }
     for k, v in defaults.items():
         c.execute('INSERT OR IGNORE INTO settings(k, value) VALUES(?,?)', (k, v))
+    # Migracion de datos, una sola vez: Sebastian Torres queda con los dos roles.
+    # El rol principal sigue siendo 'profesor' (lista de profesores, reparto,
+    # cuota y asistencia no cambian); es_admin solo suma los permisos de admin.
+    promo = c.execute("SELECT value FROM settings WHERE k='_doble_rol_sebastian'").fetchone()
+    if not (promo and promo['value']):
+        c.execute("UPDATE users SET es_admin=1 WHERE nombre='Sebastian Torres'")
+        c.execute(
+            "INSERT OR IGNORE INTO settings(k, value) VALUES('_doble_rol_sebastian','1')")
     # admin por defecto
     row = c.execute("SELECT id FROM users WHERE role='admin' LIMIT 1").fetchone()
     if not row:
@@ -1534,6 +1549,33 @@ def login_required(f):
     return wrapper
 
 
+def es_admin(u):
+    """True si el usuario es administrador (rol principal o permiso extra).
+
+    El rol principal NO cambia: un profesor con es_admin=1 sigue siendo
+    'profesor' para todo lo demas (lista de profesores, reparto de cuotas,
+    cuota propia, asistencia y listado de alumnos) y ademas entra al panel de
+    administracion. Asi no se lo saca de ninguna lista que usa role='profesor'.
+    """
+    if not u:
+        return False
+    try:
+        if u['role'] == 'admin':
+            return True
+    except Exception:
+        return False
+    try:
+        return bool(u['es_admin'] if 'es_admin' in u.keys() else 0)
+    except Exception:
+        return False
+
+
+def _cumple_rol(u, roles):
+    if u['role'] in roles:
+        return True
+    return 'admin' in roles and es_admin(u)
+
+
 def role_required(*roles):
     def deco(f):
         from functools import wraps
@@ -1542,7 +1584,7 @@ def role_required(*roles):
             if 'user_id' not in session:
                 return jsonify({'error': 'No autorizado'}), 401
             u = current_user()
-            if u['role'] not in roles:
+            if not _cumple_rol(u, roles):
                 return jsonify({'error': 'Sin permisos'}), 403
             return f(*args, **kwargs)
         return wrapper
@@ -1696,6 +1738,7 @@ def user_public(u):
         'id': u['id'],
         'username': u['username'],
         'role': u['role'],
+        'es_admin': bool(u['es_admin'] if 'es_admin' in u.keys() else 0),
         'nombre': u['nombre'],
         'edad': u['edad'],
         'peso': u['peso'],
@@ -3358,7 +3401,7 @@ def api_profesores_delete(uid):
     u = get_db().execute("SELECT * FROM users WHERE id=? AND role='profesor'", (uid,)).fetchone()
     if not u:
         return jsonify({'error': 'Profesor no encontrado'}), 404
-    admin = get_db().execute("SELECT id FROM users WHERE role='admin' LIMIT 1").fetchone()
+    admin = get_db().execute("SELECT id FROM users WHERE role='admin' OR es_admin=1 LIMIT 1").fetchone()
     # quita las clases del profesor
     get_db().execute('UPDATE classes SET profesor_id=NULL WHERE profesor_id=?', (uid,))
     # conserva pagos: profesor_id queda con SET NULL
@@ -3395,6 +3438,26 @@ def api_alumnos_beca(uid):
     get_db().execute('UPDATE users SET beca=? WHERE id=?', (nueva, uid))
     get_db().commit()
     return jsonify({'ok': True, 'beca': nueva, 'nombre': u['nombre']})
+
+
+@app.route('/api/usuarios/<int:uid>/admin', methods=['POST'])
+@role_required('admin')
+def api_usuario_toggle_admin(uid):
+    db = get_db()
+    u = db.execute('SELECT id, role, es_admin, nombre FROM users WHERE id=?', (uid,)).fetchone()
+    if not u:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+    nuevo = 0 if (u['es_admin'] if 'es_admin' in u.keys() else 0) else 1
+    # Proteccion: no dejar sin ningun admin activo (rol principal o es_admin)
+    if nuevo == 0 and u['role'] != 'admin':
+        # Ver cuantos admins efectivos hay (role admin o es_admin)
+        count = db.execute(
+            "SELECT COUNT(*) AS c FROM users WHERE role='admin' OR es_admin=1").fetchone()['c']
+        if count <= 1:
+            return jsonify({'error': 'No podes quitar el ultimo administrador'}), 400
+    db.execute('UPDATE users SET es_admin=? WHERE id=?', (nuevo, uid))
+    db.commit()
+    return jsonify({'ok': True, 'es_admin': nuevo})
 
 
 @app.route('/api/alumnos/<int:uid>/notas', methods=['PUT'])
@@ -3975,7 +4038,7 @@ def api_pagos_create():
                f'{alumno["nombre"]} pagó ${monto:,.0f}: te corresponden ${parte:,.0f}{detalle}.'.replace(',', '.'),
                'pago', link='dinero')
     # a los admins (si no es el que registro)
-    admins = get_db().execute("SELECT id FROM users WHERE role='admin'").fetchall()
+    admins = get_db().execute("SELECT id FROM users WHERE role='admin' OR es_admin=1").fetchall()
     for a in admins:
         if a['id'] != who['id']:
             notify(a['id'], 'Nuevo pago registrado',

@@ -412,10 +412,18 @@ async function obligarNacimiento() {
   });
 }
 
-function initDashboard() {
+function esAdmin(u){
+  u = u || USER;
+  if (!u) return false;
+  if (u.role === 'admin') return true;
+  try { if (u.es_admin) return true; } catch(e){}
+  return false;
+}
+
   const R = USER.role;
+  const A = esAdmin();
   initAcc();
-  $('#userRoleLabel').textContent = R === 'admin' ? 'Administrador' : R === 'profesor' ? 'Profesor' : 'Alumno';
+  $('#userRoleLabel').textContent = A ? 'Administrador' : R === 'profesor' ? 'Profesor' : R === 'alumno' ? 'Alumno' : (R || '');
   $('#academyName').textContent = window.ACADEMY_NAME || 'NEXO MADRYN JIU JITSU';
 
   // barra de navegación inferior estilo Instagram
@@ -1644,7 +1652,7 @@ async function renderPerfil(el) {
           </div>
           <div style="flex:1">
             <h2 style="margin:0;font-size:20px">${esc(me.nombre)}</h2>
-            <div class="small">@${esc(me.username)} · ${me.role === 'alumno' ? 'Alumno' : me.role === 'profesor' ? 'Profesor' : 'Administrador'}</div>
+            <div class="small">@${esc(me.username)} · ${me.role === 'alumno' ? 'Alumno' : me.role === 'profesor' ? 'Profesor' : 'Administrador'}${me.es_admin && me.role !== 'admin' ? ' · Administrador' : ''}</div>
             ${stats}
           </div>
         </div>

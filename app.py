@@ -469,6 +469,10 @@ CREATE TABLE IF NOT EXISTS avisos_pago (
     fecha TEXT,
     confirmado_por INTEGER,
     confirmado_fecha TEXT,
+    -- Profesor(es) elegidos por el alumno al mandar el comprobante (CSV de IDs).
+    -- Cuando hay varios, el 60% de profesores se reparte en partes iguales SOLO
+    -- entre los elegidos. NULL = repartir entre quienes dan sus actividades (fallback).
+    profesor_ids TEXT,
     -- Profesor elegido por el alumno al mandar el comprobante (NULL = repartir
     -- entre los que dan sus actividades). Va al final para que el ALTER de las
     -- bases viejas agregue la misma columna en la misma posicion.
@@ -993,6 +997,8 @@ def _migrar_columnas(c):
         c.execute('ALTER TABLE avisos_pago ADD COLUMN comprobante TEXT')
     if 'profesor_id' not in _columnas_de(c, 'avisos_pago'):
         c.execute('ALTER TABLE avisos_pago ADD COLUMN profesor_id INTEGER')
+    if 'profesor_ids' not in _columnas_de(c, 'avisos_pago'):
+        c.execute('ALTER TABLE avisos_pago ADD COLUMN profesor_ids TEXT')
     v_cols = _columnas_de(c, 'videos')
     if 'data' not in v_cols:
         c.execute('ALTER TABLE videos ADD COLUMN data TEXT')
@@ -2187,28 +2193,115 @@ def _precio_actividad(n):
     return p1
 
 
+def _ids_desde(raw):
+    """Normaliza lo que llego del body en una lista de IDs de profesores.
+
+    Acepta [1, 2], '1,2', '1; 2', 1 o '1'. Devuelve [] si no hay nada
+    util, y los IDs repetidos se deduplican (misma seleccion dos veces es
+    una sola seleccion).
+    """
+    if raw is None or raw is False:
+        return []
+    if isinstance(raw, bool):
+        return []
+    if isinstance(raw, (list, tuple, set)):
+        items = list(raw)
+    elif isinstance(raw, (int, float)):
+        items = [raw]
+    else:
+        s = str(raw).strip()
+        if not s:
+            return []
+        items = [p.strip() for p in s.replace(';', ',').split(',')]
+    out, seen = [], set()
+    for it in items:
+        if isinstance(it, bool):
+            continue
+        n = to_int(it)
+        if n is not None and n > 0 and n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
+
+
+def _leer_profesores(data):
+    """(ids, error) de la seleccion de profesores hecha en el body.
+
+    Lee 'profesor_ids' (lista) o 'profesor_id' (legacy: un solo profesor).
+    ids=[] significa que no eligio a nadie; error solo si mando basura.
+    Los sentinels del staff ("0"/-1 = reparto automatico) cuentan como
+    "no eligio" y no son error.
+    """
+    raw = data.get('profesor_ids')
+    if raw is None:
+        raw = data.get('profesor_id')
+    if raw is None:
+        return [], None
+    if raw in (0, '0', -1, '-1', False):
+        return [], None
+    if isinstance(raw, (str, bytes)) and not str(raw).strip():
+        return [], None
+    if isinstance(raw, (list, tuple, set)) and len(raw) == 0:
+        return [], None
+    ids = _ids_desde(raw)
+    if not ids:
+        return [], 'Profesor no válido'
+    return ids, None
+
+
+def _nombres_profes(db, ids):
+    """{id: nombre} de los IDs que son profesores. Los que no lo son (o no
+    existen) quedan afuera: el llamador los filtra con eso."""
+    ids = _ids_desde(ids)
+    if not ids:
+        return {}
+    marks = ','.join('?' for _ in ids)
+    rows = db.execute(
+        "SELECT id, nombre FROM users WHERE id IN (%s) AND role='profesor'" % marks,
+        list(ids)).fetchall()
+    return {r['id']: r['nombre'] for r in rows}
+
+
+def _partes_iguales(ids, monto, nombres):
+    """(pid, monto, actividad, nombre) repartiendo el 60% en partes iguales
+    SOLO entre los IDs elegidos. El ultimo absorbe el redondeo para que sume
+    exacto.
+    """
+    ids = [i for i in _ids_desde(ids) if i in nombres]
+    n = len(ids)
+    if n == 0:
+        return []
+    base = round(monto / n, 2)
+    partes = []
+    for i, pid in enumerate(ids):
+        parte = round(monto - base * (n - 1), 2) if i == n - 1 else base
+        partes.append((pid, parte, '', nombres[pid]))
+    return partes
+
+
 def _reparto_por_actividades(alumno_id, monto, profesor_manual_id=None):
     """Divide monto entre los profes que dan las actividades del alumno.
 
     Recibe YA la parte que le toca a los profes (el 60% de la cuota, ver
     _registrar_reparto).
 
-    Si el pago trae un profesor elegido a mano (profesor_manual_id), ese se
-    lleva el 60% entero, aunque el alumno entrene con varios: quien elige a
-    mano manda, ya sea el alumno al subir el comprobante o el staff al
-    registrar el cobro. Recién sin eleccion se reparte en partes iguales entre
-    los que dan sus actividades: Gi+NoGi con dos prof distintos => 50/50 de
-    esos 60%. Si no hay profe que den alguna actividad y tampoco hay eleccion,
-    queda sin reparto.
-    Devuelve [(profesor_id, montoParte, actividad_csv, nombre)].
+    profesor_manual_id acepta un ID (legacy) o la lista completa de IDs que
+    eligio el alumno/staff. Si hay eleccion, el 60% se divide en partes
+    iguales SOLO entre los elegidos (uno elegido = 60% entero), sin mirar
+    las actividades. Recién sin eleccion se reparte entre los que dan sus
+    actividades: Gi+NoGi con dos prof distintos => 50/50 de esos 60%. Si no
+    hay profe que den alguna actividad y tampoco hay eleccion, queda sin
+    reparto. Devuelve [(profesor_id, montoParte, actividad_csv, nombre)].
     """
     db = get_db()
-    if profesor_manual_id:
-        prof = db.execute("SELECT nombre FROM users WHERE id=? AND role='profesor'",
-                          (profesor_manual_id,)).fetchone()
-        if prof:
-            return [(profesor_manual_id, round(monto, 2), '', prof['nombre'])]
+    elegidos = _ids_desde(profesor_manual_id)
+    if elegidos:
+        nombres = _nombres_profes(db, elegidos)
+        partes = _partes_iguales(elegidos, monto, nombres)
+        if partes:
+            return partes
     alumno = db.execute('SELECT actividades FROM users WHERE id=?', (alumno_id,)).fetchone()
+
     acts_alumno = {a.strip() for a in ((alumno['actividades'] or '') if alumno else '').split(',') if a.strip()}
     if acts_alumno:
         profs = db.execute(
@@ -3956,9 +4049,13 @@ def api_pagos():
            JOIN users al ON al.id=p.alumno_id
            LEFT JOIN users pr ON pr.id=p.profesor_id"""
     params = []
-    if u['role'] == 'profesor':
-        q += ' WHERE p.profesor_id=?'
-        params.append(u['id'])
+    if u['role'] == 'profesor' and not es_admin(u):
+        # Tambien se mira pago_reparto: cuando el alumno elige a varios, el
+        # profesor elegido en segundo lugar no figura en pagos.profesor_id pero
+        # igual cobra su parte y tenia que poder ver el pago.
+        q += (' WHERE (p.profesor_id=? OR p.id IN '
+              '(SELECT pago_id FROM pago_reparto WHERE profesor_id=?))')
+        params += [u['id'], u['id']]
     q += ' ORDER BY p.id DESC LIMIT 500'
     rows = get_db().execute(q, params).fetchall()
     pagos = []
@@ -3977,7 +4074,6 @@ def api_pagos():
 def api_pagos_create():
     data = parse_json()
     alumno_id = to_int(data.get('alumno_id'))
-    profesor_id = to_int(data.get('profesor_id'))
     monto = to_float(data.get('monto'))
     mes = to_int(data.get('mes')) or _hoy_academy().month
     anio = to_int(data.get('anio')) or _hoy_academy().year
@@ -3991,9 +4087,16 @@ def api_pagos_create():
     # NO se reparte: la plata entra a la academia. Antes se bloqueaba entero y un
     # profe no podia darse de alta su cuota sin que lo hiciera un admin.
     propio = (who['role'] != 'admin' and alumno_id == who['id'])
-    # profesor_id 0 / -1 / ausente = reparto automático según actividades
-    if profesor_id in (None, 0, -1) or data.get('profesor_id') in (None, 0, -1, '0'):
-        profesor_id = None
+    # El staff puede elegir uno o varios profesores: el 60% se divide en partes
+    # iguales SOLO entre los elegidos. Si no elige ninguno (o manda el 0/-1 del
+    # select), el reparto es automatico por actividades, como siempre.
+    ids, err = _leer_profesores(data)
+    if err:
+        return jsonify({'error': err}), 400
+    nombres = _nombres_profes(get_db(), ids)
+    if len(nombres) != len(ids):
+        return jsonify({'error': 'Ese profesor no existe'}), 400
+    profesor_id = ids[0] if ids else None
     base, cargo, final = calcular_demora(monto, mes, anio)
     # Opt-in: si no viene el campo o no es explicito, NO se cobra recargo.
     if as_bool(data.get('aplicar_cargo'), default=False):
@@ -4020,7 +4123,7 @@ def api_pagos_create():
     get_db().commit()
     pago_id = get_db().execute('SELECT last_insert_rowid() AS id').fetchone()['id']
     # reparto 60% profes / 30% tatami-academia / 10% administrativo
-    partes = _registrar_reparto(get_db(), pago_id, alumno_id, monto, profesor_id,
+    partes = _registrar_reparto(get_db(), pago_id, alumno_id, monto, ids or None,
                                 sin_reparto=propio)
     destinos = _destinos_del_reparto(monto)[1] if partes else []
     get_db().commit()
@@ -4058,7 +4161,6 @@ def api_pagos_familia():
     ya tiene pago de ese mes/año."""
     data = parse_json()
     titular_id = to_int(data.get('titular_id'))
-    profesor_id = to_int(data.get('profesor_id'))
     mes = to_int(data.get('mes')) or _hoy_academy().month
     anio = to_int(data.get('anio')) or _hoy_academy().year
     metodo = (data.get('metodo') or 'Efectivo').strip() or 'Efectivo'
@@ -4069,6 +4171,13 @@ def api_pagos_familia():
     if err:
         return jsonify({'error': err}), 400
     db = get_db()
+    ids, err = _leer_profesores(data)
+    if err:
+        return jsonify({'error': err}), 400
+    nombres = _nombres_profes(db, ids)
+    if len(nombres) != len(ids):
+        return jsonify({'error': 'Ese profesor no existe'}), 400
+    profesor_id = ids[0] if ids else None
     fam = db.execute('SELECT * FROM familias WHERE titular_id=?', (titular_id,)).fetchone()
     if not fam:
         return jsonify({'error': 'Ese alumno no es titular de ningún grupo familiar'}), 404
@@ -4110,7 +4219,7 @@ def api_pagos_familia():
             (m['id'], profesor_id, pago_monto, mes, anio, metodo, 'Cuota mensual',
              nota or ('Familia %s' % fam['nombre']), now, who['id']))
         pid_pago = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
-        _registrar_reparto(db, pid_pago, m['id'], pago_monto, profesor_id)
+        _registrar_reparto(db, pid_pago, m['id'], pago_monto, ids or None)
         total += pago_monto
         creados.append({'id': m['id'], 'nombre': m['nombre'], 'monto': pago_monto})
     db.commit()
@@ -4122,11 +4231,13 @@ def api_pagos_familia():
                    'pago')
         except Exception:
             pass
-    if profesor_id and profesor_id != who['id']:
+    for pid in ids:
+        if pid == who['id']:
+            continue
         try:
-            profe = db.execute('SELECT nombre FROM users WHERE id=?', (profesor_id,)).fetchone()
+            profe = db.execute('SELECT nombre FROM users WHERE id=?', (pid,)).fetchone()
             if profe:
-                notify(profesor_id, 'Recibiste un pago',
+                notify(pid, 'Recibiste un pago',
                        'La familia %s te pagó $%d (%s).' % (fam['nombre'], total, metodo),
                        'pago')
         except Exception:
@@ -4478,7 +4589,7 @@ def api_mis_pagos():
            WHERE p.alumno_id=? ORDER BY p.id DESC LIMIT 100""", (u['id'],)).fetchall()
     aviso = get_db().execute(
         """SELECT a.id, a.mes, a.anio, a.monto, a.nota, a.estado, a.fecha, a.profesor_id,
-                  pr.nombre AS profesor_nombre
+                  a.profesor_ids, pr.nombre AS profesor_nombre
            FROM avisos_pago a LEFT JOIN users pr ON pr.id=a.profesor_id
            WHERE a.alumno_id=? AND a.estado='pendiente' ORDER BY a.id DESC LIMIT 1""",
         (u['id'],)).fetchone()
@@ -4488,26 +4599,77 @@ def api_mis_pagos():
     # es un data-URL de hasta 12MB y la pantalla no lo usa.
     ultimo = get_db().execute(
         """SELECT a.id, a.mes, a.anio, a.monto, a.nota, a.estado, a.fecha,
-                  a.confirmado_fecha, a.profesor_id, pr.nombre AS profesor_nombre
+                  a.confirmado_fecha, a.profesor_id, a.profesor_ids,
+                  pr.nombre AS profesor_nombre
            FROM avisos_pago a LEFT JOIN users pr ON pr.id=a.profesor_id
            WHERE a.alumno_id=? ORDER BY a.id DESC LIMIT 1""",
         (u['id'],)).fetchone()
-    return jsonify({'pagos': [dict(r) for r in rows],
-                    'aviso_pendiente': dict(aviso) if aviso else None,
-                    'ultimo_aviso': dict(ultimo) if ultimo else None})
+
+    def armar_aviso(row):
+        d = dict(row)
+        sel = _ids_desde(d.get('profesor_ids')) or ([d['profesor_id']] if d.get('profesor_id') else [])
+        d['profesor_ids'] = sel
+        if sel:
+            nom = _nombres_profes(get_db(), sel)
+            lista = [nom[i] for i in sel if i in nom]
+            d['profesor_nombre'] = ', '.join(lista) if lista else d.get('profesor_nombre')
+        return d
+
+    pagos = [dict(r) for r in rows]
+    # Con varios profes elegidos, pagos.profesor_id guarda solo al primero:
+    # los demas cobran igual via pago_reparto, asi que se muestran todos.
+    por_pago = {}
+    if pagos:
+        marks = ','.join('?' for _ in pagos)
+        rr = get_db().execute(
+            "SELECT pr.pago_id, u.nombre FROM pago_reparto pr "
+            "JOIN users u ON u.id=pr.profesor_id WHERE pr.pago_id IN (%s) ORDER BY pr.id" % marks,
+            [p['id'] for p in pagos]).fetchall()
+        for x in rr:
+            por_pago.setdefault(x['pago_id'], []).append(x['nombre'])
+    for p in pagos:
+        lista = por_pago.get(p['id'])
+        if lista:
+            p['profesor_nombre'] = ', '.join(lista)
+    return jsonify({'pagos': pagos,
+                    'aviso_pendiente': armar_aviso(aviso) if aviso else None,
+                    'ultimo_aviso': armar_aviso(ultimo) if ultimo else None})
+
+
+def _aviso_profesores(aviso):
+    """Profesor(es) que eligio el alumno al mandar el comprobante ([] si nadie).
+
+    Lee 'profesor_ids' (CSV) y, si ese aviso es viejo y no lo tiene, cae en
+    'profesor_id' (un solo profesor). Se lee con try/except a proposito: el
+    aviso puede venir de un SELECT * de una base todavia sin la columna (o de
+    un dict armado a mano en un test), y eso no tiene que tumbar la
+    acreditacion. Devuelve IDs validos, sin repetir.
+    """
+    ids = []
+    try:
+        if 'profesor_ids' in aviso.keys():
+            ids = _ids_desde(aviso['profesor_ids'])
+    except Exception:
+        ids = []
+    if not ids:
+        try:
+            uno = to_int(aviso['profesor_id']) or None
+        except Exception:
+            uno = None
+        if uno:
+            ids = [uno]
+    return ids
 
 
 def _aviso_profesor(aviso):
-    """Profesor que eligio el alumno al mandar el comprobante (o None).
+    """Profesor principal del aviso (el primero elegido, o None).
 
-    Se lee con try/except a proposito: el aviso puede venir de un SELECT * de
-    una base todavia sin la columna (o de un dict armado a mano en un test),
-    y eso no tiene que tumbar la acreditacion.
+    Es el que se guarda en pagos.profesor_id para la columna "Profesor que
+    recibio"; con varios elegidos, los demas cobran igual via
+    _aviso_profesores -> _reparto_por_actividades.
     """
-    try:
-        return to_int(aviso['profesor_id']) or None
-    except Exception:
-        return None
+    ids = _aviso_profesores(aviso)
+    return ids[0] if ids else None
 
 
 # Columnas de avisos_pago que NO son el comprobante. El comprobante es un
@@ -4515,7 +4677,7 @@ def _aviso_profesor(aviso):
 # confirmacion, borrado o webhook. El archivo se pide solo en
 # /api/avisos_pago/<id>/comprobante.
 _AVISO_COLS = ('id, alumno_id, monto, mes, anio, nota, estado, fecha, '
-               'confirmado_por, confirmado_fecha, profesor_id')
+               'confirmado_por, confirmado_fecha, profesor_id, profesor_ids')
 
 
 def _acreditar_aviso(db, aviso, monto_base, quien_id=None, aplicar_cargo=None):
@@ -4525,14 +4687,16 @@ def _acreditar_aviso(db, aviso, monto_base, quien_id=None, aplicar_cargo=None):
     admin/profe al revisarlo. Devuelve (base, cargo, final, pago_id, partes).
     aplicar_cargo=None usa el recargo que corresponde por fecha; False lo anula
     (el admin lo desmarca cuando el alumno pago antes del vencimiento).
-    El profesor que eligio el alumno al mandar el comprobante queda como
-    profesor_id del pago (para que figure en "Profesor que recibio") y se lleva
-    el 60% entero; sin eleccion el reparto es por actividades como siempre.
+    El/los profesores que eligio el alumno al mandar el comprobante quedan
+    reflejados en el pago: el primero figura en pagos.profesor_id y todos
+    dividen el 60% en partes iguales; sin eleccion el reparto es por
+    actividades como siempre.
     """
     base, cargo, final = calcular_demora(monto_base, aviso['mes'], aviso['anio'])
     if aplicar_cargo is False:
         cargo, final = 0, base
-    profe_id = _aviso_profesor(aviso)
+    elegidos = _aviso_profesores(aviso)
+    profe_id = elegidos[0] if elegidos else None
     concepto = ('Acreditado automaticamente al recibir el comprobante' if quien_id is None
                 else 'Confirmado desde aviso de pago')
     if cargo:
@@ -4547,7 +4711,7 @@ def _acreditar_aviso(db, aviso, monto_base, quien_id=None, aplicar_cargo=None):
     # actividades del alumno nunca lo cobraban: el alumno pagaba y el profe no
     # veía nada en su reparto.
     partes = _registrar_reparto(db, pago_id, aviso['alumno_id'], final,
-                                profesor_manual_id=profe_id)
+                                profesor_manual_id=elegidos or None)
     db.execute(
         "UPDATE avisos_pago SET estado='confirmado', confirmado_por=?, confirmado_fecha=? WHERE id=?",
         (quien_id, ahora, aviso['id']))
@@ -4589,22 +4753,26 @@ def api_avisar_pago():
         return jsonify({'error': 'Tenés que subir el comprobante de pago (foto, captura o PDF)'}), 400
     if len(comp) > 12 * 1024 * 1024:
         return jsonify({'error': 'El comprobante es muy grande (máx 12MB)'}), 400
-    # El alumno puede indicar a qué profesor le está pagando. Si no lo hace, el
-    # reparto se hace solo entre los que dan sus actividades (como siempre).
-    # "0"/null es el valor del select para "repartir automáticamente".
-    profe_raw = data.get('profesor_id')
-    profe_id = to_int(profe_raw) or None
-    if profe_id is None and profe_raw not in (None, '', 0, '0', False):
-        return jsonify({'error': 'Profesor no válido'}), 400
-    if profe_id:
-        if not db.execute("SELECT id FROM users WHERE id=? AND role='profesor'",
-                          (profe_id,)).fetchone():
-            return jsonify({'error': 'Ese profesor no existe'}), 400
+    # El alumno elige a qué profesor(es) le está pagando: el 60% de profesores
+    # se divide en partes iguales SOLO entre los elegidos (uno elegido = 60%
+    # entero). Es obligatorio: si no hay eleccion, el reparto por actividades
+    # sigue disponible para los pagos viejos y el webhook, pero el alumno no
+    # puede mandar un comprobante sin decir a quién le paga.
+    ids, err = _leer_profesores(data)
+    if err:
+        return jsonify({'error': err}), 400
+    if not ids:
+        return jsonify({'error': 'Elegí al menos un profesor'}), 400
+    nombres = _nombres_profes(db, ids)
+    if len(nombres) != len(ids):
+        return jsonify({'error': 'Ese profesor no existe'}), 400
+    profe_id = ids[0]
+    csv_ids = ','.join(str(i) for i in ids)
     ahora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     db.execute(
-        'INSERT INTO avisos_pago(alumno_id, monto, mes, anio, nota, comprobante, estado, fecha, profesor_id) VALUES(?,?,?,?,?,?,?,?,?)',
+        'INSERT INTO avisos_pago(alumno_id, monto, mes, anio, nota, comprobante, estado, fecha, profesor_id, profesor_ids) VALUES(?,?,?,?,?,?,?,?,?,?)',
         (u['id'], monto, mes, anio, data.get('nota') or 'Cuota mensual', comp, 'pendiente', ahora,
-         profe_id))
+         profe_id, csv_ids))
     aviso_id = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
     staff = db.execute(
         "SELECT id FROM users WHERE role IN ('admin','profesor') AND activo=1").fetchall()
@@ -4613,15 +4781,17 @@ def api_avisar_pago():
     # decision del admin. Queda pendiente y se le avisa para que lo revise.
     if _vencido(mes, anio, hoy):
         db.commit()
-        quien = db.execute('SELECT nombre FROM users WHERE id=?', (profe_id,)).fetchone() if profe_id else None
-        detalle = f' El alumno indicó que le paga a {quien["nombre"]}' if quien else ''
+        todos = ', '.join(nombres.get(i, '') for i in ids)
+        detalle = f' El alumno indicó que le paga a {todos}'
         for s in staff:
             notify(s['id'], '⏰ Comprobante vencido por revisar',
                    f'{u["nombre"]} mandó el comprobante de {mes}/{anio} y esa cuota venció el '
                    f'{_vencimiento(mes, anio).day}. Revisá el comprobante y confirmá el pago '
                    f'(con o sin recargo por demora).' + detalle, 'pago')
-        if quien:
-            notify(profe_id, '🧾 Comprobante tuyo para revisar',
+        for pid in ids:
+            if pid == u['id']:
+                continue
+            notify(pid, '🧾 Comprobante tuyo para revisar',
                    f'{u["nombre"]} mandó el comprobante de la cuota {mes}/{anio} y te indicó a vos '
                    f'como profesor. La cuota está vencida, así que el admin la confirma antes de '
                    f'que se acredite.', 'pago')
@@ -4643,15 +4813,17 @@ def api_avisar_pago():
                f'{u["nombre"]} mandó el comprobante de {mes}/{anio} por '
                f'${final:,.0f} y se acreditó solo. Queda guardado el comprobante por '
                f'si lo querés revisar.'.replace(',', '.'), 'pago')
-    if profe_id and profe_id != u['id']:
-        toca = next((p[1] for p in partes if p[0] == profe_id), None)
-        notify(profe_id, '💰 Te pagaron la cuota',
+    for pid in ids:
+        if pid == u['id']:
+            continue
+        toca = next((p[1] for p in partes if p[0] == pid), None)
+        notify(pid, '💰 Te pagaron la cuota',
                f'{u["nombre"]} te acreditó la cuota {mes}/{anio}'
                + (f' y te corresponde ${toca:,.0f} de reparto'.replace(',', '.') if toca else '')
                + '.', 'pago')
     return jsonify({'ok': True, 'auto': True, 'aviso_id': aviso_id, 'base': base,
                     'cargo': cargo, 'monto': final, 'pago_id': pago_id,
-                    'profesor_id': profe_id})
+                    'profesor_id': profe_id, 'profesor_ids': ids})
 
 
 @app.route('/api/avisos_pago', methods=['GET'])
@@ -4663,7 +4835,7 @@ def api_avisos_pago():
     # /api/avisos_pago/<id>/comprobante. Los pendientes van primero.
     rows = get_db().execute(
         """SELECT a.id, a.alumno_id, a.monto, a.mes, a.anio, a.nota, a.estado, a.fecha,
-                  a.confirmado_por, a.confirmado_fecha, a.profesor_id,
+                  a.confirmado_por, a.confirmado_fecha, a.profesor_id, a.profesor_ids,
                   pr.nombre AS profesor_nombre,
                   (a.comprobante IS NOT NULL) AS tiene_comprobante,
                   u.nombre AS alumno_nombre
@@ -4671,7 +4843,21 @@ def api_avisos_pago():
            JOIN users u ON u.id=a.alumno_id
            LEFT JOIN users pr ON pr.id=a.profesor_id
            ORDER BY a.estado='pendiente' DESC, a.id DESC LIMIT 300""").fetchall()
-    return jsonify({'avisos': [dict(r) for r in rows]})
+    avisos = []
+    todos = set()
+    for r in rows:
+        d = dict(r)
+        # varios profes elegidos -> lista de IDs + el nombre de cada uno
+        sel = _ids_desde(d.get('profesor_ids')) or ([d['profesor_id']] if d.get('profesor_id') else [])
+        d['profesor_ids'] = sel
+        d['profesor_nombre'] = None
+        todos.update(sel)
+        avisos.append(d)
+    nombres = _nombres_profes(get_db(), todos)
+    for d in avisos:
+        nom = [nombres[i] for i in d['profesor_ids'] if i in nombres]
+        d['profesor_nombre'] = ', '.join(nom) if nom else None
+    return jsonify({'avisos': avisos})
 
 
 @app.route('/api/avisos_pago/<int:aid>/comprobante', methods=['GET'])
@@ -4692,12 +4878,18 @@ def api_aviso_comprobante(aid):
         return jsonify({'error': 'No es tu comprobante'}), 403
     if not a['comprobante']:
         return jsonify({'error': 'Este aviso no tiene comprobante'}), 404
+    sel = _ids_desde(a['profesor_ids'] if 'profesor_ids' in a.keys() else None)
+    if not sel and a['profesor_id']:
+        sel = [a['profesor_id']]
+    nombres = _nombres_profes(db, sel)
+    nom = [nombres[i] for i in sel if i in nombres]
     return jsonify({
         'ok': True, 'id': a['id'], 'comprobante': a['comprobante'],
         'alumno_nombre': a['alumno_nombre'], 'mes': a['mes'], 'anio': a['anio'],
         'monto': a['monto'], 'nota': a['nota'], 'estado': a['estado'], 'fecha': a['fecha'],
         'confirmado_fecha': a['confirmado_fecha'],
-        'profesor_id': a['profesor_id'], 'profesor_nombre': a['profesor_nombre'],
+        'profesor_id': a['profesor_id'], 'profesor_ids': sel,
+        'profesor_nombre': ', '.join(nom) if nom else a['profesor_nombre'],
     })
 
 
@@ -4712,14 +4904,20 @@ def api_avisos_confirmar(aid):
         return jsonify({'error': 'Este aviso ya fue confirmado'}), 400
     who = current_user()
     data = parse_json()
-    # El admin puede cambiar al profesor elegido por el alumno: es la ultima
-    # palabra sobre quién cobra el 60%.
-    if 'profesor_id' in data:
-        pid = to_int(data.get('profesor_id')) or None
-        if pid is not None and not db.execute(
-                "SELECT id FROM users WHERE id=? AND role='profesor'", (pid,)).fetchone():
+    # El admin puede cambiar la eleccion del alumno: es la ultima palabra sobre
+    # quienes cobran el 60%. Acepta varios (profesor_ids) o uno solo
+    # (profesor_id); mandar null/0 lo limpia y el reparto vuelve a ser por
+    # actividades, como siempre.
+    if 'profesor_id' in data or 'profesor_ids' in data:
+        ids, err = _leer_profesores(data)
+        if err:
+            return jsonify({'error': err}), 400
+        nombres = _nombres_profes(db, ids)
+        if len(nombres) != len(ids):
             return jsonify({'error': 'Ese profesor no existe'}), 400
-        db.execute('UPDATE avisos_pago SET profesor_id=? WHERE id=?', (pid, aid))
+        db.execute('UPDATE avisos_pago SET profesor_id=?, profesor_ids=? WHERE id=?',
+                   (ids[0] if ids else None,
+                    ','.join(str(i) for i in ids) if ids else None, aid))
         a = db.execute('SELECT %s FROM avisos_pago WHERE id=?' % _AVISO_COLS, (aid,)).fetchone()
     # El admin puede ajustar el monto real (ej: pagó con el valor de la cuota
     # anterior) y decidir si se suma el aumento/recargo por demora (por defecto
@@ -4740,7 +4938,7 @@ def api_avisos_confirmar(aid):
                f'{who["nombre"]} confirmó la cuota {a["mes"]}/{a["anio"]} de un alumno y te '
                f'corresponde ${parte:,.0f} de reparto.'.replace(',', '.'), 'pago')
     return jsonify({'ok': True, 'base': base, 'cargo': cargo, 'monto': final,
-                    'profesor_id': _aviso_profesor(a)})
+                    'profesor_id': _aviso_profesor(a), 'profesor_ids': _aviso_profesores(a)})
 
 
 @app.route('/api/avisos_pago/<int:aid>', methods=['DELETE'])

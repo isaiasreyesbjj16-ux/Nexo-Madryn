@@ -1,5 +1,5 @@
 /* Academia BJJ - app.js */
-const BELTS_ADULT = window.BELTS_ADULT || ['Blanco', 'Azul', 'Púrpura', 'Marrón', 'Negro'];
+const BELTS_ADULT = window.BELTS_ADULT || ['Blanco', 'Azul', 'P├║rpura', 'Marr├│n', 'Negro'];
 const TIPOS_ACTIVIDAD = window.ACTIVIDADES || ['Gi', 'NoGi', 'JJ Kids', 'MMA', 'Muay Thai', 'Sipalki', 'Clase personalizada'];
 // "Muay Thai" -> "muay-thai". Sin esto, toLowerCase() deja un espacio y el
 // tipo queda como dos clases de CSS ("muay" y "thai"): ni el color del tag
@@ -13,7 +13,7 @@ const DESTINO_LABEL = { tatami: 'Tatami y academia', administrativo: 'Administra
 window._secCache = window._secCache || {};
 let filtroAlumnosCat = 'todos';
 const BELTS_POR_CAT = { kids: BELTS_KIDS, juveniles: BELTS_JUV, adulto: BELTS_ADULT };
-const CATS_VIDEOS = ['kids', 'juveniles', 'adulto']; // todas las categorías para staff
+const CATS_VIDEOS = ['kids', 'juveniles', 'adulto']; // todas las categor├¡as para staff
 function beltOptionsPorCategoriaConTodos(catSeleccionada, beltSel) {
   const opts = BELTS_POR_CAT[catSeleccionada] || BELTS_ADULT;
   return `<option value="Todos">Todos</option>` + opts.map(b => `<option ${b === beltSel ? 'selected' : ''}>${esc(b)}</option>`).join('');
@@ -32,7 +32,7 @@ async function aceptarTerminosHoy() {
   try {
     const r = await api('/api/terminos/aceptar', { method: 'POST', body: {} });
     if (r.ok && r.acepto_tyc && window.USER) window.USER.acepto_tyc = r.acepto_tyc;
-    toast('Gracias por aceptar los términos ✓');
+    toast('Gracias por aceptar los t├⌐rminos Γ£ô');
     cerrarTerminos();
   } catch (e) { toast(e.message); }
 }
@@ -57,7 +57,7 @@ let deferredPrompt = null;
 let AVISO_AUMENTO = true;
 
 function beltHTML(cinturon) {
-  if (!cinturon) return '—';
+  if (!cinturon) return 'ΓÇö';
   return `<span class="belt"><span class="belt-dot bel-${normBelt(cinturon)}"></span>${esc(cinturon)}</span>`;
 }
 
@@ -66,8 +66,8 @@ function toast(msg, ms = 3200) {
   if (!t) return;
   t.textContent = msg;
   t.className = 'toast show';
-  if (/✓|✅|correcto|guardad|actualizad|enviad|cread/.test(msg)) t.classList.add('ok');
-  else if (/error|inválid|no se puede|rechazad|falta|conecta/i.test(msg)) t.classList.add('err');
+  if (/Γ£ô|Γ£à|correcto|guardad|actualizad|enviad|cread/.test(msg)) t.classList.add('ok');
+  else if (/error|inv├ílid|no se puede|rechazad|falta|conecta/i.test(msg)) t.classList.add('err');
   clearTimeout(t._h);
   t._h = setTimeout(() => t.classList.remove('show'), ms);
 }
@@ -75,7 +75,7 @@ function toast(msg, ms = 3200) {
 function vib(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms || 12); } catch (e) {} } }
 
 /* =====================================================================
-   MODO ACCESIBLE (personas no videntes / baja visión)
+   MODO ACCESIBLE (personas no videntes / baja visi├│n)
    ===================================================================== */
 const ACC_KEY = 'nexo_acc';
 function initAcc() {
@@ -95,13 +95,13 @@ function toggleAcc() {
     b.classList.toggle('on', on);
     b.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
-  toast(on ? 'Modo accesible activado. Podés navegar con el lector de pantalla.' : 'Modo accesible desactivado.');
+  toast(on ? 'Modo accesible activado. Pod├⌐s navegar con el lector de pantalla.' : 'Modo accesible desactivado.');
   const act = $('.sec.active');
   if (typeof showSec === 'function' && act) showSec(act.id.replace('sec-', ''));
 }
 
 function secHeader(title, sub) {
-  return `<div class="sec-head"><span class="brand">NEXO MADRYN · JIU JITSU</span>
+  return `<div class="sec-head"><span class="brand">NEXO MADRYN ┬╖ JIU JITSU</span>
     <h2 class="sec-title">${title}</h2>${sub ? `<div class="sec-sub">${sub}</div>` : ''}</div>`;
 }
 
@@ -148,7 +148,7 @@ function openModal(html) {
   _modalLastFocus = document.activeElement;
   $('#modalBody').innerHTML = html;
   $('#modal').hidden = false;
-  // accesibilidad: mover el foco al diálogo para que TalkBack lo lea
+  // accesibilidad: mover el foco al di├ílogo para que TalkBack lo lea
   const f = focusFirst($('#modalBody')) || $('#modalClose');
   if (f) f.focus();
 }
@@ -245,7 +245,7 @@ function firmaPorNombre(quien) {
   const inp = document.getElementById(m.inp);
   if (!cv || !hid) return;
   const nombre = (inp ? inp.value : '').trim();
-  if (!nombre) { toast('Escribí tu nombre y apellido en el recuadro para firmar'); if (inp) inp.focus(); return; }
+  if (!nombre) { toast('Escrib├¡ tu nombre y apellido en el recuadro para firmar'); if (inp) inp.focus(); return; }
   const ctx = cv.getContext('2d');
   ctx.clearRect(0, 0, cv.width, cv.height);
   ctx.fillStyle = '#ffffff';
@@ -254,7 +254,7 @@ function firmaPorNombre(quien) {
   ctx.font = (nombre.length > 24 ? '30px' : '44px') + ' cursive';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(nombre.split(' ')[0] + (nombre.length > 24 ? '…' : ''), cv.width / 2, cv.height / 2);
+  ctx.fillText(nombre.split(' ')[0] + (nombre.length > 24 ? 'ΓÇª' : ''), cv.width / 2, cv.height / 2);
   hid.value = cv.toDataURL('image/png');
   cv.style.outline = '2px solid var(--good)';
 }
@@ -302,7 +302,7 @@ function initLogin() {
     if (s.academy_name) { $('#academyTitle').textContent = s.academy_name; document.title = s.academy_name; }
   }).catch(() => {}); } catch (e) {}
 
-  /* Preview de cuota según actividades elegidas (alumno).
+  /* Preview de cuota seg├║n actividades elegidas (alumno).
      window.NEXO_PRECIOS = [precio_1, precio_2, precio_3] desde el servidor:
      1 actividad -> precio_1 (45k), 2 -> precio_2 (60k), 3 o mas -> precio_3 (80k). */
   function actualizarCuotaPreview() {
@@ -316,8 +316,8 @@ function initLogin() {
     if (n === 1) precio = p1;
     else if (n === 2) precio = p2;
     else if (n >= 3) precio = p3;
-    if (precio) el.textContent = 'Tu cuota será $' + precio.toLocaleString('es-AR');
-    else el.textContent = 'Tildá una actividad para ver tu cuota.';
+    if (precio) el.textContent = 'Tu cuota ser├í $' + precio.toLocaleString('es-AR');
+    else el.textContent = 'Tild├í una actividad para ver tu cuota.';
   }
   $$('input[name="actividad"]').forEach(cb => cb.addEventListener('change', actualizarCuotaPreview));
   actualizarCuotaPreview();
@@ -341,8 +341,8 @@ function initLogin() {
     const firmaTyC = $('#regFirmaTyC')?.value || '';
     const firmaFoto = $('#regFirmaFoto')?.value || '';
     const menor = cat === 'kids' || cat === 'juveniles';
-    if (menor && !firmaTyC) { msgShow(m, 'Firmá en el recuadro de Términos y Condiciones para crear tu cuenta.', false); return; }
-    if (menor && !firmaFoto) { msgShow(m, 'Para menores, el padre, madre o tutor debe firmar la autorización de fotos.', false); return; }
+    if (menor && !firmaTyC) { msgShow(m, 'Firm├í en el recuadro de T├⌐rminos y Condiciones para crear tu cuenta.', false); return; }
+    if (menor && !firmaFoto) { msgShow(m, 'Para menores, el padre, madre o tutor debe firmar la autorizaci├│n de fotos.', false); return; }
     try {
       const d = await api('/api/register', { method: 'POST', body: {
         role: 'alumno', username: $('#regAlumnoUser').value.trim(),
@@ -386,8 +386,8 @@ async function obligarNacimiento() {
   if (R === 'admin') return;
   if (USER.nacimiento && String(USER.nacimiento).trim() !== '') return;
   openModal(`
-    <h3>📅 Completá tu fecha de nacimiento</h3>
-    <p class="small" style="color:var(--muted)">A tu perfil le falta la fecha de nacimiento. Es obligatoria para la ficha y la categoría del gimnasio.</p>
+    <h3>≡ƒôà Complet├í tu fecha de nacimiento</h3>
+    <p class="small" style="color:var(--muted)">A tu perfil le falta la fecha de nacimiento. Es obligatoria para la ficha y la categor├¡a del gimnasio.</p>
     <form id="nacForm">
       <div class="field"><label>Fecha de nacimiento</label><input type="date" id="nacInput" required></div>
       <button type="submit" class="btn primary btn-block" id="nacBtn">Guardar</button>
@@ -404,7 +404,7 @@ async function obligarNacimiento() {
       $('#modalClose').style.display = '';
       closeModal();
       if ($('#sec-perfil')) renderPerfil($('#sec-perfil')).catch(() => {});
-      toast('Fecha de nacimiento guardada ✓');
+      toast('Fecha de nacimiento guardada Γ£ô');
     } catch (err) {
       btn.disabled = false; btn.textContent = 'Guardar';
       toast(err.message);
@@ -420,21 +420,22 @@ function esAdmin(u){
   return false;
 }
 
+function initDashboard() {
   const R = USER.role;
   const A = esAdmin();
   initAcc();
   $('#userRoleLabel').textContent = A ? 'Administrador' : R === 'profesor' ? 'Profesor' : R === 'alumno' ? 'Alumno' : (R || '');
   $('#academyName').textContent = window.ACADEMY_NAME || 'NEXO MADRYN JIU JITSU';
 
-  // barra de navegación inferior estilo Instagram
+  // barra de navegaci├│n inferior estilo Instagram
   const items = [
-    { sec: 'inicio', ico: '🏠', lbl: 'Inicio' },
-    { sec: 'horarios', ico: '📅', lbl: 'Horarios' },
+    { sec: 'inicio', ico: '≡ƒÅá', lbl: 'Inicio' },
+    { sec: 'horarios', ico: '≡ƒôà', lbl: 'Horarios' },
   ];
-  if (R === 'alumno' || R === 'profesor') items.push({ sec: 'mispagos', ico: '🧾', lbl: 'Cuota' });
-  else items.push({ sec: 'pagos', ico: '💳', lbl: 'Pagos' });
-  items.push({ sec: 'videos', ico: '🎥', lbl: 'Videos' });
-  items.push({ sec: 'perfil', ico: '👤', lbl: 'Perfil' });
+  if (R === 'alumno' || R === 'profesor') items.push({ sec: 'mispagos', ico: '≡ƒº╛', lbl: 'Cuota' });
+  else items.push({ sec: 'pagos', ico: '≡ƒÆ│', lbl: 'Pagos' });
+  items.push({ sec: 'videos', ico: '≡ƒÄÑ', lbl: 'Videos' });
+  items.push({ sec: 'perfil', ico: '≡ƒæñ', lbl: 'Perfil' });
 
   $('#bottombar').innerHTML = items.map(i =>
     `<button class="bb-item" data-sec="${i.sec}"><span class="bb-ico">${i.ico}</span><span>${i.lbl}</span></button>`
@@ -445,7 +446,7 @@ function esAdmin(u){
     showSec(b.dataset.sec);
   }));
 
-  // gesto táctil: deslizar para cambiar de sección
+  // gesto t├íctil: deslizar para cambiar de secci├│n
   const secOrder = items.map(i => i.sec);
   let tX = 0, tY = 0, tEl = null;
   const content = $('#content');
@@ -496,7 +497,7 @@ function esAdmin(u){
   setInterval(() => { if ($('#notifPanel').hidden) refreshBadge(); }, 20000);
   refreshBadge();
 
-  // push + instalación PWA
+  // push + instalaci├│n PWA
   setupPush();
   setupInstall();
 
@@ -504,7 +505,7 @@ function esAdmin(u){
 
   showSec('inicio');
 
-  // abrir sección indicada en la URL (?sec=...) al volver de una notificación push
+  // abrir secci├│n indicada en la URL (?sec=...) al volver de una notificaci├│n push
   const secParam = new URLSearchParams(location.search).get('sec');
   const seccionesValidas = ['inicio', 'perfil', 'horarios', 'pagos', 'mispagos', 'alumnos',
     'asistencia', 'deudores', 'profesores', 'config', 'mi_asistencia', 'videos', 'chat',
@@ -521,14 +522,14 @@ function esAdmin(u){
     });
   }
 
-  // Si el usuario aún no aceptó los Términos y Condiciones, mostrarlos
+  // Si el usuario a├║n no acept├│ los T├⌐rminos y Condiciones, mostrarlos
   try {
     if (window.USER && !window.USER.acepto_tyc) {
       setTimeout(() => verTerminos(), 800);
     }
   } catch (e) {}
 
-  // QR auto-asistencia: si la URL tiene ?qr=1, marcar presente automáticamente
+  // QR auto-asistencia: si la URL tiene ?qr=1, marcar presente autom├íticamente
   if (new URLSearchParams(location.search).get('qr') === '1' && (R === 'alumno' || R === 'profesor')) {
     marcarAsistenciaQR();
   }
@@ -574,7 +575,7 @@ function showSec(name) {
          // en "Cargando" para siempre, sin dar ninguna pista. Ahora se muestra.
          console.error('Error renderizando #' + name, err);
          el.innerHTML = `<div class="card">
-           <b>No se pudo cargar esta sección.</b>
+           <b>No se pudo cargar esta secci├│n.</b>
            <div class="small" style="color:var(--bad);margin-top:6px;word-break:break-word">${esc(err && err.message || err)}</div>
            <button class="btn ghost" style="margin-top:12px" onclick="location.reload()">Reintentar</button>
          </div>`;
@@ -602,7 +603,7 @@ async function loadNotifs() {
     <button class="notif-item ${n.leida ? '' : 'unread'}" onclick="abrirNotif(${n.id},'${escJs(n.link || '')}')">
       <span class="n-title">${esc(n.titulo)}</span>
       <span class="n-msg">${esc(n.mensaje)}</span>
-      ${n.link ? `<small style="color:var(--accent2)">Tocá para abrir →</small>` : `<small>${esc(n.fecha)}</small>`}
+      ${n.link ? `<small style="color:var(--accent2)">Toc├í para abrir ΓåÆ</small>` : `<small>${esc(n.fecha)}</small>`}
     </button>`).join('');
 }
 async function markRead(id) {
@@ -627,45 +628,45 @@ async function _pushDiagLine(txt) {
 }
 async function setupPush(verbose) {
   if (!('serviceWorker' in navigator)) {
-    if (verbose) _pushDiagLine('✗ Este navegador no soporta Service Worker (necesitás Android/Chrome o navegador actualizado).');
+    if (verbose) _pushDiagLine('Γ£ù Este navegador no soporta Service Worker (necesit├ís Android/Chrome o navegador actualizado).');
     return 0;
   }
   if (!('PushManager' in window)) {
-    if (verbose) _pushDiagLine('✗ Este navegador no soporta notificaciones push. Probá con Safari y con la app instalada.');
+    if (verbose) _pushDiagLine('Γ£ù Este navegador no soporta notificaciones push. Prob├í con Safari y con la app instalada.');
     return 0;
   }
   const esiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const instaladaPWA = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
   if (esiOS && !instaladaPWA && verbose) {
-    _pushDiagLine('✗ En iPhone/iPad las notificaciones solo funcionan con la app INSTALADA. En Safari tocá Compartir ✓ → "Agregar a pantalla de inicio", abrí la app desde ese ícono y volvé a "Activar notificaciones". Requiere iOS 16.4 o superior.');
+    _pushDiagLine('Γ£ù En iPhone/iPad las notificaciones solo funcionan con la app INSTALADA. En Safari toc├í Compartir Γ£ô ΓåÆ "Agregar a pantalla de inicio", abr├¡ la app desde ese ├¡cono y volv├⌐ a "Activar notificaciones". Requiere iOS 16.4 o superior.');
   }
   try {
-    if (verbose) _pushDiagLine('Registrando service worker…');
+    if (verbose) _pushDiagLine('Registrando service workerΓÇª');
     await navigator.serviceWorker.register('/sw.js');
-    if (verbose) _pushDiagLine('Pidiendo clave VAPID…');
+    if (verbose) _pushDiagLine('Pidiendo clave VAPIDΓÇª');
     const keyRes = await (await fetch('/api/vapid_public_key')).json();
-    if (!keyRes.key) { if (verbose) _pushDiagLine('✗ El servidor no devolvió la clave VAPID.'); return 0; }
+    if (!keyRes.key) { if (verbose) _pushDiagLine('Γ£ù El servidor no devolvi├│ la clave VAPID.'); return 0; }
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
-    if (verbose) _pushDiagLine(sub ? 'Suscripción ya existía en el navegador.' : 'Creando nueva suscripción (pedí el permiso)…');
+    if (verbose) _pushDiagLine(sub ? 'Suscripci├│n ya exist├¡a en el navegador.' : 'Creando nueva suscripci├│n (ped├¡ el permiso)ΓÇª');
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(keyRes.key),
       });
     }
-    // si el permiso no está concedido, subscribe puede devolver null o lanzar
-    if (!sub) { if (verbose) _pushDiagLine('✗ No se pudo crear la suscripción (sin permiso). Activá las notificaciones en Ajustes del sitio.'); return 0; }
+    // si el permiso no est├í concedido, subscribe puede devolver null o lanzar
+    if (!sub) { if (verbose) _pushDiagLine('Γ£ù No se pudo crear la suscripci├│n (sin permiso). Activ├í las notificaciones en Ajustes del sitio.'); return 0; }
     if (Notification && Notification.permission !== 'granted') {
-      if (verbose) _pushDiagLine('✗ Falta el permiso de notificaciones en el navegador. Tocá "Permitir" cuando Chrome lo pida.');
+      if (verbose) _pushDiagLine('Γ£ù Falta el permiso de notificaciones en el navegador. Toc├í "Permitir" cuando Chrome lo pida.');
       return 0;
     }
-    if (verbose) _pushDiagLine('Guardando suscripción en el servidor…');
+    if (verbose) _pushDiagLine('Guardando suscripci├│n en el servidorΓÇª');
     const r = await api('/api/push_subscribe', { method: 'POST', body: { subscription: sub.toJSON() } });
-    if (verbose) _pushDiagLine('✓ Suscripción guardada correctamente. Ahora probá una notificación.');
+    if (verbose) _pushDiagLine('Γ£ô Suscripci├│n guardada correctamente. Ahora prob├í una notificaci├│n.');
     return 1;
   } catch (e) {
-    if (verbose) _pushDiagLine('✗ Error al activar: ' + (e && e.message ? e.message : e));
+    if (verbose) _pushDiagLine('Γ£ù Error al activar: ' + (e && e.message ? e.message : e));
     return 0;
   }
 }
@@ -689,13 +690,13 @@ function setupFoto() {
   input.addEventListener('change', async () => {
     const file = input.files && input.files[0];
     if (!file) return;
-    if (!/^image\/(png|jpe?g|webp)/.test(file.type)) { toast('Elegí una imagen (JPG o PNG)'); return; }
-    if (file.size > 5 * 1024 * 1024) { toast('La imagen es muy grande (máx 5MB)'); return; }
+    if (!/^image\/(png|jpe?g|webp)/.test(file.type)) { toast('Eleg├¡ una imagen (JPG o PNG)'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast('La imagen es muy grande (m├íx 5MB)'); return; }
     const reader = new FileReader();
     reader.onload = async () => {
       try {
         const d = await api('/api/foto', { method: 'POST', body: { foto: reader.result } });
-        toast('Foto de perfil actualizada ✓');
+        toast('Foto de perfil actualizada Γ£ô');
         USER.foto = d.foto;
         renderPerfil($('#sec-perfil'));
       } catch (err) { toast(err.message); }
@@ -716,9 +717,9 @@ function setupInstall() {
   if (btn) btn.addEventListener('click', () => {
     if (deferredPrompt) { deferredPrompt.prompt(); }
     else if (/Android/i.test(navigator.userAgent) || /iPhone|iPad/i.test(navigator.userAgent)) {
-      toast('En el teléfono: menú ⋮ o compartir → "Agregar a pantalla de inicio"');
+      toast('En el tel├⌐fono: men├║ Γï« o compartir ΓåÆ "Agregar a pantalla de inicio"');
     } else {
-      toast('En tu navegador: mirá el ícono de instalar en la barra de direcciones, o usá el menú → "Instalar app"');
+      toast('En tu navegador: mir├í el ├¡cono de instalar en la barra de direcciones, o us├í el men├║ ΓåÆ "Instalar app"');
     }
   });
 }
@@ -732,7 +733,7 @@ async function renderMiAsistencia(el) {
   el.innerHTML = `
     ${secHeader('Mis asistencias')}
     ${stat ? `<div class="feed-card">
-      <div class="small mb">📊 Mi constancia · % de las clases a las que asistí (últimos 6 meses)</div>
+      <div class="small mb">≡ƒôè Mi constancia ┬╖ % de las clases a las que asist├¡ (├║ltimos 6 meses)</div>
       <div style="display:flex;gap:6px;align-items:flex-end;height:90px">${stat.serie.map((s, i) => {
         const h = s.pct == null ? 6 : Math.max(6, Math.round(s.pct));
         return `<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%">
@@ -742,35 +743,35 @@ async function renderMiAsistencia(el) {
       }).join('')}</div>
       <div class="small" style="color:var(--muted);margin-top:6px">Asististe a <b>${stat.total}</b> clases en total.</div>
     </div>` : ''}
-    <button class="btn primary btn-block mb" onclick="marcarAsistenciaDirecta()">📋 Marcar asistencia de hoy</button>
+    <button class="btn primary btn-block mb" onclick="marcarAsistenciaDirecta()">≡ƒôï Marcar asistencia de hoy</button>
     <div class="feed">
       <div class="feed-card">
-        <div class="stat-card" style="margin-bottom:12px"><div class="num">${d.total}</div><div class="lbl">Clases a las que asistí</div></div>
+        <div class="stat-card" style="margin-bottom:12px"><div class="num">${d.total}</div><div class="lbl">Clases a las que asist├¡</div></div>
         ${d.asistencia.length ? d.asistencia.map(a => `
           <div style="padding:8px 0;border-bottom:1px solid var(--line)">
             <div class="flex space-between">
-              <div><b>${esc(a.dia)} ${esc(a.hora)}</b> · <span class="tag ${slugTipo(a.tipo)}">${esc(a.tipo)}</span></div>
-              <div class="small">${esc(a.fecha)} · ${esc(a.profesor || 'Sin profesor')}</div>
+              <div><b>${esc(a.dia)} ${esc(a.hora)}</b> ┬╖ <span class="tag ${slugTipo(a.tipo)}">${esc(a.tipo)}</span></div>
+              <div class="small">${esc(a.fecha)} ┬╖ ${esc(a.profesor || 'Sin profesor')}</div>
             </div>
             ${a.valorada
-              ? `<div class="small" style="color:var(--good)">⭐ Valorada</div>`
+              ? `<div class="small" style="color:var(--good)">Γ¡É Valorada</div>`
               : acc
                   ? `<div class="flex space-between" style="align-items:center;margin-top:6px">
-                      <div class="stars" data-cid="${a.clase_id}" data-fecha="${esc(a.fecha)}" role="radiogroup" aria-label="Valoración de esta clase, de 1 a 5">
+                      <div class="stars" data-cid="${a.clase_id}" data-fecha="${esc(a.fecha)}" role="radiogroup" aria-label="Valoraci├│n de esta clase, de 1 a 5">
                         ${[1,2,3,4,5].map(n => `<button type="button" class="star acc-star" data-n="${n}" role="radio" aria-pressed="false" aria-label="${n} de 5">${n}</button>`).join('')}
                       </div>
-                      <button type="button" class="btn ghost small" onclick="valorarClase(${a.clase_id})">Guardar ⭐</button>
+                      <button type="button" class="btn ghost small" onclick="valorarClase(${a.clase_id})">Guardar Γ¡É</button>
                     </div>
                     <input class="comentario small" style="margin-top:4px;width:100%" placeholder="Comentario (opcional)">`
                   : `<div class="flex space-between" style="align-items:center;margin-top:6px">
                       <div class="stars" data-cid="${a.clase_id}" data-fecha="${esc(a.fecha)}">
-                        ${[1,2,3,4,5].map(n => `<button type="button" class="star" data-n="${n}" aria-label="${n} estrellas">☆</button>`).join('')}
+                        ${[1,2,3,4,5].map(n => `<button type="button" class="star" data-n="${n}" aria-label="${n} estrellas">Γÿå</button>`).join('')}
                       </div>
-                      <button type="button" class="btn ghost small" onclick="valorarClase(${a.clase_id})">Guardar ⭐</button>
+                      <button type="button" class="btn ghost small" onclick="valorarClase(${a.clase_id})">Guardar Γ¡É</button>
                     </div>
                     <input class="comentario small" style="margin-top:4px;width:100%" placeholder="Comentario (opcional)">`}
-            ${a.fecha === d.fecha_hoy ? `<button type="button" class="btn ghost small" style="margin-top:6px" onclick="desmarcarAsistencia(${a.clase_id})">↩ Desmarcar de hoy</button>` : ''}
-          </div>`).join('') : '<div class="empty">Todavía no tenés asistencias registradas.</div>'}
+            ${a.fecha === d.fecha_hoy ? `<button type="button" class="btn ghost small" style="margin-top:6px" onclick="desmarcarAsistencia(${a.clase_id})">Γå⌐ Desmarcar de hoy</button>` : ''}
+          </div>`).join('') : '<div class="empty">Todav├¡a no ten├⌐s asistencias registradas.</div>'}
       </div>
     </div>`;
   $$('.stars').forEach(s => {
@@ -785,7 +786,7 @@ async function renderMiAsistencia(el) {
           b.classList.toggle('sel', sel);
           b.setAttribute('aria-pressed', sel ? 'true' : 'false');
         } else {
-          b.textContent = i < n ? '★' : '☆';
+          b.textContent = i < n ? 'Γÿà' : 'Γÿå';
         }
       });
     });
@@ -795,12 +796,12 @@ async function renderMiAsistencia(el) {
 async function valorarClase(claseId, fecha) {
   const starsEl = document.querySelector('.stars[data-cid="' + claseId + '"]');
   const estrellas = parseInt((starsEl ? starsEl.dataset.n : 0) || 0, 10);
-  if (!estrellas) { toast('Elegí la cantidad de estrellas (1 a 5)'); return; }
+  if (!estrellas) { toast('Eleg├¡ la cantidad de estrellas (1 a 5)'); return; }
   const fechaSel = fecha || (starsEl ? starsEl.dataset.fecha : '');
   const comentario = starsEl ? starsEl.querySelector('.comentario')?.value || '' : '';
   try {
     await api('/api/clase_valorar', { method: 'POST', body: { clase_id: claseId, fecha: fechaSel, estrellas: estrellas, comentario: comentario } });
-    toast('¡Gracias por valorar la clase! ⭐');
+    toast('┬íGracias por valorar la clase! Γ¡É');
     renderMiAsistencia($('#sec-mi_asistencia')).catch(() => {});
   } catch (err) { toast(err.message); }
 }
@@ -808,7 +809,7 @@ async function valorarClase(claseId, fecha) {
 async function marcarAsistencia(claseId) {
   try {
     await api('/api/asistencia_yo', { method: 'POST', body: { clase_id: claseId } });
-    toast('¡Asistencia marcada! ✓');
+    toast('┬íAsistencia marcada! Γ£ô');
     renderInicio($('#sec-inicio'));
     renderMiAsistencia($('#sec-mi_asistencia')).catch(() => {});
   } catch (err) { toast(err.message); }
@@ -817,7 +818,7 @@ async function marcarAsistencia(claseId) {
 async function marcarAsistenciaQR(qrToken) {
   try {
     const token = qrToken || new URLSearchParams(location.search).get('t') || '';
-    if (!token) { toast('QR no válido. Escaneá el QR físico del gimnasio.'); return; }
+    if (!token) { toast('QR no v├ílido. Escane├í el QR f├¡sico del gimnasio.'); return; }
     const [horarios] = await Promise.all([api('/api/horarios')]);
     const hoyIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
     const hoyClases = (horarios.horarios || []).filter(h => h.dia === hoyIdx);
@@ -841,10 +842,10 @@ async function marcarAsistenciaDirecta() {
 }
 
 async function desmarcarAsistencia(claseId) {
-  if (!confirm('¿Querés desmarcar tu asistencia de hoy? Sirve si la marcaste por error.')) return;
+  if (!confirm('┬┐Quer├⌐s desmarcar tu asistencia de hoy? Sirve si la marcaste por error.')) return;
   try {
     await api('/api/asistencia_desmarcar', { method: 'POST', body: { clase_id: claseId } });
-    toast('Asistencia desmarcada ✓');
+    toast('Asistencia desmarcada Γ£ô');
     renderMiAsistencia($('#sec-mi_asistencia')).catch(() => {});
     renderInicio($('#sec-inicio')).catch(() => {});
   } catch (err) { toast(err.message); }
@@ -854,13 +855,13 @@ function mostrarSelectorClase(hoyClases, marcar) {
   const ov = document.createElement('div');
   ov.setAttribute('role', 'dialog');
   ov.setAttribute('aria-modal', 'true');
-  ov.setAttribute('aria-label', 'Elegir la clase a la que asistís hoy');
+  ov.setAttribute('aria-label', 'Elegir la clase a la que asist├¡s hoy');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px';
   ov.innerHTML = `
-    <p style="color:#fff;font-weight:700;font-size:16px;text-align:center;margin:0">¿A qué clase asistís hoy?</p>
+    <p style="color:#fff;font-weight:700;font-size:16px;text-align:center;margin:0">┬┐A qu├⌐ clase asist├¡s hoy?</p>
     <div role="status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)" id="selLive"></div>
     <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:360px">
-      ${hoyClases.map(c => `<button class="selclase" data-id="${c.id}" data-txt="${esc(c.tipo)} · ${esc(c.hora)}" aria-label="${esc(c.tipo)} a las ${esc(c.hora)}, tocar para marcar asistencia" style="background:#e84393;color:#fff;border:none;padding:14px 18px;border-radius:12px;font-size:15px;font-weight:600">${esc(c.tipo)} · ${esc(c.hora)}</button>`).join('')}
+      ${hoyClases.map(c => `<button class="selclase" data-id="${c.id}" data-txt="${esc(c.tipo)} ┬╖ ${esc(c.hora)}" aria-label="${esc(c.tipo)} a las ${esc(c.hora)}, tocar para marcar asistencia" style="background:#e84393;color:#fff;border:none;padding:14px 18px;border-radius:12px;font-size:15px;font-weight:600">${esc(c.tipo)} ┬╖ ${esc(c.hora)}</button>`).join('')}
     </div>
     <button id="selCerrar" style="background:#d63031;color:#fff;border:none;padding:10px 24px;border-radius:12px">Cerrar</button>`;
   document.body.appendChild(ov);
@@ -868,19 +869,19 @@ function mostrarSelectorClase(hoyClases, marcar) {
     btn.onclick = async () => {
       try {
         btn.disabled = true;
-        btn.textContent = 'Marcando…';
+        btn.textContent = 'MarcandoΓÇª';
         const cid = parseInt(btn.dataset.id, 10);
         await marcar(cid);
         $('#selLive').textContent = 'Asistencia marcada';
-        toast('¡Asistencia marcada! ✓');
+        toast('┬íAsistencia marcada! Γ£ô');
         ov.remove();
         renderInicio($('#sec-inicio')).catch(() => {});
         renderMiAsistencia($('#sec-mi_asistencia')).catch(() => {});
       } catch (e) {
         btn.disabled = false;
         btn.textContent = btn.dataset.txt || '';
-        $('#selLive').textContent = e && e.message ? e.message : 'Ya tenías asistencia marcada';
-        toast(e && e.message ? e.message : 'Ya tenías asistencia marcada');
+        $('#selLive').textContent = e && e.message ? e.message : 'Ya ten├¡as asistencia marcada';
+        toast(e && e.message ? e.message : 'Ya ten├¡as asistencia marcada');
       }
     };
   });
@@ -889,18 +890,18 @@ function mostrarSelectorClase(hoyClases, marcar) {
   if (primer) { try { primer.focus(); } catch (e) {} }
 }
 
-/* ---------- ESCÁNER DE QR CON CÁMARA ---------- */
+/* ---------- ESC├üNER DE QR CON C├üMARA ---------- */
 async function abrirScannerQR() {
   if (typeof jsQR === 'undefined') {
     try {
         await new Promise((ok, ko) => { const t = document.createElement('script'); t.src = '/static/jsQR.js'; t.onload = ok; t.onerror = ko; document.head.appendChild(t); });
-    } catch (e) { toast('No se pudo cargar el escáner'); return; }
+    } catch (e) { toast('No se pudo cargar el esc├íner'); return; }
 }
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px';
   overlay.innerHTML = `
     <video playsinline muted style="width:100%;max-width:420px;border-radius:14px;max-height:65vh"></video>
-    <div style="color:#fff;font-size:14px" id="qrMsg">Apuntá la cámara al código QR del gimnasio</div>
+    <div style="color:#fff;font-size:14px" id="qrMsg">Apunt├í la c├ímara al c├│digo QR del gimnasio</div>
     <button class="btn" style="background:#d63031;color:#fff;border:none;padding:12px 22px;border-radius:12px" id="qrCerrar">Cerrar</button>`;
   document.body.appendChild(overlay);
   let stream = null, timer = null, cerrado = false;
@@ -918,7 +919,7 @@ async function abrirScannerQR() {
   const msj = (t) => { overlay.querySelector('#qrMsg').textContent = t; };
   const esIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    msj('Este navegador no soporta cámara o falta HTTPS. Probá recargar (Ctrl+F5) en la URL principal.');
+    msj('Este navegador no soporta c├ímara o falta HTTPS. Prob├í recargar (Ctrl+F5) en la URL principal.');
   } else {
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
       .then(s => {
@@ -931,15 +932,15 @@ async function abrirScannerQR() {
       .catch(err => {
         let m = '';
         if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
-          m = 'Permiso de cámara denegado. Tenés que habilitar la Cámara para este sitio en los ajustes del navegador Chrome, no de una app. En Chrome: Configuración > Sitios > Cámara; o borra el permiso y recargá.';
+          m = 'Permiso de c├ímara denegado. Ten├⌐s que habilitar la C├ímara para este sitio en los ajustes del navegador Chrome, no de una app. En Chrome: Configuraci├│n > Sitios > C├ímara; o borra el permiso y recarg├í.';
         } else if (err && (err.name === 'NotFoundError' || err.name === 'OverconstrainedError')) {
-          m = 'No se encontró cámara. Probá con la otra cámara (girar el celular).';
+          m = 'No se encontr├│ c├ímara. Prob├í con la otra c├ímara (girar el celular).';
         } else if (err && err.name === 'NotReadableError') {
-          m = 'La cámara está siendo usada por otra app. Cerrá otras apps y reintentá.';
+          m = 'La c├ímara est├í siendo usada por otra app. Cerr├í otras apps y reintent├í.';
         } else if (err && err.name === 'SecurityError') {
-          m = 'Bloqueado por seguridad: necesitás HTTPS o permisos de cámara en el navegador.';
+          m = 'Bloqueado por seguridad: necesit├ís HTTPS o permisos de c├ímara en el navegador.';
         } else {
-          m = 'Error de cámara: ' + (err && err.message ? err.message : 'desconocido');
+          m = 'Error de c├ímara: ' + (err && err.message ? err.message : 'desconocido');
         }
         msj(m);
       });
@@ -964,7 +965,7 @@ async function abrirScannerQR() {
 }
 
 /* =====================================================================
-   VIDEOS (por cinturón)
+   VIDEOS (por cintur├│n)
    ===================================================================== */
 function youtubeId(url) {
   const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/);
@@ -975,7 +976,7 @@ function videoMediaHTML(v) {
   if (v.tipo === 'link') {
     const yid = youtubeId(v.url);
     if (yid) return `<iframe src="https://www.youtube.com/embed/${yid}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-    return `<div class="post-media-link"><a href="${esc(v.url)}" target="_blank" rel="noopener">🔗 ${esc(v.url)}</a></div>`;
+    return `<div class="post-media-link"><a href="${esc(v.url)}" target="_blank" rel="noopener">≡ƒöù ${esc(v.url)}</a></div>`;
   }
   return `<video controls preload="metadata" playsinline data-vid="${v.id}" ontimeupdate="trackProgreso(event)" onpause="flushProgreso(event)" onended="videoTerminado(event)"><source src="${esc(v.url)}"></video>`;
 }
@@ -1046,11 +1047,11 @@ async function videoTerminado(e) {
         b.disabled = false;
         b.style.opacity = '';
         b.classList.add('visto');
-        b.textContent = '✓ Ya lo vi';
+        b.textContent = 'Γ£ô Ya lo vi';
       }
-      toast('🎉 Video completado');
+      toast('≡ƒÄë Video completado');
     } else {
-      toast('Todavía no completaste el video: miralo hasta el final sin saltar.');
+      toast('Todav├¡a no completaste el video: miralo hasta el final sin saltar.');
     }
     const sec = $('#sec-videos');
     if (sec && sec.classList.contains('active')) renderVideos(sec);
@@ -1062,23 +1063,23 @@ function videoCardHTML(v, isStaff) {
   const visto = v.visto ? ' visto' : '';
   const staffBtns = isStaff ? `<div class="post-views" id="views-${v.id}" hidden></div>` : '';
   const vistoBtn = isStaff || v.tipo === 'link'
-    ? `<button class="post-btn${visto}" onclick="marcarVisto(${v.id}, this, ${v.tipo === 'link'})">✓ Visto</button>`
-    : `<button class="post-btn${visto}" ${v.completado ? '' : 'disabled style=opacity:.5'} onclick="marcarVisto(${v.id}, this)">✓ Visto</button>
-       <div class="small" style="color:var(--muted)">${v.completado ? 'Completado ✓ (podés marcar visto)' : (v.progreso_pct ? 'Progreso ' + v.progreso_pct + '% — mirá el video hasta el final para poder marcarlo' : 'Mirá el video hasta el final para poder marcarlo como visto')}</div>`;
+    ? `<button class="post-btn${visto}" onclick="marcarVisto(${v.id}, this, ${v.tipo === 'link'})">Γ£ô Visto</button>`
+    : `<button class="post-btn${visto}" ${v.completado ? '' : 'disabled style=opacity:.5'} onclick="marcarVisto(${v.id}, this)">Γ£ô Visto</button>
+       <div class="small" style="color:var(--muted)">${v.completado ? 'Completado Γ£ô (pod├⌐s marcar visto)' : (v.progreso_pct ? 'Progreso ' + v.progreso_pct + '% ΓÇö mir├í el video hasta el final para poder marcarlo' : 'Mir├í el video hasta el final para poder marcarlo como visto')}</div>`;
   return `<div class="post-card" id="video-${v.id}">
     <div class="post-head">
       ${avatarHTML('', v.subidor_nombre || 'Profesor', 'sm')}
       <div style="flex:1">
         <b>${esc(v.subidor_nombre || 'Profesor')}</b>
-        <div class="small">${esc(v.fecha || '')} · <span class="${beltCls}">${esc(v.belt)}</span> ${v.categoria ? '<span class="tag alumno">' + catLabel(v.categoria) + '</span>' : ''} ${v.actividad ? '<span class="tag nogi">' + esc(v.actividad) + '</span>' : ''}</div>
+        <div class="small">${esc(v.fecha || '')} ┬╖ <span class="${beltCls}">${esc(v.belt)}</span> ${v.categoria ? '<span class="tag alumno">' + catLabel(v.categoria) + '</span>' : ''} ${v.actividad ? '<span class="tag nogi">' + esc(v.actividad) + '</span>' : ''}</div>
       </div>
-      ${isStaff && v.subido_por === USER.id || USER.role === 'admin' ? `<button class="btn bad small" onclick="borrarVideo(${v.id})">🗑</button>` : ''}
+      ${isStaff && v.subido_por === USER.id || USER.role === 'admin' ? `<button class="btn bad small" onclick="borrarVideo(${v.id})">≡ƒùæ</button>` : ''}
     </div>
     <div class="post-media">${videoMediaHTML(v)}</div>
     <div class="post-actions">
       ${vistoBtn}
-      <span class="post-count">👁 ${v.vistas} visto${v.vistas === 1 ? '' : 's'}</span>
-      ${isStaff ? `<button class="post-btn" onclick="toggleVistos(${v.id}, this)">Quién lo vio</button>` : ''}
+      <span class="post-count">≡ƒæü ${v.vistas} visto${v.vistas === 1 ? '' : 's'}</span>
+      ${isStaff ? `<button class="post-btn" onclick="toggleVistos(${v.id}, this)">Qui├⌐n lo vio</button>` : ''}
     </div>
     <div class="post-caption">
       <b>${esc(v.titulo)}</b>${v.descripcion ? '<div>' + esc(v.descripcion) + '</div>' : ''}
@@ -1112,13 +1113,13 @@ async function renderVideos(el) {
         <option value="Todas">Todas las clases</option>
         ${ACTS_VIDEOS.map(a => `<option ${a === qAct ? 'selected' : ''}>${esc(a)}</option>`).join('')}
       </select>
-      <button class="btn primary small" onclick="subirVideo()">＋ Subir video</button>
+      <button class="btn primary small" onclick="subirVideo()">∩╝ï Subir video</button>
     </div>` : '<span></span>';
   el.innerHTML = `
-    ${secHeader('Videos', isStaff ? 'Subí técnicas para cada cinturón y mirá quién las vio.' : 'Técnicas de las clases que entrenás.')}
+    ${secHeader('Videos', isStaff ? 'Sub├¡ t├⌐cnicas para cada cintur├│n y mir├í qui├⌐n las vio.' : 'T├⌐cnicas de las clases que entren├ís.')}
     ${filtros}
     <div class="feed" id="videoFeed">
-      ${videos.length ? videos.map(v => videoCardHTML(v, isStaff)).join('') : '<div class="feed-card empty">Todavía no hay videos para esta categoría.</div>'}
+      ${videos.length ? videos.map(v => videoCardHTML(v, isStaff)).join('') : '<div class="feed-card empty">Todav├¡a no hay videos para esta categor├¡a.</div>'}
     </div>`;
   if (isStaff) {
     const catSel = $('#videoCat'), beltSel = $('#videoBelt'), actSel = $('#videoAct');
@@ -1141,10 +1142,10 @@ function toggleVistos(vid, btn) {
     el.dataset.cargado = '1';
     api('/api/videos/' + vid + '/views').then(d => {
       el.innerHTML = (d.vistos && d.vistos.length)
-        ? '<div class="small" style="color:var(--muted)">👁 Vieron: ' + d.vistos.map(x => '<b>' + esc(x.nombre) + '</b>').join(', ') + '</div>'
-        : '<div class="small" style="color:var(--muted)">Todavía nadie lo vio.</div>';
+        ? '<div class="small" style="color:var(--muted)">≡ƒæü Vieron: ' + d.vistos.map(x => '<b>' + esc(x.nombre) + '</b>').join(', ') + '</div>'
+        : '<div class="small" style="color:var(--muted)">Todav├¡a nadie lo vio.</div>';
     }).catch(() => {
-      el.innerHTML = '<div class="small" style="color:var(--muted)">No se pudo cargar quién lo vio.</div>';
+      el.innerHTML = '<div class="small" style="color:var(--muted)">No se pudo cargar qui├⌐n lo vio.</div>';
     });
   }
   el.hidden = !el.hidden;
@@ -1155,7 +1156,7 @@ async function marcarVisto(vid, btn) {
     await api('/api/videos/' + vid + '/view', { method: 'POST' });
     vib(12);
     if (btn) btn.classList.add('visto');
-    toast('Marcado como visto ✓');
+    toast('Marcado como visto Γ£ô');
     const sec = $('#sec-videos');
     if (sec && sec.classList.contains('active')) renderVideos(sec);
   } catch (err) { toast(err.message); }
@@ -1165,16 +1166,16 @@ function subirVideo() {
   openModal(`
     <h3>Subir video</h3>
     <form id="vForm" class="grid2">
-      <div class="field" style="grid-column:1/-1"><label>Título</label><input id="vTitulo" required placeholder="Ej: Armbar desde guardia"></div>
-      <div class="field" style="grid-column:1/-1"><label>Descripción (opcional)</label><input id="vDesc" placeholder="Qué técnica es, nivel, consejos..."></div>
-      <div class="field"><label>Categoría</label><select id="vCat">
+      <div class="field" style="grid-column:1/-1"><label>T├¡tulo</label><input id="vTitulo" required placeholder="Ej: Armbar desde guardia"></div>
+      <div class="field" style="grid-column:1/-1"><label>Descripci├│n (opcional)</label><input id="vDesc" placeholder="Qu├⌐ t├⌐cnica es, nivel, consejos..."></div>
+      <div class="field"><label>Categor├¡a</label><select id="vCat">
         ${CATS_VIDEOS.map(c => `<option value="${c}">${catLabel(c)}</option>`).join('')}</select></div>
-      <div class="field"><label>Cinturón para el que es</label><select id="vBelt"></select></div>
+      <div class="field"><label>Cintur├│n para el que es</label><select id="vBelt"></select></div>
       <div class="field"><label>Clase (actividad)</label><select id="vAct">
-        <option value="">— Todas las clases —</option>
+        <option value="">ΓÇö Todas las clases ΓÇö</option>
         ${(window.ACTIVIDADES || []).map(a => `<option>${esc(a)}</option>`).join('')}</select></div>
       <div class="field" style="grid-column:1/-1"><label>O link de YouTube</label><input id="vLink" placeholder="https://youtube.com/watch?v=..."></div>
-      <div class="field" style="grid-column:1/-1"><label>O subí un archivo (MP4)</label>
+      <div class="field" style="grid-column:1/-1"><label>O sub├¡ un archivo (MP4)</label>
         <input type="file" id="vFile" accept="video/mp4,video/webm,video/ogg,video/quicktime"></div>
       <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Publicar video</button></div>
     </form>`);
@@ -1193,12 +1194,12 @@ function subirVideo() {
     const actividad = $('#vAct') ? $('#vAct').value : '';
     const file = $('#vFile').files && $('#vFile').files[0];
     const link = $('#vLink').value.trim();
-    if (!file && !link) { toast('Subí un archivo o pegá un link'); return; }
+    if (!file && !link) { toast('Sub├¡ un archivo o peg├í un link'); return; }
     const btn = $('button[type="submit"]', $('#vForm'));
     btn.disabled = true; btn.textContent = 'Publicando...';
     try {
       if (file) {
-        if (file.size > 150 * 1024 * 1024) { toast('El video es muy grande (máx 150MB). Para videos largos usá un link de YouTube.'); btn.disabled = false; btn.textContent = 'Publicar video'; return; }
+        if (file.size > 150 * 1024 * 1024) { toast('El video es muy grande (m├íx 150MB). Para videos largos us├í un link de YouTube.'); btn.disabled = false; btn.textContent = 'Publicar video'; return; }
         const fd = new FormData();
         fd.append('video', file); fd.append('titulo', titulo); fd.append('descripcion', desc); fd.append('belt', belt); fd.append('categoria', categoria);
         if (actividad) fd.append('actividad', actividad);
@@ -1208,24 +1209,24 @@ function subirVideo() {
         try {
           res = await fetch('/api/videos/upload', { method: 'POST', body: fd, signal: ctrl.signal });
         } catch (e) {
-          if (e && e.name === 'AbortError') throw new Error('El envío tardó demasiado. Probá con un video más corto o un link de YouTube.');
-          throw new Error('No se pudo conectar al servidor. Revisá tu conexión e intentá de nuevo.');
+          if (e && e.name === 'AbortError') throw new Error('El env├¡o tard├│ demasiado. Prob├í con un video m├ís corto o un link de YouTube.');
+          throw new Error('No se pudo conectar al servidor. Revis├í tu conexi├│n e intent├í de nuevo.');
         }
         clearTimeout(timer);
         let d = {};
         try { d = await res.json(); } catch (e) { d = {}; }
-        if (!res.ok) throw new Error(d.error || ('Error al subir (código ' + res.status + '). Probá con un video más chico o un link de YouTube.'));
+        if (!res.ok) throw new Error(d.error || ('Error al subir (c├│digo ' + res.status + '). Prob├í con un video m├ís chico o un link de YouTube.'));
       } else {
         await api('/api/videos', { method: 'POST', body: { titulo, descripcion: desc, belt, categoria, url: link, actividad } });
       }
-      closeModal(); toast('Video publicado ✓');
+      closeModal(); toast('Video publicado Γ£ô');
       renderVideos($('#sec-videos'));
     } catch (err) { toast(err.message); btn.disabled = false; btn.textContent = 'Publicar video'; }
   });
 }
 
 async function borrarVideo(vid) {
-  if (!confirm('¿Eliminar este video?')) return;
+  if (!confirm('┬┐Eliminar este video?')) return;
   try {
     await api('/api/videos/' + vid, { method: 'DELETE' });
     toast('Video eliminado');
@@ -1238,7 +1239,7 @@ async function borrarVideo(vid) {
 function vidThumb(v) {
   return `<div class="vid-thumb" onclick="verVideo(${v.id})" title="${esc(v.titulo)}">
     <video muted playsinline preload="none"><source src="${esc(v.url)}"></video>
-    <span class="play">▶</span>
+    <span class="play">Γû╢</span>
     <span class="vid-belt">${esc(v.belt)}</span>
   </div>`;
 }
@@ -1255,9 +1256,9 @@ async function verVideo(vid) {
     <div class="post-media" style="margin:10px 0">${videoMediaHTML(v)}</div>
     <div class="flex space-between">
       <span class="${v.belt === 'Todos' ? 'tag alumno' : 'tag nogi'}">${esc(v.belt)}</span>
-      <button class="btn primary small" id="modalMarcarVisto" ${habilitado ? '' : 'disabled style=opacity:.5'} onclick="marcarVisto(${v.id}, this)">✓ ${btnTxt}</button>
+      <button class="btn primary small" id="modalMarcarVisto" ${habilitado ? '' : 'disabled style=opacity:.5'} onclick="marcarVisto(${v.id}, this)">Γ£ô ${btnTxt}</button>
     </div>
-    ${conCondicion && !v.completado ? '<div class="small" style="color:var(--muted);margin-top:6px">Mirá el video hasta el final para poder marcarlo como visto.</div>' : ''}`);
+    ${conCondicion && !v.completado ? '<div class="small" style="color:var(--muted);margin-top:6px">Mir├í el video hasta el final para poder marcarlo como visto.</div>' : ''}`);
   if (conCondicion && !v.completado) {
     const vidEl = document.querySelector('#modalBody video');
     if (vidEl) {
@@ -1270,12 +1271,12 @@ async function verVideo(vid) {
             b.disabled = false;
             b.style.opacity = '';
             b.classList.add('visto');
-            b.textContent = '✓ Ya lo vi';
-            toast('Terminaste el video ✓');
+            b.textContent = 'Γ£ô Ya lo vi';
+            toast('Terminaste el video Γ£ô');
           } else if (intentos > 0) {
             setTimeout(() => recheck(intentos - 1), 700);
           } else if (b) {
-            toast('Todavía no completaste el video: miralo hasta el final sin saltar.');
+            toast('Todav├¡a no completaste el video: miralo hasta el final sin saltar.');
           }
         } catch (err) {
           if (intentos) setTimeout(() => recheck(intentos - 1), 700);
@@ -1298,8 +1299,8 @@ async function renderInicio(el) {
       api('/api/me'), api('/api/mi_asistencia'), api('/api/horarios'), api('/api/videos')]);
     const c = me.cuota || {};
     const estado = c.estado;
-    const tagMap = { al_dia: ['tag-al-dia', 'Al día'], deuda: ['tag-deuda', 'Debe la cuota'], por_vencer: ['tag-por-vencer', 'Por vencer'], becado: ['tag-al-dia', 'Becado'] };
-    const [cls, lbl] = tagMap[estado] || ['tag-al-dia', 'Al día'];
+    const tagMap = { al_dia: ['tag-al-dia', 'Al d├¡a'], deuda: ['tag-deuda', 'Debe la cuota'], por_vencer: ['tag-por-vencer', 'Por vencer'], becado: ['tag-al-dia', 'Becado'] };
+    const [cls, lbl] = tagMap[estado] || ['tag-al-dia', 'Al d├¡a'];
     const hoyIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
     const hoyClases = horarios.horarios.filter(h => h.dia === hoyIdx);
     const videos = vids.videos.slice(0, 3);
@@ -1310,11 +1311,11 @@ async function renderInicio(el) {
             ${avatarHTML(me.foto, me.nombre, 'lg')}
             <div style="flex:1">
               <h2 style="margin:0;font-size:20px">${esc(me.nombre)}</h2>
-              <div class="small">${beltHTML(me.cinturon)}${me.peso ? ' · ' + esc(me.peso) + ' kg' : ''}${me.edad ? ' · ' + esc(me.edad) + ' años' : ''}</div>
+              <div class="small">${beltHTML(me.cinturon)}${me.peso ? ' ┬╖ ' + esc(me.peso) + ' kg' : ''}${me.edad ? ' ┬╖ ' + esc(me.edad) + ' a├▒os' : ''}</div>
               <div class="profile-stats">
                 <div class="pstat"><b>${asis.total}</b><span>clases</span></div>
-                <div class="pstat"><b>${me.cuota_mensual ? '$' + num(me.cuota_mensual) : '—'}</b><span>cuota</span></div>
-                <div class="pstat"><b>${videos.length}</b><span>técnicas</span></div>
+                <div class="pstat"><b>${me.cuota_mensual ? '$' + num(me.cuota_mensual) : 'ΓÇö'}</b><span>cuota</span></div>
+                <div class="pstat"><b>${videos.length}</b><span>t├⌐cnicas</span></div>
               </div>
             </div>
           </div>
@@ -1328,37 +1329,37 @@ async function renderInicio(el) {
             </div>
             <button class="btn ghost small" onclick="showSec('mispagos')">Ver mi cuenta</button>
           </div>
-          ${estado !== 'al_dia' ? `<p class="small" style="color:#ff9b8f;margin-bottom:0">⚠️ Aboná tu cuota y <b>mandá el comprobante de pago</b>${me.pago_alias ? ' (por transferencia al alias/CVU de la academia)' : ''}. Queda acreditado apenas lo recibimos.</p><button class="btn primary btn-block mt" onclick="avisarPago()">🧾 Mandar comprobante de pago</button>${me.pago_link ? `<a class="btn primary btn-block mt" href="${esc(me.pago_link)}" target="_blank" rel="noopener noreferrer" onclick="marcarLinkPago(this)">🔗 Pagar online</a>` : ''}` : ''}
+          ${estado !== 'al_dia' ? `<p class="small" style="color:#ff9b8f;margin-bottom:0">ΓÜá∩╕Å Abon├í tu cuota y <b>mand├í el comprobante de pago</b>${me.pago_alias ? ' (por transferencia al alias/CVU de la academia)' : ''}. Queda acreditado apenas lo recibimos.</p><button class="btn primary btn-block mt" onclick="avisarPago()">≡ƒº╛ Mandar comprobante de pago</button>${me.pago_link ? `<a class="btn primary btn-block mt" href="${esc(me.pago_link)}" target="_blank" rel="noopener noreferrer" onclick="marcarLinkPago(this)">≡ƒöù Pagar online</a>` : ''}` : ''}
         </div>
 
         <div class="feed-card">
-          <div class="small mb">📅 Clases de hoy</div>
+          <div class="small mb">≡ƒôà Clases de hoy</div>
           ${hoyClases.length ? hoyClases.map(h => `
             <div class="clase-item ${slugTipo(h.tipo)}">
-              <span class="hora">${esc(h.hora)}</span> · <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span> · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>
-              <div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">📷 Marcar con QR</button>`}</div>
-            </div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas. Mirá la sección Horarios.</div>'}
+              <span class="hora">${esc(h.hora)}</span> ┬╖ <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span> ┬╖ <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>
+              <div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">Γ£ô Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">≡ƒô╖ Marcar con QR</button>`}</div>
+            </div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas. Mir├í la secci├│n Horarios.</div>'}
         </div>
 
         ${videos.length ? `<div class="post-card" style="padding:0;overflow:hidden">
-          <div class="post-head" style="padding:10px 14px 0"><b style="color:var(--accent2)">🎥 Técnicas para vos (${esc(me.cinturon)})</b></div>
+          <div class="post-head" style="padding:10px 14px 0"><b style="color:var(--accent2)">≡ƒÄÑ T├⌐cnicas para vos (${esc(me.cinturon)})</b></div>
           <div class="feed" style="margin:0;padding:10px 14px 14px">${videos.map(v => videoCardHTML(v, false)).join('')}</div>
         </div>` : ''}
 
         <div class="chips">
-          <button class="chip" onclick="showSec('horarios')">📅 Horarios</button>
-          <button class="chip" onclick="showSec('videos')">🎥 Videos</button>
-          <button class="chip" onclick="showSec('mispagos')">🧾 Mi cuota</button>
-          <button class="chip" onclick="showSec('mi_asistencia')">✅ Mi asistencia</button>
-          <button class="chip" onclick="showSec('planes')">📋 Planes</button>
-          <button class="chip" onclick="showSec('metas')">🎯 Mis metas</button>
-          <button class="chip" onclick="showSec('muro')">📢 Muro</button>
-          <button class="chip" onclick="showSec('chat')">💬 Chat</button>
-          <button class="chip" onclick="showSec('eventos')">🗓️ Eventos</button>
-          <button class="chip" onclick="showSec('torneos')">🏆 Torneos</button>
-          <button class="chip" onclick="showSec('encuestas')">📊 Encuestas</button>
-          <button class="chip" onclick="showSec('diario')">📓 Diario</button>
-          <button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>
+          <button class="chip" onclick="showSec('horarios')">≡ƒôà Horarios</button>
+          <button class="chip" onclick="showSec('videos')">≡ƒÄÑ Videos</button>
+          <button class="chip" onclick="showSec('mispagos')">≡ƒº╛ Mi cuota</button>
+          <button class="chip" onclick="showSec('mi_asistencia')">Γ£à Mi asistencia</button>
+          <button class="chip" onclick="showSec('planes')">≡ƒôï Planes</button>
+          <button class="chip" onclick="showSec('metas')">≡ƒÄ» Mis metas</button>
+          <button class="chip" onclick="showSec('muro')">≡ƒôó Muro</button>
+          <button class="chip" onclick="showSec('chat')">≡ƒÆ¼ Chat</button>
+          <button class="chip" onclick="showSec('eventos')">≡ƒùô∩╕Å Eventos</button>
+          <button class="chip" onclick="showSec('torneos')">≡ƒÅå Torneos</button>
+          <button class="chip" onclick="showSec('encuestas')">≡ƒôè Encuestas</button>
+          <button class="chip" onclick="showSec('diario')">≡ƒôô Diario</button>
+          <button class="chip" onclick="abrirScannerQR()">≡ƒô╖ Escanear QR</button>
         </div>
       </div>`;
   } else {
@@ -1372,31 +1373,31 @@ async function renderInicio(el) {
     const hoyClases = horarios.horarios.filter(h => h.dia === hoyIdx);
     const videos = vids.videos.slice(0, 3);
     const chips = [
-      `<button class="chip" onclick="showSec('horarios')">📅 Horarios</button>`,
-      `<button class="chip" onclick="showSec('pagos')">💳 Registrar pago</button>`,
-      `<button class="chip" onclick="showSec('alumnos')">🥋 Alumnos</button>`,
-      `<button class="chip" onclick="showSec('asistencia')">✅ Asistencia</button>`,
-      `<button class="chip" onclick="showSec('estadisticas')">📊 Asistencias</button>`,
-      `<button class="chip" onclick="showSec('planes')">📋 Planes</button>`,
-      `<button class="chip" onclick="showSec('deudores')">⚠️ Deudas</button>`,
-      `<button class="chip" onclick="showSec('videos')">🎥 Videos</button>`];
-    if (R === 'admin') chips.push(`<button class="chip" onclick="showSec('profesores')">🧑‍🏫 Profesores</button>`, `<button class="chip" onclick="showSec('config')">⚙️ Configuración</button>`);
-    chips.push(`<button class="chip" onclick="showSec('familias')">👨‍👩‍👧 Familias</button>`);
-    chips.push(`<button class="chip" onclick="showSec('diario')">📓 Diario</button>`);
-    chips.push(`<button class="chip" onclick="showSec('muro')">📢 Muro</button>`);
-    chips.push(`<button class="chip" onclick="showSec('chat')">💬 Chat</button>`);
-    chips.push(`<button class="chip" onclick="showSec('ranking')">🏆 Ranking</button>`);
-    chips.push(`<button class="chip" onclick="showSec('eventos')">🗓️ Eventos</button>`);
-    chips.push(`<button class="chip" onclick="showSec('torneos')">🏆 Torneos</button>`);
-    chips.push(`<button class="chip" onclick="showSec('encuestas')">📊 Encuestas</button>`);
-    chips.push(`<button class="chip" onclick="showSec('historial')">📈 Historial</button>`);
-    chips.push(`<button class="chip" onclick="showSec('galeria')">🖼️ Galería</button>`);
-    chips.push(`<button class="chip" onclick="abrirMensajeMasivo()">📣 Mandar mensaje</button>`);
-    chips.push(`<button class="chip" onclick="window.open('/qr_print','_blank')">📱 QR de asistencia</button>`);
-    if (R === 'profesor') chips.push(`<button class="chip" onclick="showSec('mi_asistencia')">✅ Mi asistencia</button>`, `<button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>`);
-    chips.push(`<button class="chip" onclick="showSec('dinero')">💰 ${R === 'admin' ? 'Reparto de dinero' : 'Mi dinero'}</button>`);
-    chips.push(`<button class="chip" onclick="showSec('ingresos_extra')">🎁 Ingresos extra</button>`);
-    chips.push(`<button class="chip" onclick="showSec('descuentos')">🏷️ Descuentos</button>`);
+      `<button class="chip" onclick="showSec('horarios')">≡ƒôà Horarios</button>`,
+      `<button class="chip" onclick="showSec('pagos')">≡ƒÆ│ Registrar pago</button>`,
+      `<button class="chip" onclick="showSec('alumnos')">≡ƒÑï Alumnos</button>`,
+      `<button class="chip" onclick="showSec('asistencia')">Γ£à Asistencia</button>`,
+      `<button class="chip" onclick="showSec('estadisticas')">≡ƒôè Asistencias</button>`,
+      `<button class="chip" onclick="showSec('planes')">≡ƒôï Planes</button>`,
+      `<button class="chip" onclick="showSec('deudores')">ΓÜá∩╕Å Deudas</button>`,
+      `<button class="chip" onclick="showSec('videos')">≡ƒÄÑ Videos</button>`];
+    if (R === 'admin') chips.push(`<button class="chip" onclick="showSec('profesores')">≡ƒºæΓÇì≡ƒÅ½ Profesores</button>`, `<button class="chip" onclick="showSec('config')">ΓÜÖ∩╕Å Configuraci├│n</button>`);
+    chips.push(`<button class="chip" onclick="showSec('familias')">≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº Familias</button>`);
+    chips.push(`<button class="chip" onclick="showSec('diario')">≡ƒôô Diario</button>`);
+    chips.push(`<button class="chip" onclick="showSec('muro')">≡ƒôó Muro</button>`);
+    chips.push(`<button class="chip" onclick="showSec('chat')">≡ƒÆ¼ Chat</button>`);
+    chips.push(`<button class="chip" onclick="showSec('ranking')">≡ƒÅå Ranking</button>`);
+    chips.push(`<button class="chip" onclick="showSec('eventos')">≡ƒùô∩╕Å Eventos</button>`);
+    chips.push(`<button class="chip" onclick="showSec('torneos')">≡ƒÅå Torneos</button>`);
+    chips.push(`<button class="chip" onclick="showSec('encuestas')">≡ƒôè Encuestas</button>`);
+    chips.push(`<button class="chip" onclick="showSec('historial')">≡ƒôê Historial</button>`);
+    chips.push(`<button class="chip" onclick="showSec('galeria')">≡ƒû╝∩╕Å Galer├¡a</button>`);
+    chips.push(`<button class="chip" onclick="abrirMensajeMasivo()">≡ƒôú Mandar mensaje</button>`);
+    chips.push(`<button class="chip" onclick="window.open('/qr_print','_blank')">≡ƒô▒ QR de asistencia</button>`);
+    if (R === 'profesor') chips.push(`<button class="chip" onclick="showSec('mi_asistencia')">Γ£à Mi asistencia</button>`, `<button class="chip" onclick="abrirScannerQR()">≡ƒô╖ Escanear QR</button>`);
+    chips.push(`<button class="chip" onclick="showSec('dinero')">≡ƒÆ░ ${R === 'admin' ? 'Reparto de dinero' : 'Mi dinero'}</button>`);
+    chips.push(`<button class="chip" onclick="showSec('ingresos_extra')">≡ƒÄü Ingresos extra</button>`);
+    chips.push(`<button class="chip" onclick="showSec('descuentos')">≡ƒÅ╖∩╕Å Descuentos</button>`);
     el.innerHTML = `
       <div class="feed">
         ${secHeader('Inicio')}
@@ -1409,17 +1410,17 @@ async function renderInicio(el) {
         </div>
         <div class="chips">${chips.join('')}</div>
         <div class="feed-card">
-          <div class="small mb">📅 Clases de hoy</div>
-          ${hoyClases.length ? hoyClases.map(h => `<div class="clase-item ${slugTipo(h.tipo)}"><span class="hora">${esc(h.hora)}</span> · <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span> · ${esc(h.nivel || 'Todos')} · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>${R === 'profesor' ? `<div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">📷 Marcar con QR</button>`}</div>` : ''}</div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas.</div>'}
+          <div class="small mb">≡ƒôà Clases de hoy</div>
+          ${hoyClases.length ? hoyClases.map(h => `<div class="clase-item ${slugTipo(h.tipo)}"><span class="hora">${esc(h.hora)}</span> ┬╖ <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span> ┬╖ ${esc(h.nivel || 'Todos')} ┬╖ <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>${R === 'profesor' ? `<div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">Γ£ô Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">≡ƒô╖ Marcar con QR</button>`}</div>` : ''}</div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas.</div>'}
         </div>
         ${cums.cumpleanios.length ? `<div class="feed-card">
-          <div class="small mb">🎂 Cumpleaños de ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][cums.mes - 1]} <span class="small" style="color:var(--muted)">(${cums.cumpleanios.length})</span></div>
-          ${cums.cumpleanios.map(x => `<div class="flex space-between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${avatarHTML('', x.nombre, 'sm')} ${esc(x.nombre)}</span><b>${x.hoy ? '🎉 Hoy! · ' : ''}${x.dia}/${cums.mes}${x.edad ? ' · ' + x.edad + ' años' : ''}</b></div>`).join('')}
+          <div class="small mb">≡ƒÄé Cumplea├▒os de ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][cums.mes - 1]} <span class="small" style="color:var(--muted)">(${cums.cumpleanios.length})</span></div>
+          ${cums.cumpleanios.map(x => `<div class="flex space-between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${avatarHTML('', x.nombre, 'sm')} ${esc(x.nombre)}</span><b>${x.hoy ? '≡ƒÄë Hoy! ┬╖ ' : ''}${x.dia}/${cums.mes}${x.edad ? ' ┬╖ ' + x.edad + ' a├▒os' : ''}</b></div>`).join('')}
         </div>` : ''}
         ${videos.length ? `<div class="post-card" style="padding:0;overflow:hidden">
-          <div class="post-head" style="padding:10px 14px 0"><b style="color:var(--accent2)">🎥 Últimos videos subidos</b> <button class="btn primary small" onclick="showSec('videos')">Subir video</button></div>
+          <div class="post-head" style="padding:10px 14px 0"><b style="color:var(--accent2)">≡ƒÄÑ ├Ültimos videos subidos</b> <button class="btn primary small" onclick="showSec('videos')">Subir video</button></div>
           <div class="feed" style="margin:0;padding:10px 14px 14px">${videos.map(v => videoCardHTML(v, true)).join('')}</div>
-        </div>` : `<button class="btn primary btn-block" onclick="showSec('videos')">🎥 Subir el primer video</button>`}
+        </div>` : `<button class="btn primary btn-block" onclick="showSec('videos')">≡ƒÄÑ Subir el primer video</button>`}
       </div>`;
   }
 }
@@ -1431,21 +1432,21 @@ let BJJ_TABLAS = null;
 
 function _bjjTablaHTML(tabla) {
   return tabla.map(([nombre, limite]) => {
-    const gi = limite === null ? 'sin límite' : `hasta ${limite} kg`;
-    const ng = limite === null ? 'sin límite' : `hasta ${(limite - 2.5).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')} kg`;
+    const gi = limite === null ? 'sin l├¡mite' : `hasta ${limite} kg`;
+    const ng = limite === null ? 'sin l├¡mite' : `hasta ${(limite - 2.5).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')} kg`;
     return `<tr><td style="padding:6px 8px;font-weight:600">${esc(nombre)}</td>
       <td style="padding:6px 8px;text-align:right">${esc(gi)}</td>
       <td style="padding:6px 8px;text-align:right">${esc(ng)}</td></tr>`;
   }).join('');
 }
 
-// 'grupo|genero|modalidad|peso|edad' -> 'Medio · Adulto · Con Gi'
+// 'grupo|genero|modalidad|peso|edad' -> 'Medio ┬╖ Adulto ┬╖ Con Gi'
 // Misma regla que bjj_clave_label() en app.py. Devuelve '' si la clave no
 // tiene el formato esperado, para no romper la pantalla con undefined.
 function bjjLabelDeClave(clave) {
   const p = String(clave || '').split('|');
   if (p.length !== 5) return '';
-  return `${p[3]} · ${p[4]} · ${p[2] === 'nogi' ? 'No-Gi' : 'Con Gi'}`;
+  return `${p[3]} ┬╖ ${p[4]} ┬╖ ${p[2] === 'nogi' ? 'No-Gi' : 'Con Gi'}`;
 }
 
 // Arma la lista de claves validas con la misma forma que hace bjj_claves() en
@@ -1472,14 +1473,14 @@ function pintarBjjElegida(clave) {
   if (!box) return;
   box.innerHTML = `
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
-      <div class="small mb">🎯 Con qué categoría competís</div>
+      <div class="small mb">≡ƒÄ» Con qu├⌐ categor├¡a compet├¡s</div>
       ${clave ? `<div class="tag tag-al-dia" style="font-size:.95rem">${esc(bjjLabelDeClave(clave))}</div>`
-        : `<div class="small" style="color:var(--muted)">Todavía no elegiste categoría.</div>`}
+        : `<div class="small" style="color:var(--muted)">Todav├¡a no elegiste categor├¡a.</div>`}
       <button class="btn ghost btn-block" style="margin-top:10px" onclick="elegirCategoriaBjj()">
-        ${clave ? 'Cambiar' : 'Elegir mi categoría'}
+        ${clave ? 'Cambiar' : 'Elegir mi categor├¡a'}
       </button>
-      <small class="hint">La app la calcula con tu edad y peso, pero si sabés en qué categoría
-        te inscribís, elegila acá: al inscripción a un torneo se usa esta.</small>
+      <small class="hint">La app la calcula con tu edad y peso, pero si sab├⌐s en qu├⌐ categor├¡a
+        te inscrib├¡s, elegila ac├í: al inscripci├│n a un torneo se usa esta.</small>
     </div>`;
 }
 
@@ -1494,9 +1495,9 @@ async function elegirCategoriaBjj() {
   vis.forEach(x => { (grupos[x.grupo + '|' + x.g] = grupos[x.grupo + '|' + x.g] || []).push(x); });
 
   openModal(`
-    <h3>Elegí tu categoría</h3>
+    <h3>Eleg├¡ tu categor├¡a</h3>
     <div class="small" style="color:var(--muted);margin-bottom:10px">
-      Andá a la pestaña ${gi === 'nogi' ? 'No-Gi' : 'Con Gi'}.
+      And├í a la pesta├▒a ${gi === 'nogi' ? 'No-Gi' : 'Con Gi'}.
     </div>
     <div class="field"><label>Buscar</label><input id="bkBuscar" placeholder="Ej: Medio, Master, Pluma" autocomplete="off"></div>
     <div id="bkLista" style="max-height:46vh;overflow:auto">
@@ -1526,7 +1527,7 @@ async function guardarCategoriaBjj(clave) {
   try {
     const r = await api('/api/bjj/categoria', { method: 'POST', body: { clave: clave || '' } });
     closeModal();
-    toast(r.label ? 'Categoría guardada: ' + r.label : 'Categoría quitada');
+    toast(r.label ? 'Categor├¡a guardada: ' + r.label : 'Categor├¡a quitada');
     pintarBjjElegida(r.clave);
     if (window.USER) USER.bjj_categoria = r.clave;
   } catch (e) { toast(e.message); }
@@ -1536,7 +1537,7 @@ async function toggleBjjTabla() {
   const box = document.getElementById('bjjTabla');
   if (!box) return;
   if (box.innerHTML) { box.innerHTML = ''; return; }
-  box.innerHTML = '<div class="small" style="color:var(--muted);padding:8px 0">Cargando tabla…</div>';
+  box.innerHTML = '<div class="small" style="color:var(--muted);padding:8px 0">Cargando tablaΓÇª</div>';
   try {
     if (!BJJ_TABLAS) BJJ_TABLAS = await api('/api/bjj/categorias');
     const P = BJJ_TABLAS.pesos;
@@ -1562,16 +1563,16 @@ async function toggleBjjTabla() {
     };
     box.innerHTML = `
       <div class="small" style="color:var(--muted);margin-top:12px">
-        Tablas oficiales IBJJF. En No-Gi los límites bajan ~2,5 kg porque no se pesa con el kimono puesto.
-        La edad de categoría es <b>año del torneo − año de nacimiento</b>.
+        Tablas oficiales IBJJF. En No-Gi los l├¡mites bajan ~2,5 kg porque no se pesa con el kimono puesto.
+        La edad de categor├¡a es <b>a├▒o del torneo ΓêÆ a├▒o de nacimiento</b>.
       </div>
-      ${bloque('Masculino · Adulto (18 a 29)', 'adulto', 'M')}
-      ${bloque('Femenino · Adulto (18 a 29)', 'adulto', 'F')}
-      ${bloque('Masculino · Juvenil (16 y 17)', 'juvenil', 'M')}
-      ${bloque('Femenino · Juvenil (16 y 17)', 'juvenil', 'F')}
+      ${bloque('Masculino ┬╖ Adulto (18 a 29)', 'adulto', 'M')}
+      ${bloque('Femenino ┬╖ Adulto (18 a 29)', 'adulto', 'F')}
+      ${bloque('Masculino ┬╖ Juvenil (16 y 17)', 'juvenil', 'M')}
+      ${bloque('Femenino ┬╖ Juvenil (16 y 17)', 'juvenil', 'F')}
       <div style="margin-top:16px">
         <div style="font-weight:600;margin-bottom:4px">Divisiones por edad</div>
-        <div class="small" style="color:var(--muted)">${divs.join(' · ')}</div>
+        <div class="small" style="color:var(--muted)">${divs.join(' ┬╖ ')}</div>
       </div>`;
   } catch (e) {
     box.innerHTML = '<div class="small" style="color:var(--bad);padding:8px 0">No se pudo cargar la tabla.</div>';
@@ -1587,19 +1588,19 @@ async function renderBjj() {
     const r = await api('/api/bjj/calcular', { method: 'POST', body: {
       nacimiento: val('#pNac'), peso: val('#pPeso'), genero: val('#pGenero'), gi } });
     if (!r.division) {
-      out.innerHTML = `<span style="color:var(--muted)">Cargá tu fecha de nacimiento, peso y género para ver tu categoría.</span>`;
+      out.innerHTML = `<span style="color:var(--muted)">Carg├í tu fecha de nacimiento, peso y g├⌐nero para ver tu categor├¡a.</span>`;
       return;
     }
     if (!r.ok) {
-      out.innerHTML = `<b>${esc(r.division)}</b> (${r.edad} años) — falta: ${esc(r.motivo || 'datos')}`;
+      out.innerHTML = `<b>${esc(r.division)}</b> (${r.edad} a├▒os) ΓÇö falta: ${esc(r.motivo || 'datos')}`;
       return;
     }
-    const tope = r.limite ? `hasta ${r.limite} kg` : 'sin límite de peso';
-    out.innerHTML = `<div style="font-size:1.15rem;font-weight:600">${esc(r.division_peso)} · ${esc(r.division)}</div>
-      <div style="color:var(--muted);margin-top:4px">${esc(gi === 'nogi' ? 'No-Gi' : 'Con Gi')} · ${esc(tope)} · ${r.edad} años</div>
-      <div style="color:var(--muted);margin-top:4px;font-size:.85rem">La edad se cuenta como año del torneo − año de nacimiento, sin importar el día.</div>`;
+    const tope = r.limite ? `hasta ${r.limite} kg` : 'sin l├¡mite de peso';
+    out.innerHTML = `<div style="font-size:1.15rem;font-weight:600">${esc(r.division_peso)} ┬╖ ${esc(r.division)}</div>
+      <div style="color:var(--muted);margin-top:4px">${esc(gi === 'nogi' ? 'No-Gi' : 'Con Gi')} ┬╖ ${esc(tope)} ┬╖ ${r.edad} a├▒os</div>
+      <div style="color:var(--muted);margin-top:4px;font-size:.85rem">La edad se cuenta como a├▒o del torneo ΓêÆ a├▒o de nacimiento, sin importar el d├¡a.</div>`;
   } catch (e) {
-    out.innerHTML = `<span style="color:var(--muted)">No se pudo calcular la categoría.</span>`;
+    out.innerHTML = `<span style="color:var(--muted)">No se pudo calcular la categor├¡a.</span>`;
   }
 }
 
@@ -1615,12 +1616,12 @@ async function renderPerfil(el) {
     stats = `<div class="profile-stats">
       <div class="pstat"><b>${asis.total}</b><span>clases</span></div>
       <div class="pstat"><b>${pagos.pagos.length}</b><span>pagos</span></div>
-      <div class="pstat"><b>${me.peso ? esc(me.peso) + 'kg' : '—'}</b><span>peso</span></div>
+      <div class="pstat"><b>${me.peso ? esc(me.peso) + 'kg' : 'ΓÇö'}</b><span>peso</span></div>
     </div>`;
   } else {
     stats = `<div class="profile-stats">
-      <div class="pstat"><b>${me.edad || '—'}</b><span>edad</span></div>
-      <div class="pstat"><b>${me.peso ? esc(me.peso) + 'kg' : '—'}</b><span>peso</span></div>
+      <div class="pstat"><b>${me.edad || 'ΓÇö'}</b><span>edad</span></div>
+      <div class="pstat"><b>${me.peso ? esc(me.peso) + 'kg' : 'ΓÇö'}</b><span>peso</span></div>
       <div class="pstat"><b>${beltHTML(me.cinturon)}</b><span>faixa</span></div>
     </div>`;
   }
@@ -1628,15 +1629,15 @@ async function renderPerfil(el) {
   if (me.role === 'alumno') {
     const visto = vids.videos.filter(v => v.visto);
     grid = `<div class="feed-card">
-      <div class="small mb">📼 Técnicas que viste (${visto.length})</div>
-      <div class="vid-grid">${visto.length ? visto.map(v => vidThumb(v)).join('') : '<div class="empty">Todavía no marcaste videos como vistos. Entrá a la sección 🎥 Videos.</div>'}</div>
+      <div class="small mb">≡ƒô╝ T├⌐cnicas que viste (${visto.length})</div>
+      <div class="vid-grid">${visto.length ? visto.map(v => vidThumb(v)).join('') : '<div class="empty">Todav├¡a no marcaste videos como vistos. Entr├í a la secci├│n ≡ƒÄÑ Videos.</div>'}</div>
     </div>`;
   } else {
     const mios = vids.videos.filter(v => v.subido_por === me.id);
     grid = `<div class="feed-card">
-      <div class="flex space-between mb"><div class="small">🎥 Videos que subí (${mios.length})</div>
-        <button class="btn primary small" onclick="showSec('videos')">＋ Subir</button></div>
-      <div class="vid-grid">${mios.length ? mios.map(v => vidThumb(v)).join('') : '<div class="empty">Todavía no subiste videos.</div>'}</div>
+      <div class="flex space-between mb"><div class="small">≡ƒÄÑ Videos que sub├¡ (${mios.length})</div>
+        <button class="btn primary small" onclick="showSec('videos')">∩╝ï Subir</button></div>
+      <div class="vid-grid">${mios.length ? mios.map(v => vidThumb(v)).join('') : '<div class="empty">Todav├¡a no subiste videos.</div>'}</div>
     </div>`;
   }
   el.innerHTML = `
@@ -1646,7 +1647,7 @@ async function renderPerfil(el) {
         <div class="profile-top">
           <div style="position:relative">
             ${avatarHTML(me.foto, me.nombre, 'lg')}
-            <label style="position:absolute;bottom:-4px;right:-4px;background:var(--accent);color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;border:2px solid #000">📷
+            <label style="position:absolute;bottom:-4px;right:-4px;background:var(--accent);color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;border:2px solid #000">≡ƒô╖
               <input type="file" id="fotoInput" accept="image/*" style="display:none">
             </label>
           </div>
@@ -1656,15 +1657,15 @@ async function renderPerfil(el) {
             ${stats}
           </div>
         </div>
-        <div class="small" style="color:var(--muted)">Tocá la cámara 📷 sobre tu foto para cambiarla.</div>
+        <div class="small" style="color:var(--muted)">Toc├í la c├ímara ≡ƒô╖ sobre tu foto para cambiarla.</div>
       </div>
 
       ${grid}
 
       ${me.role === 'alumno' ? `<div class="feed-card">
-        <div class="small mb">🥋 Mi camino (grados)</div>
-        <div class="small" style="margin-bottom:8px">Cinturón actual: ${beltHTML(me.cinturon)}${me.proximo_examen ? ' · <b style="color:var(--accent2)">Próximo examen: ' + esc(me.proximo_examen) + '</b>' : ''}</div>
-        <div id="misGrados">Cargando…</div>
+        <div class="small mb">≡ƒÑï Mi camino (grados)</div>
+        <div class="small" style="margin-bottom:8px">Cintur├│n actual: ${beltHTML(me.cinturon)}${me.proximo_examen ? ' ┬╖ <b style="color:var(--accent2)">Pr├│ximo examen: ' + esc(me.proximo_examen) + '</b>' : ''}</div>
+        <div id="misGrados">CargandoΓÇª</div>
       </div>` : ''}
 
       <div class="feed-card" id="miFamiliaCard"></div>
@@ -1674,40 +1675,40 @@ async function renderPerfil(el) {
           <div class="field"><label>Nombre y apellido</label><input type="text" id="pNombre" value="${esc(me.nombre)}"></div>
           <div class="field"><label>Usuario</label><input type="text" value="${esc(me.username)}" disabled></div>
           <div class="field"><label>DNI</label><input type="text" id="pDni" value="${esc(me.dni || '')}"></div>
-          <div class="field"><label>Dirección / domicilio</label><input type="text" id="pDir" placeholder="Ej: Calle 1 N° 123, Madryn" value="${esc(me.direccion || '')}"></div>
+          <div class="field"><label>Direcci├│n / domicilio</label><input type="text" id="pDir" placeholder="Ej: Calle 1 N┬░ 123, Madryn" value="${esc(me.direccion || '')}"></div>
           <div class="field"><label>Edad</label><input type="number" id="pEdad" value="${me.edad != null ? me.edad : ''}"></div>
           <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" id="pPeso" value="${me.peso != null ? me.peso : ''}"></div>
-          <div class="field"><label>Género (para categorías de competición)</label><select id="pGenero">
+          <div class="field"><label>G├⌐nero (para categor├¡as de competici├│n)</label><select id="pGenero">
             <option value="">Sin definir</option>
             <option value="M" ${me.genero === 'M' ? 'selected' : ''}>Masculino</option>
             <option value="F" ${me.genero === 'F' ? 'selected' : ''}>Femenino</option></select></div>
-          <div class="field"><label>Teléfono</label><input type="tel" id="pTel" value="${esc(me.tel || '')}"></div>
-          <div class="field"><label>📞 Teléfono del padre/madre/tutor ${cat === 'kids' || cat === 'juveniles' ? '<span style="color:#ff9b8f">(obligatorio)</span>' : '(opcional)'}</label><input type="tel" id="pTelTutor" placeholder="Ej: 299 1234567" value="${esc(me.tel_tutor || '')}"></div>
-          <div class="field"><label>📞 Segundo teléfono (opcional)</label><input type="tel" id="pTel2" placeholder="Otro teléfono de contacto" value="${esc(me.tel_2 || '')}"></div>
+          <div class="field"><label>Tel├⌐fono</label><input type="tel" id="pTel" value="${esc(me.tel || '')}"></div>
+          <div class="field"><label>≡ƒô₧ Tel├⌐fono del padre/madre/tutor ${cat === 'kids' || cat === 'juveniles' ? '<span style="color:#ff9b8f">(obligatorio)</span>' : '(opcional)'}</label><input type="tel" id="pTelTutor" placeholder="Ej: 299 1234567" value="${esc(me.tel_tutor || '')}"></div>
+          <div class="field"><label>≡ƒô₧ Segundo tel├⌐fono (opcional)</label><input type="tel" id="pTel2" placeholder="Otro tel├⌐fono de contacto" value="${esc(me.tel_2 || '')}"></div>
           <div class="field"><label>Fecha de nacimiento</label><input type="date" id="pNac" value="${me.nacimiento || ''}"></div>
-          <div class="field"><label>Categoría</label><select id="pCat">
+          <div class="field"><label>Categor├¡a</label><select id="pCat">
             ${CATEGORIAS.map(c => `<option value="${c}" ${c === cat ? 'selected' : ''}>${catLabel(c)}</option>`).join('')}</select></div>
-          <div class="field"><label>Cinturón / Faixa${me.role === 'alumno' ? ' <span class="small">(lo define la academia)</span>' : ''}</label><select id="pCinturon" ${me.role === 'alumno' ? 'disabled' : ''}>
+          <div class="field"><label>Cintur├│n / Faixa${me.role === 'alumno' ? ' <span class="small">(lo define la academia)</span>' : ''}</label><select id="pCinturon" ${me.role === 'alumno' ? 'disabled' : ''}>
             ${belts.map(b => `<option ${b === me.cinturon ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
           <div class="field" style="grid-column:1/-1"><label>Actividades</label>
             <div class="chips">
               ${TIPOS_ACTIVIDAD.map(ac => `<label class="chip"><input type="checkbox" name="pAct" value="${ac}" ${(me.actividades || '').split(',').map(s => s.trim()).includes(ac) ? 'checked' : ''}><span>${ac}</span></label>`).join('')}
             </div>
-          <div class="field"><label>Cambiar contraseña (opcional)</label><input type="password" id="pPass" placeholder="Nueva contraseña"></div>
-          <div class="field" style="grid-column:1/-1"><label>🩺 Ficha médica (opcional)</label><textarea id="pMedic" rows="2" placeholder="Lesiones, alergias, medicación, operaciones...">${esc(me.medic_info || '')}</textarea></div>
+          <div class="field"><label>Cambiar contrase├▒a (opcional)</label><input type="password" id="pPass" placeholder="Nueva contrase├▒a"></div>
+          <div class="field" style="grid-column:1/-1"><label>≡ƒ⌐║ Ficha m├⌐dica (opcional)</label><textarea id="pMedic" rows="2" placeholder="Lesiones, alergias, medicaci├│n, operaciones...">${esc(me.medic_info || '')}</textarea></div>
           ${cat === 'kids' || cat === 'juveniles' ? `<div class="field" style="grid-column:1/-1"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="pFotoOk" style="width:18px;height:18px" ${me.foto_ok ? 'checked' : ''}>
             <span>Autorizo como mayor/padre/madre/tutor que <b>las fotos de este/a menor puedan ser expuestas</b> (redes y muro). <span style="color:#ff9b8f">(obligatorio para menores)</span></span></label></div>` : ''}
-          <div class="field" style="grid-column:1/-1"><label>📞 Contacto de emergencia (opcional)</label><input type="text" id="pEmer" placeholder="Nombre y teléfono" value="${esc(me.emergency_contact || '')}"></div>
+          <div class="field" style="grid-column:1/-1"><label>≡ƒô₧ Contacto de emergencia (opcional)</label><input type="text" id="pEmer" placeholder="Nombre y tel├⌐fono" value="${esc(me.emergency_contact || '')}"></div>
           <div class="field" style="grid-column:1/-1">
             <div class="flex space-between" style="align-items:center">
-              <label>🩺 Mi ficha médica (responsable: vos)</label>
+              <label>≡ƒ⌐║ Mi ficha m├⌐dica (responsable: vos)</label>
               ${me.ficha_fecha ? `<span class="small" style="color:var(--muted)">Actualizada el ${esc(me.ficha_fecha)}</span>` : `<span class="tag tag-deuda">Sin completar</span>`}
             </div>
             <div class="grid2" style="margin-top:6px">
-              <div class="field" style="margin:0"><label style="font-weight:500">Enfermedades / condiciones</label><input id="pMedEnf" placeholder="Ej: asma, presión alta" value="${esc(me.medic_enfermedades || '')}"></div>
+              <div class="field" style="margin:0"><label style="font-weight:500">Enfermedades / condiciones</label><input id="pMedEnf" placeholder="Ej: asma, presi├│n alta" value="${esc(me.medic_enfermedades || '')}"></div>
               <div class="field" style="margin:0"><label style="font-weight:500">Alergias</label><input id="pMedAlergias" placeholder="Ej: penicilina, polvo" value="${esc(me.medic_alergias || '')}"></div>
-              <div class="field" style="margin:0"><label style="font-weight:500">Medicación actual</label><input id="pMedMed" placeholder="Ej: salbutamol, insulina" value="${esc(me.medic_medicacion || '')}"></div>
+              <div class="field" style="margin:0"><label style="font-weight:500">Medicaci├│n actual</label><input id="pMedMed" placeholder="Ej: salbutamol, insulina" value="${esc(me.medic_medicacion || '')}"></div>
               <div class="field" style="margin:0"><label style="font-weight:500">Lesiones / operaciones</label><input id="pMedLes" placeholder="Ej: rodilla operada 2024" value="${esc(me.medic_lesiones || '')}"></div>
             </div>
           </div>
@@ -1716,77 +1717,77 @@ async function renderPerfil(el) {
       </div>
 
       <div class="feed-card">
-        <div class="small mb">🥋 Mi categoría de competición (BJJ · IBJJF)</div>
+        <div class="small mb">≡ƒÑï Mi categor├¡a de competici├│n (BJJ ┬╖ IBJJF)</div>
         <div class="chips" style="margin-bottom:10px">
           <label class="chip"><input type="radio" name="bjjGi" value="gi" checked><span>Con Gi</span></label>
           <label class="chip"><input type="radio" name="bjjGi" value="nogi"><span>No-Gi</span></label>
         </div>
-        <div id="bjjOut" class="small">Cargando…</div>
+        <div id="bjjOut" class="small">CargandoΓÇª</div>
         <div id="bjjElegida"></div>
-        <button class="btn ghost btn-block" style="margin-top:10px" onclick="toggleBjjTabla()">📋 Ver todas las categorías de peso</button>
+        <button class="btn ghost btn-block" style="margin-top:10px" onclick="toggleBjjTabla()">≡ƒôï Ver todas las categor├¡as de peso</button>
         <div id="bjjTabla"></div>
       </div>
 
       ${(me.medic_enfermedades || me.medic_alergias || me.medic_medicacion || me.medic_lesiones || me.medic_info) ? `<div class="feed-card">
-        <div class="small mb">🩺 Mi ficha médica</div>
-        ${me.ficha_fecha ? `<div class="small" style="color:var(--muted);margin-bottom:6px">Última actualización: ${esc(me.ficha_fecha)}</div>` : ''}
+        <div class="small mb">≡ƒ⌐║ Mi ficha m├⌐dica</div>
+        ${me.ficha_fecha ? `<div class="small" style="color:var(--muted);margin-bottom:6px">├Ültima actualizaci├│n: ${esc(me.ficha_fecha)}</div>` : ''}
         ${me.medic_enfermedades ? `<div class="small" style="margin-bottom:4px"><b>Enfermedades:</b> ${esc(me.medic_enfermedades)}</div>` : ''}
         ${me.medic_alergias ? `<div class="small" style="margin-bottom:4px"><b>Alergias:</b> ${esc(me.medic_alergias)}</div>` : ''}
-        ${me.medic_medicacion ? `<div class="small" style="margin-bottom:4px"><b>Medicación:</b> ${esc(me.medic_medicacion)}</div>` : ''}
+        ${me.medic_medicacion ? `<div class="small" style="margin-bottom:4px"><b>Medicaci├│n:</b> ${esc(me.medic_medicacion)}</div>` : ''}
         ${me.medic_lesiones ? `<div class="small" style="margin-bottom:4px"><b>Lesiones:</b> ${esc(me.medic_lesiones)}</div>` : ''}
         ${me.medic_info ? `<p class="small" style="white-space:pre-wrap;margin:6px 0 0">${esc(me.medic_info)}</p>` : ''}
       </div>` : ''}
       ${me.emergency_contact ? `<div class="feed-card">
-        <div class="small mb">📞 Contacto de emergencia</div>
+        <div class="small mb">≡ƒô₧ Contacto de emergencia</div>
         <p class="small" style="margin-bottom:0">${esc(me.emergency_contact)}</p>
       </div>` : ''}
 
       <div class="feed-card">
-        <div class="small mb">📲 Notificaciones push</div>
-        <p class="small" style="margin-bottom:8px">Activá las notificaciones para que te lleguen avisos de mensajes y novedades al celular, aun con la app cerrada.</p>
-        <button class="btn primary btn-block" onclick="perfilActivarPush()">🔔 Activar notificaciones</button>
-        <button class="btn ghost btn-block mt" onclick="testPush()">🧪 Probar notificación</button>
+        <div class="small mb">≡ƒô▓ Notificaciones push</div>
+        <p class="small" style="margin-bottom:8px">Activ├í las notificaciones para que te lleguen avisos de mensajes y novedades al celular, aun con la app cerrada.</p>
+        <button class="btn primary btn-block" onclick="perfilActivarPush()">≡ƒöö Activar notificaciones</button>
+        <button class="btn ghost btn-block mt" onclick="testPush()">≡ƒº¬ Probar notificaci├│n</button>
         <p class="small mt" id="pushDiag" style="color:var(--muted);margin-bottom:0"></p>
       </div>
 
       ${me.role === 'alumno' ? `<div class="feed-card">
-        <div class="small mb">⏸ Pausa temporal</div>
+        <div class="small mb">ΓÅ╕ Pausa temporal</div>
         ${me.en_pausa
-          ? `<p class="small" style="margin-bottom:8px">Estás de pausa${me.pausa_hasta ? ' <b>hasta el ' + esc(me.pausa_hasta) + '</b>' : ''}. Mientras dure la pausa <b>no se te cobra la cuota</b> ni contás como deudor.</p>
-             <button class="btn primary btn-block" onclick="cancelarPausaMi()">✅ Terminar mi pausa</button>`
-          : `<p class="small" style="color:var(--muted);margin-bottom:8px">¿Te vas de viaje o no vas a poder entrenar un tiempo? Activá una pausa y no se te cobra ni contás como deudor.</p>
+          ? `<p class="small" style="margin-bottom:8px">Est├ís de pausa${me.pausa_hasta ? ' <b>hasta el ' + esc(me.pausa_hasta) + '</b>' : ''}. Mientras dure la pausa <b>no se te cobra la cuota</b> ni cont├ís como deudor.</p>
+             <button class="btn primary btn-block" onclick="cancelarPausaMi()">Γ£à Terminar mi pausa</button>`
+          : `<p class="small" style="color:var(--muted);margin-bottom:8px">┬┐Te vas de viaje o no vas a poder entrenar un tiempo? Activ├í una pausa y no se te cobra ni cont├ís como deudor.</p>
              <div class="grid2" style="margin-bottom:8px">
                <div class="field" style="margin:0"><label>Desde</label><input type="date" id="pausaDesde" value="${fechaHoyLocal()}"></div>
                <div class="field" style="margin:0"><label>Hasta</label><input type="date" id="pausaHasta" value=""></div>
              </div>
-             <button class="btn primary btn-block" onclick="activarPausaMi()">⏸ Activar pausa</button>`}
+             <button class="btn primary btn-block" onclick="activarPausaMi()">ΓÅ╕ Activar pausa</button>`}
       </div>` : ''}
 
       <div class="feed-card">
-        <div class="small mb">📲 ¿Querés la app como si fuera de tu teléfono?</div>
-        <button class="btn ghost" id="instalarBtn" onclick="instalarManual()">📲 Instalar la app</button>
-        <p class="small" style="margin-bottom:0">Se instala en tu pantalla de inicio sin pasar por Google. (En el celular: menú → "Agregar a pantalla de inicio".)</p>
+        <div class="small mb">≡ƒô▓ ┬┐Quer├⌐s la app como si fuera de tu tel├⌐fono?</div>
+        <button class="btn ghost" id="instalarBtn" onclick="instalarManual()">≡ƒô▓ Instalar la app</button>
+        <p class="small" style="margin-bottom:0">Se instala en tu pantalla de inicio sin pasar por Google. (En el celular: men├║ ΓåÆ "Agregar a pantalla de inicio".)</p>
       </div>
 
       <div class="feed-card">
-        <div class="small mb">🔐 Seguridad de la cuenta</div>
-        <p class="small" style="margin-bottom:6px">Configurá una <b>pregunta de seguridad</b> para poder recuperar tu contraseña si alguna vez la olvidás. También podés cambiar tu contraseña acá.</p>
-        <div class="field"><label>Pregunta de seguridad</label><input id="pSecQ" placeholder="Ej: ¿Nombre de tu mascota?" value="${esc(me.security_q || '')}"></div>
+        <div class="small mb">≡ƒöÉ Seguridad de la cuenta</div>
+        <p class="small" style="margin-bottom:6px">Configur├í una <b>pregunta de seguridad</b> para poder recuperar tu contrase├▒a si alguna vez la olvid├ís. Tambi├⌐n pod├⌐s cambiar tu contrase├▒a ac├í.</p>
+        <div class="field"><label>Pregunta de seguridad</label><input id="pSecQ" placeholder="Ej: ┬┐Nombre de tu mascota?" value="${esc(me.security_q || '')}"></div>
         <div class="field"><label>Respuesta</label><input id="pSecA" placeholder="Tu respuesta (se guarda visible solo para vos)"></div>
-        <div class="field"><label>Nueva contraseña (opcional)</label><input type="password" id="pSecPass" placeholder="Dejalo en blanco para no cambiarla"></div>
+        <div class="field"><label>Nueva contrase├▒a (opcional)</label><input type="password" id="pSecPass" placeholder="Dejalo en blanco para no cambiarla"></div>
         <button class="btn primary btn-block" onclick="guardarSeguridad()">Guardar seguridad</button>
       </div>
       <div class="feed-card">
-        <div class="small mb">📄 Términos y Condiciones</div>
+        <div class="small mb">≡ƒôä T├⌐rminos y Condiciones</div>
         ${me.acepto_tyc
-          ? `<p class="small" style="margin-bottom:0">✔ Aceptaste los <b>Términos y Condiciones y la Política de Privacidad</b> el <b>${esc(me.acepto_tyc)}</b>. <a href="javascript:void(0)" onclick="verTerminos()" style="color:var(--accent2)">Ver términos</a></p>`
-          : `<p class="small" style="margin-bottom:6px">Todavía no aceptaste los Términos y Condiciones.</p><button class="btn primary btn-block" onclick="verTerminos()">📄 Aceptar términos y condiciones</button>`}
+          ? `<p class="small" style="margin-bottom:0">Γ£ö Aceptaste los <b>T├⌐rminos y Condiciones y la Pol├¡tica de Privacidad</b> el <b>${esc(me.acepto_tyc)}</b>. <a href="javascript:void(0)" onclick="verTerminos()" style="color:var(--accent2)">Ver t├⌐rminos</a></p>`
+          : `<p class="small" style="margin-bottom:6px">Todav├¡a no aceptaste los T├⌐rminos y Condiciones.</p><button class="btn primary btn-block" onclick="verTerminos()">≡ƒôä Aceptar t├⌐rminos y condiciones</button>`}
       </div>
       ${me.role === 'alumno' ? `
       <div class="feed-card">
-        <div class="small mb" style="color:var(--bad)">¿No vas a seguir entrenando?</div>
-        <button class="btn bad btn-block" onclick="desactivarMiCuenta()">🚫 Desactivar mi cuenta</button>
-        <p class="small" style="margin-bottom:0">Tus datos se guardan; si algún día volvés, el administrador puede reactivarte.</p>
+        <div class="small mb" style="color:var(--bad)">┬┐No vas a seguir entrenando?</div>
+        <button class="btn bad btn-block" onclick="desactivarMiCuenta()">≡ƒÜ½ Desactivar mi cuenta</button>
+        <p class="small" style="margin-bottom:0">Tus datos se guardan; si alg├║n d├¡a volv├⌐s, el administrador puede reactivarte.</p>
       </div>` : ''}
     </div>`;
   ['#pNac', '#pPeso', '#pGenero'].forEach(sel => {
@@ -1817,7 +1818,7 @@ async function renderPerfil(el) {
         dni: $('#pDni')?.value.trim() || '', direccion: $('#pDir')?.value.trim() || '',
         foto_ok: !!($('#pFotoOk')?.checked || false),
         password: $('#pPass').value } });
-      toast('Perfil actualizado ✓'); renderPerfil(el);
+      toast('Perfil actualizado Γ£ô'); renderPerfil(el);
     } catch (err) { toast(err.message); }
   });
   setupFoto();
@@ -1827,10 +1828,10 @@ async function renderPerfil(el) {
       if (!box) return;
       box.innerHTML = (d.grados && d.grados.length
         ? d.grados.map(g => `<div class="flex space-between small" style="padding:4px 0;border-bottom:1px dashed var(--line)">
-            <span>🥋 ${esc(g.cinturon)}</span><span style="color:var(--muted)">${esc(g.fecha || '')}${g.notas ? ' · ' + esc(g.notas) : ''}</span>
+            <span>≡ƒÑï ${esc(g.cinturon)}</span><span style="color:var(--muted)">${esc(g.fecha || '')}${g.notas ? ' ┬╖ ' + esc(g.notas) : ''}</span>
           </div>`).join('')
-        : '<div class="small" style="color:var(--muted)">Todavía no tenés grados registrados.</div>');
-    }).catch(() => { const b = $('#misGrados'); if (b) b.textContent = '—'; });
+        : '<div class="small" style="color:var(--muted)">Todav├¡a no ten├⌐s grados registrados.</div>');
+    }).catch(() => { const b = $('#misGrados'); if (b) b.textContent = 'ΓÇö'; });
     renderMiFamilia($('#miFamiliaCard'));
   }
 }
@@ -1841,42 +1842,42 @@ async function renderMiFamilia(box) {
     const [d, hijos] = await Promise.all([api('/api/mi_familia'), api('/api/mis_hijos').catch(() => ({ familia: null, hijos: [] }))]);
     if (!d.familia) {
       box.innerHTML = `
-        <div class="small mb">👨‍👩‍👧 Plan familiar (modo Padre)</div>
-        <p class="small" style="color:var(--muted);margin:0">Si entrenás con tu hija/o menor, podés crear un grupo familiar y gestionar su cuenta desde tu perfil.</p>
-        <button class="btn primary btn-block mt" onclick="activarModoPadre()">🤝 Soy padre/madre: crear grupo</button>`;
+        <div class="small mb">≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº Plan familiar (modo Padre)</div>
+        <p class="small" style="color:var(--muted);margin:0">Si entren├ís con tu hija/o menor, pod├⌐s crear un grupo familiar y gestionar su cuenta desde tu perfil.</p>
+        <button class="btn primary btn-block mt" onclick="activarModoPadre()">≡ƒñ¥ Soy padre/madre: crear grupo</button>`;
       return;
     }
     const soyTitular = d.familia.titular_id === USER.id;
     box.innerHTML = `
-      <div class="small mb">👨‍👩‍👧 Mi familia</div>
-      <div class="small" style="margin-bottom:8px"><b>${esc(d.familia.nombre)}</b> · ${d.familia.miembros.length} miembro${d.familia.miembros.length === 1 ? '' : 's'}</div>
+      <div class="small mb">≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº Mi familia</div>
+      <div class="small" style="margin-bottom:8px"><b>${esc(d.familia.nombre)}</b> ┬╖ ${d.familia.miembros.length} miembro${d.familia.miembros.length === 1 ? '' : 's'}</div>
       ${d.familia.miembros.map(m => `
         <div class="flex space-between" style="align-items:center;padding:6px 0;border-bottom:1px dashed var(--line)">
           <span>${avatarHTML(m.foto, m.nombre, 'sm')} <b>${esc(m.nombre)}</b> ${m.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}
-            <span class="small" style="color:var(--muted)">· ${esc(m.relacion)}</span></span>
+            <span class="small" style="color:var(--muted)">┬╖ ${esc(m.relacion)}</span></span>
           <span class="small">$${num(m.cuota_final)}/mes${m.descuento ? ' <span style="color:var(--good)">(-' + num(m.descuento) + ')</span>' : ''}</span>
         </div>`).join('')}
       ${soyTitular && hijos.hijos && hijos.hijos.length ? `
-        <div class="small mb mt" style="font-weight:700">👶 Hijos/as a mi cargo</div>
+        <div class="small mb mt" style="font-weight:700">≡ƒæ╢ Hijos/as a mi cargo</div>
         ${hijos.hijos.map(h => `
           <div style="padding:6px 0;border-bottom:1px dashed var(--line)">
             <div class="flex space-between" style="align-items:center">
               <span>${avatarHTML(h.foto, h.nombre, 'sm')} <b>${esc(h.nombre)}</b>
-                ${h.en_pausa ? '<span class="tag tag-pausa">⏸ En pausa</span>' : ''}
-                <span class="small" style="color:var(--muted)">· ${catLabel(h.categoria)} · ${beltHTML(h.cinturon)}</span></span>
-              <button class="btn ghost small" onclick="quitarHijo(${h.id})" title="Desvincular">🗑</button>
+                ${h.en_pausa ? '<span class="tag tag-pausa">ΓÅ╕ En pausa</span>' : ''}
+                <span class="small" style="color:var(--muted)">┬╖ ${catLabel(h.categoria)} ┬╖ ${beltHTML(h.cinturon)}</span></span>
+              <button class="btn ghost small" onclick="quitarHijo(${h.id})" title="Desvincular">≡ƒùæ</button>
             </div>
             <div class="small" style="margin-top:4px">
-              <span class="tag ${h.cuota ? (h.cuota.estado === 'al_dia' ? 'tag-al-dia' : h.cuota.estado === 'por_vencer' ? 'tag-por-vencer' : 'tag-deuda') : 'tag-al-dia'}">${h.cuota && h.cuota.estado === 'al_dia' ? '💰 Cuota al día' : h.cuota && h.cuota.estado === 'por_vencer' ? '💰 Cuota por vencer' : '💰 Debe la cuota'}</span>
-              <span class="tag tag-alumno">🥋 ${h.asistencias} clases</span>
-              ${h.ultima_fecha ? `<span style="color:var(--muted)">última: ${esc(h.ultima_fecha)}</span>` : ''}
+              <span class="tag ${h.cuota ? (h.cuota.estado === 'al_dia' ? 'tag-al-dia' : h.cuota.estado === 'por_vencer' ? 'tag-por-vencer' : 'tag-deuda') : 'tag-al-dia'}">${h.cuota && h.cuota.estado === 'al_dia' ? '≡ƒÆ░ Cuota al d├¡a' : h.cuota && h.cuota.estado === 'por_vencer' ? '≡ƒÆ░ Cuota por vencer' : '≡ƒÆ░ Debe la cuota'}</span>
+              <span class="tag tag-alumno">≡ƒÑï ${h.asistencias} clases</span>
+              ${h.ultima_fecha ? `<span style="color:var(--muted)">├║ltima: ${esc(h.ultima_fecha)}</span>` : ''}
             </div>
           </div>`).join('')}` : ''}
       <div class="flex mt" style="gap:8px;flex-wrap:wrap">
-        ${soyTitular ? `<button class="btn primary" onclick="abrirAltaHijo()">➕ Alta de hijo/a menor</button>
-        <button class="btn ghost" onclick="vincularHijo()">🔗 Vincular cuenta existente</button>` : ''}
+        ${soyTitular ? `<button class="btn primary" onclick="abrirAltaHijo()">Γ₧ò Alta de hijo/a menor</button>
+        <button class="btn ghost" onclick="vincularHijo()">≡ƒöù Vincular cuenta existente</button>` : ''}
       </div>
-      <p class="small" style="color:var(--muted);margin-bottom:0;margin-top:6px">Descuento familiar: ${(d.escala || []).map(e => `<b>${e.integrantes} ${e.integrantes === 4 ? 'o más' : ''}:</b> ${e.pct}%`).join(' · ')}. Con 2 o más integrantes, <b>todos</b> pagan con descuento${soyTitular && d.descuento ? ` (este grupo: <b>${d.descuento}%</b>)` : ''}.</p>`;
+      <p class="small" style="color:var(--muted);margin-bottom:0;margin-top:6px">Descuento familiar: ${(d.escala || []).map(e => `<b>${e.integrantes} ${e.integrantes === 4 ? 'o m├ís' : ''}:</b> ${e.pct}%`).join(' ┬╖ ')}. Con 2 o m├ís integrantes, <b>todos</b> pagan con descuento${soyTitular && d.descuento ? ` (este grupo: <b>${d.descuento}%</b>)` : ''}.</p>`;
   } catch (e) {
     box.innerHTML = '';
   }
@@ -1885,24 +1886,24 @@ async function renderMiFamilia(box) {
 async function activarModoPadre() {
   try {
     await api('/api/familia', { method: 'POST' });
-    toast('Grupo familiar creado 👨‍👩‍👧');
+    toast('Grupo familiar creado ≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº');
     renderMiFamilia($('#miFamiliaCard'));
   } catch (err) { toast(err.message); }
 }
 
 function abrirAltaHijo() {
   openModal(`
-    <h3>👶 Alta de hijo/a menor</h3>
+    <h3>≡ƒæ╢ Alta de hijo/a menor</h3>
     <form id="hijoForm" class="grid2" autocomplete="off">
-      <div class="field" style="grid-column:1/-1"><label>Nombre y apellido del menor</label><input id="hNombre" required placeholder="Ej: Martina Pérez" autocomplete="off"></div>
+      <div class="field" style="grid-column:1/-1"><label>Nombre y apellido del menor</label><input id="hNombre" required placeholder="Ej: Martina P├⌐rez" autocomplete="off"></div>
       <div class="field"><label>Usuario (para que ingrese)</label><input id="hUsuario" required placeholder="Ej: martina2026" autocomplete="off"></div>
-      <div class="field"><label>Contraseña</label><input type="password" id="hPassword" required placeholder="Mínimo 4 caracteres" autocomplete="new-password"></div>
+      <div class="field"><label>Contrase├▒a</label><input type="password" id="hPassword" required placeholder="M├¡nimo 4 caracteres" autocomplete="new-password"></div>
       <div class="field"><label>Edad</label><input type="number" id="hEdad" required min="3" max="17" autocomplete="off"></div>
       <div class="field"><label>Fecha de nacimiento</label><input type="date" id="hNac" required max="${fechaHoyLocal()}" autocomplete="off"></div>
-      <div class="field"><label>Categoría</label><select id="hCat">
-        <option value="kids">Kids (niños/as)</option>
+      <div class="field"><label>Categor├¡a</label><select id="hCat">
+        <option value="kids">Kids (ni├▒os/as)</option>
         <option value="juveniles">Juveniles</option></select></div>
-      <div class="field"><label>Cinturón / Faixa</label><select id="hBelt">
+      <div class="field"><label>Cintur├│n / Faixa</label><select id="hBelt">
         ${BELTS_ADULT.map(b => `<option>${esc(b)}</option>`).join('')}</select></div>
       <div class="field" style="grid-column:1/-1"><label>Actividades</label>
         <div class="chips">
@@ -1911,9 +1912,9 @@ function abrirAltaHijo() {
       <div class="field" style="grid-column:1/-1"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
         <input type="checkbox" id="hFotoOk" style="width:18px;height:18px">
         <span>Autorizo como mayor/padre/madre que <b>las fotos de este/a menor puedan ser expuestas</b> (redes y muro). <span style="color:#ff9b8f">(obligatorio)</span></span></label></div>
-      <div class="field" style="grid-column:1/-1"><label>✍️ Firmá Términos y Condiciones (nombre del padre/madre)</label><input id="hFirmaTyC" required placeholder="Tu nombre y apellido"></div>
-      <div class="field" style="grid-column:1/-1"><label>✍️ Firmá autorización de fotos (nombre del padre/madre)</label><input id="hFirmaFoto" required placeholder="Tu nombre y apellido"></div>
-      <p class="small" style="grid-column:1/-1;color:var(--muted);margin:0">El teléfono del tutor responsable será el de tu perfil.</p>
+      <div class="field" style="grid-column:1/-1"><label>Γ£ì∩╕Å Firm├í T├⌐rminos y Condiciones (nombre del padre/madre)</label><input id="hFirmaTyC" required placeholder="Tu nombre y apellido"></div>
+      <div class="field" style="grid-column:1/-1"><label>Γ£ì∩╕Å Firm├í autorizaci├│n de fotos (nombre del padre/madre)</label><input id="hFirmaFoto" required placeholder="Tu nombre y apellido"></div>
+      <p class="small" style="grid-column:1/-1;color:var(--muted);margin:0">El tel├⌐fono del tutor responsable ser├í el de tu perfil.</p>
       <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Crear cuenta del menor</button></div>
     </form>`);
   const CATS = { kids: BELTS_KIDS, juveniles: BELTS_JUV };
@@ -1926,10 +1927,10 @@ function abrirAltaHijo() {
     const nombre = $('#hNombre').value.trim();
     const usuario = $('#hUsuario').value.trim();
     if (nombre && window.USER && nombre.toLowerCase() === (window.USER.nombre || '').toLowerCase()) {
-      toast('⚠️ El campo "Nombre y apellido del menor" quedó con TU nombre (autocompletado por el navegador). Cambialo por el nombre del niño/a.'); return;
+      toast('ΓÜá∩╕Å El campo "Nombre y apellido del menor" qued├│ con TU nombre (autocompletado por el navegador). Cambialo por el nombre del ni├▒o/a.'); return;
     }
     if (usuario && window.USER && usuario.toLowerCase() === (window.USER.username || '').toLowerCase()) {
-      toast('⚠️ El usuario quedó con el tuyo (autocompletado). Poné un usuario nuevo para el niño/a.'); return;
+      toast('ΓÜá∩╕Å El usuario qued├│ con el tuyo (autocompletado). Pon├⌐ un usuario nuevo para el ni├▒o/a.'); return;
     }
     try {
       await api('/api/familia/hijos', { method: 'POST', body: {
@@ -1940,7 +1941,7 @@ function abrirAltaHijo() {
         foto_ok: $('#hFotoOk').checked, firma_tyc: $('#hFirmaTyC').value.trim(),
         firma_foto: $('#hFirmaFoto').value.trim(),
         actividades: $$('input[name="hAct"]:checked').map(x => x.value) } });
-      closeModal(); toast('Cuenta del menor creada y vinculada ✓');
+      closeModal(); toast('Cuenta del menor creada y vinculada Γ£ô');
       renderMiFamilia($('#miFamiliaCard'));
     } catch (err) { toast(err.message); }
   });
@@ -1948,8 +1949,8 @@ function abrirAltaHijo() {
 
 function vincularHijo() {
   openModal(`
-    <h3>🔗 Vincular cuenta existente</h3>
-    <div class="small" style="color:var(--muted);margin-bottom:10px">Ingresá el <b>usuario</b> con el que tu hijo/a ya se registró (Kids/Juveniles). El teléfono del tutor de esa cuenta debe coincidir con el de tu perfil.</div>
+    <h3>≡ƒöù Vincular cuenta existente</h3>
+    <div class="small" style="color:var(--muted);margin-bottom:10px">Ingres├í el <b>usuario</b> con el que tu hijo/a ya se registr├│ (Kids/Juveniles). El tel├⌐fono del tutor de esa cuenta debe coincidir con el de tu perfil.</div>
     <form id="vincForm">
       <div class="field"><label>Usuario del menor</label><input id="vkUsuario" required placeholder="Ej: martina2026"></div>
       <div class="field"><button class="btn primary btn-block" type="submit">Vincular</button></div>
@@ -1958,31 +1959,31 @@ function vincularHijo() {
     e.preventDefault();
     try {
       await api('/api/familia/vincular', { method: 'POST', body: { username: $('#vkUsuario').value.trim() } });
-      closeModal(); toast('Cuenta vinculada ✓');
+      closeModal(); toast('Cuenta vinculada Γ£ô');
       renderMiFamilia($('#miFamiliaCard'));
     } catch (err) { toast(err.message); }
   });
 }
 
 async function quitarHijo(uid) {
-  if (!confirm('¿Querés desvincular a este menor de tu grupo familiar?')) return;
+  if (!confirm('┬┐Quer├⌐s desvincular a este menor de tu grupo familiar?')) return;
   try {
     await api('/api/familia/hijos/' + uid, { method: 'DELETE' });
-    toast('Desvinculado ✓');
+    toast('Desvinculado Γ£ô');
     renderMiFamilia($('#miFamiliaCard'));
   } catch (err) { toast(err.message); }
 }
 
 function instalarManual() {
   if (deferredPrompt) { deferredPrompt.prompt(); return; }
-  toast('En el navegador: mirá el ícono de instalación (🚀) en la barra de direcciones, o menú → "Instalar". En el celular: menú → "Agregar a pantalla de inicio".');
+  toast('En el navegador: mir├í el ├¡cono de instalaci├│n (≡ƒÜÇ) en la barra de direcciones, o men├║ ΓåÆ "Instalar". En el celular: men├║ ΓåÆ "Agregar a pantalla de inicio".');
 }
 
 async function desactivarMiCuenta() {
-  if (!confirm('¿Seguro que querés desactivar tu cuenta?\n\nNo vas a poder entrar hasta que el administrador te reactive.')) return;
+  if (!confirm('┬┐Seguro que quer├⌐s desactivar tu cuenta?\n\nNo vas a poder entrar hasta que el administrador te reactive.')) return;
   try {
     await api('/api/perfil/desactivar', { method: 'POST' });
-    toast('Tu cuenta fue desactivada. ¡Esperamos verte pronto!');
+    toast('Tu cuenta fue desactivada. ┬íEsperamos verte pronto!');
     setTimeout(() => { location.href = '/'; }, 800);
   } catch (e) { toast(e.message); }
 }
@@ -1990,11 +1991,11 @@ async function desactivarMiCuenta() {
 async function activarPausaMi() {
   const desde = $('#pausaDesde').value;
   const hasta = $('#pausaHasta').value;
-  if (!hasta) { toast('Indicá hasta qué día estás de pausa'); return; }
+  if (!hasta) { toast('Indic├í hasta qu├⌐ d├¡a est├ís de pausa'); return; }
   if (hasta < desde) { toast('La fecha "hasta" no puede ser anterior a "desde"'); return; }
   try {
     await api('/api/pausa', { method: 'POST', body: { desde: desde, hasta: hasta } });
-    toast('Pausa activada ✓ El profe fue avisado.');
+    toast('Pausa activada Γ£ô El profe fue avisado.');
     renderPerfil($('#sec-perfil'));
   } catch (err) { toast(err.message); }
 }
@@ -2002,7 +2003,7 @@ async function activarPausaMi() {
 async function cancelarPausaMi() {
   try {
     await api('/api/pausa', { method: 'DELETE' });
-    toast('Pausa terminada ✓');
+    toast('Pausa terminada Γ£ô');
     renderPerfil($('#sec-perfil'));
   } catch (err) { toast(err.message); }
 }
@@ -2021,13 +2022,13 @@ async function renderHorarios(el) {
     return `<div class="dia-col"><h4>${dia}</h4>
       ${items.length ? items.map(h => `
 <div class="clase-item ${slugTipo(h.tipo)}">
-          <span class="hora">${esc(h.hora)}</span> · <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span>
-          <div class="small">${esc(h.nivel || 'Todos')} · ${h.duracion || 60}min</div>
-          <div class="profe">🧑‍🏫 ${esc(h.profesor_nombre || 'Sin profesor')}</div>
-          ${R !== 'alumno' && h.rating ? `<button class="btn ghost small" style="margin-top:6px" onclick="verValoraciones(${h.id})">⭐ ${h.rating.promedio} (${h.rating.n})</button>` : ''}
+          <span class="hora">${esc(h.hora)}</span> ┬╖ <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span>
+          <div class="small">${esc(h.nivel || 'Todos')} ┬╖ ${h.duracion || 60}min</div>
+          <div class="profe">≡ƒºæΓÇì≡ƒÅ½ ${esc(h.profesor_nombre || 'Sin profesor')}</div>
+          ${R !== 'alumno' && h.rating ? `<button class="btn ghost small" style="margin-top:6px" onclick="verValoraciones(${h.id})">Γ¡É ${h.rating.promedio} (${h.rating.n})</button>` : ''}
           ${canEdit ? `<div class="flex" style="margin-top:6px">
-            <button class="btn ghost small" onclick="editarHorario(${h.id},${h.dia},'${escJs(h.hora)}','${escJs(h.tipo || 'Gi')}','${escJs(h.nivel || 'Todos')}',${h.profesor_id != null ? h.profesor_id : 'null'},${h.duracion || 60})">✏️ Editar</button>
-            ${R === 'admin' ? `<button class="btn bad small" onclick="borrarHorario(${h.id})">🗑</button>` : ''}
+            <button class="btn ghost small" onclick="editarHorario(${h.id},${h.dia},'${escJs(h.hora)}','${escJs(h.tipo || 'Gi')}','${escJs(h.nivel || 'Todos')}',${h.profesor_id != null ? h.profesor_id : 'null'},${h.duracion || 60})">Γ£Å∩╕Å Editar</button>
+            ${R === 'admin' ? `<button class="btn bad small" onclick="borrarHorario(${h.id})">≡ƒùæ</button>` : ''}
           </div>` : ''}
         </div>`).join('') : '<p class="small" style="color:var(--muted)">Sin clases</p>'}
     </div>`;
@@ -2035,9 +2036,9 @@ async function renderHorarios(el) {
   el.innerHTML = `
     ${secHeader('Horarios semanales')}
     ${d.avisos && d.avisos.length ? `<div class="card" style="border-color:var(--bad)">
-      ${d.avisos.map(a => `<div class="small" style="color:var(--bad)">⚠ ${esc(a)}</div>`).join('')}
+      ${d.avisos.map(a => `<div class="small" style="color:var(--bad)">ΓÜá ${esc(a)}</div>`).join('')}
     </div>` : ''}
-    ${R !== 'alumno' ? `<div class="card flex space-between"><span class="small">Profesores pueden editar la tabla de horarios (${R === 'admin' ? 'solo admin puede eliminar' : 'edición permitida'}).</span>
+    ${R !== 'alumno' ? `<div class="card flex space-between"><span class="small">Profesores pueden editar la tabla de horarios (${R === 'admin' ? 'solo admin puede eliminar' : 'edici├│n permitida'}).</span>
       <button class="btn primary small" onclick="formHorario()">+ Agregar clase</button></div>` : ''}
     <div class="semana">${cols.join('')}</div>`;
 }
@@ -2048,7 +2049,7 @@ function formHorario(h = null) {
   openModal(`
     <h3>${isEdit ? 'Editar clase' : 'Nueva clase'}</h3>
     <form id="hForm" class="grid2">
-      <div class="field"><label>Día</label><select id="hDia">
+      <div class="field"><label>D├¡a</label><select id="hDia">
         ${DIAS.map((dd, i) => `<option value="${i}" ${h && h[1] === i ? 'selected' : ''}>${dd}</option>`).join('')}</select></div>
       <div class="field"><label>Hora</label><input type="time" id="hHora" value="${h ? h[2] : ''}" required></div>
       <div class="field"><label>Tipo</label><select id="hTipo">
@@ -2058,7 +2059,7 @@ function formHorario(h = null) {
       <div class="field"><label>Profesor</label><select id="hProfesor">
         <option value="">Sin asignar</option>
         ${PROFESORES_CACHE.length ? PROFESORES_CACHE.map(p => `<option value="${p.id}" ${h && h[5] === p.id ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('') : ''}</select></div>
-      <div class="field"><label>Duración (min)</label><input type="number" id="hDur" value="${h ? h[6] : 60}"></div>
+      <div class="field"><label>Duraci├│n (min)</label><input type="number" id="hDur" value="${h ? h[6] : 60}"></div>
       <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Guardar</button></div>
     </form>`);
   $('#hForm').addEventListener('submit', async (e) => {
@@ -2069,13 +2070,13 @@ function formHorario(h = null) {
     try {
       if (isEdit) await api('/api/horarios/' + h[0], { method: 'PUT', body });
       else await api('/api/horarios', { method: 'POST', body });
-      closeModal(); toast('Horario guardado ✓'); renderHorarios($('#sec-horarios'));
+      closeModal(); toast('Horario guardado Γ£ô'); renderHorarios($('#sec-horarios'));
     } catch (err) { toast(err.message); }
   });
 }
 function editarHorario(id, dia, hora, tipo, nivel, prof, dur) { formHorario([id, dia, hora, tipo, nivel, prof, dur]); }
 async function borrarHorario(id) {
-  if (!confirm('¿Eliminar esta clase?')) return;
+  if (!confirm('┬┐Eliminar esta clase?')) return;
   await api('/api/horarios/' + id, { method: 'DELETE' }).catch(e => toast(e.message));
   toast('Clase eliminada'); renderHorarios($('#sec-horarios'));
 }
@@ -2083,16 +2084,16 @@ async function borrarHorario(id) {
 async function verValoraciones(claseId) {
   const d = await api('/api/clase_valoraciones/' + claseId);
   openModal(`
-    <h3>⭐ Valoraciones de la clase</h3>
+    <h3>Γ¡É Valoraciones de la clase</h3>
     <div class="stat-card">
       <div class="num">${d.promedio} <span class="small">/ 5</span></div>
-      <div class="lbl">Promedio · ${d.n} valoración${d.n === 1 ? '' : 'es'}</div>
+      <div class="lbl">Promedio ┬╖ ${d.n} valoraci├│n${d.n === 1 ? '' : 'es'}</div>
     </div>
     ${d.comentarios.length ? d.comentarios.map(c => `
       <div class="small" style="padding:8px;border-bottom:1px solid var(--line)">
-        <div><b>${'★'.repeat(c.estrellas)}${'☆'.repeat(5 - c.estrellas)}</b> · ${esc(c.nombre)} <span style="color:var(--muted)">· ${esc(c.fecha)}</span></div>
+        <div><b>${'Γÿà'.repeat(c.estrellas)}${'Γÿå'.repeat(5 - c.estrellas)}</b> ┬╖ ${esc(c.nombre)} <span style="color:var(--muted)">┬╖ ${esc(c.fecha)}</span></div>
         ${c.comentario ? `<div style="margin-top:4px">${esc(c.comentario)}</div>` : ''}
-      </div>`).join('') : '<div class="empty">Todavía no hay valoraciones para esta clase.</div>'}
+      </div>`).join('') : '<div class="empty">Todav├¡a no hay valoraciones para esta clase.</div>'}
     <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
 }
 let PROFESORES_CACHE = [];
@@ -2110,15 +2111,15 @@ let TORNEOS_CACHE = [];
 let TORNEOS_VISTA = 'calendario';
 
 const MEDALLAS = [
-  { v: 'oro', lbl: '🥇 Oro' },
-  { v: 'plata', lbl: '🥈 Plata' },
-  { v: 'bronce', lbl: '🥉 Bronce' },
+  { v: 'oro', lbl: '≡ƒÑç Oro' },
+  { v: 'plata', lbl: '≡ƒÑê Plata' },
+  { v: 'bronce', lbl: '≡ƒÑë Bronce' },
 ];
 const MESES_TORNEO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
   'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const ESTADOS = [
   { v: 'programado', lbl: 'Programado' },
-  { v: 'inscripcion', lbl: 'Inscripción abierta' },
+  { v: 'inscripcion', lbl: 'Inscripci├│n abierta' },
   { v: 'confirmado', lbl: 'Confirmado' },
   { v: 'finalizado', lbl: 'Finalizado' },
   { v: 'cancelado', lbl: 'Cancelado' },
@@ -2157,7 +2158,7 @@ function estadoTag(e) {
 
 function torneoInscripcionesHTML(t) {
   if (!t.inscripciones.length) {
-    return `<div class="small" style="color:var(--muted);margin-top:8px">Todavía nadie inscrito.</div>`;
+    return `<div class="small" style="color:var(--muted);margin-top:8px">Todav├¡a nadie inscrito.</div>`;
   }
   return `<div class="small" style="margin-top:10px"><b>Participantes (${t.inscripciones.length})</b></div>
     ${t.inscripciones.map(i => `
@@ -2172,8 +2173,8 @@ function torneoInscripcionesHTML(t) {
         </div>
         <span class="flex" style="gap:6px;align-items:center">
           ${medallaLbl(i.medalla) ? `<span class="tag tag-al-dia">${medallaLbl(i.medalla)}</span>` : ''}
-          ${USER.role !== 'alumno' ? `<button class="btn ghost small" onclick="inscribirEnTorneo(${t.id}, ${i.alumno_id})">✏️</button>
-            <button class="btn bad small" onclick="quitarInscripcion(${i.id})">🗑</button>` : ''}
+          ${USER.role !== 'alumno' ? `<button class="btn ghost small" onclick="inscribirEnTorneo(${t.id}, ${i.alumno_id})">Γ£Å∩╕Å</button>
+            <button class="btn bad small" onclick="quitarInscripcion(${i.id})">≡ƒùæ</button>` : ''}
         </span>
       </div>`).join('')}`;
 }
@@ -2181,8 +2182,8 @@ function torneoInscripcionesHTML(t) {
 function torneoCalendarioHTML() {
   if (!TORNEOS_CACHE.length) {
     return `<div class="card"><div class="empty">
-      Todavía no hay torneos cargados.
-      ${USER.role !== 'alumno' ? '<br>Usá <b>+ Nuevo torneo</b> para empezar.' : ''}
+      Todav├¡a no hay torneos cargados.
+      ${USER.role !== 'alumno' ? '<br>Us├í <b>+ Nuevo torneo</b> para empezar.' : ''}
     </div></div>`;
   }
   // agrupar por mes, conservando el orden que ya dio el backend (mas nuevo primero)
@@ -2202,18 +2203,18 @@ function torneoCalendarioHTML() {
             <div style="min-width:0">
               <b style="font-size:16px">${esc(t.nombre)}</b>
               <div class="small" style="color:var(--muted)">
-                📅 ${esc( torneoFechaLarga(t.fecha) )}
-                ${t.ciudad ? ' · 📍 ' + esc(t.ciudad) : ''}
-                ${t.lugar ? ' · ' + esc(t.lugar) : ''}
+                ≡ƒôà ${esc( torneoFechaLarga(t.fecha) )}
+                ${t.ciudad ? ' ┬╖ ≡ƒôì ' + esc(t.ciudad) : ''}
+                ${t.lugar ? ' ┬╖ ' + esc(t.lugar) : ''}
               </div>
               <div class="small" style="margin-top:4px">${estadoTag(t.estado)} ${t.tipo ? `<span class="tag">${esc(t.tipo)}</span>` : ''}</div>
               ${t.descripcion ? `<div class="small" style="margin-top:6px">${esc(t.descripcion)}</div>` : ''}
-              ${t.url ? `<a class="small" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">🔗 Más info</a>` : ''}
+              ${t.url ? `<a class="small" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">≡ƒöù M├ís info</a>` : ''}
             </div>
             ${USER.role !== 'alumno' ? `<div class="flex" style="gap:6px;flex-shrink:0">
               <button class="btn primary small" onclick="inscribirEnTorneo(${t.id})">+ Inscribir</button>
-              <button class="btn ghost small" onclick="editarTorneo(${t.id})">✏️</button>
-              ${USER.role === 'admin' ? `<button class="btn bad small" onclick="borrarTorneo(${t.id})">🗑</button>` : ''}
+              <button class="btn ghost small" onclick="editarTorneo(${t.id})">Γ£Å∩╕Å</button>
+              ${USER.role === 'admin' ? `<button class="btn bad small" onclick="borrarTorneo(${t.id})">≡ƒùæ</button>` : ''}
             </div>` : ''}
           </div>
           ${torneoInscripcionesHTML(t)}
@@ -2224,22 +2225,22 @@ function torneoCalendarioHTML() {
 function torneoRankingHTML(ranking) {
   if (!ranking.length) {
     return `<div class="card"><div class="empty">
-      Todavía no hay resultados.<br>
-      A partir de la segunda inscripción con fecha ya aparecen posiciones.
+      Todav├¡a no hay resultados.<br>
+      A partir de la segunda inscripci├│n con fecha ya aparecen posiciones.
     </div></div>`;
   }
   const medals = rk => rk.oro + rk.plata + rk.bronce;
   return `<div class="card">
-    <h3>🏆 Ranking de torneos</h3>
-    <p class="small" style="color:var(--muted)">Ordenado por cantidad de torneos y, en empate, por medallas. Los torneos sin fecha todavía no cuentan.</p>
+    <h3>≡ƒÅå Ranking de torneos</h3>
+    <p class="small" style="color:var(--muted)">Ordenado por cantidad de torneos y, en empate, por medallas. Los torneos sin fecha todav├¡a no cuentan.</p>
     <div style="overflow:auto"><table>
       <thead><tr>
         <th style="text-align:left;padding:6px 8px">#</th>
         <th style="text-align:left;padding:6px 8px">Alumno</th>
         <th style="text-align:right;padding:6px 8px">Torneos</th>
-        <th style="text-align:right;padding:6px 8px">🥇</th>
-        <th style="text-align:right;padding:6px 8px">🥈</th>
-        <th style="text-align:right;padding:6px 8px">🥉</th>
+        <th style="text-align:right;padding:6px 8px">≡ƒÑç</th>
+        <th style="text-align:right;padding:6px 8px">≡ƒÑê</th>
+        <th style="text-align:right;padding:6px 8px">≡ƒÑë</th>
         <th style="text-align:right;padding:6px 8px">Total</th>
       </tr></thead>
       <tbody>
@@ -2258,9 +2259,9 @@ function torneoRankingHTML(ranking) {
       </tbody>
     </table></div>
     <div class="small" style="color:var(--muted);margin-top:10px">
-      🥇 Oro ${ranking.reduce((a, x) => a + x.oro, 0)} ·
-      🥈 Plata ${ranking.reduce((a, x) => a + x.plata, 0)} ·
-      🥉 Bronce ${ranking.reduce((a, x) => a + x.bronce, 0)}
+      ≡ƒÑç Oro ${ranking.reduce((a, x) => a + x.oro, 0)} ┬╖
+      ≡ƒÑê Plata ${ranking.reduce((a, x) => a + x.plata, 0)} ┬╖
+      ≡ƒÑë Bronce ${ranking.reduce((a, x) => a + x.bronce, 0)}
     </div>
   </div>`;
 }
@@ -2275,10 +2276,10 @@ async function renderTorneos(el) {
   const tab = (v, lbl) => `<button class="btn ${TORNEOS_VISTA === v ? 'primary' : 'ghost'} small"
       onclick="TORNEOS_VISTA='${v}';renderTorneos($('#sec-torneos'))">${lbl}</button>`;
   el.innerHTML = `
-    ${secHeader('🏆 Torneos', 'Calendario manual y ranking de la academia')}
+    ${secHeader('≡ƒÅå Torneos', 'Calendario manual y ranking de la academia')}
     <div class="flex" style="gap:8px;margin-bottom:12px">
-      ${tab('calendario', '🗓️ Calendario')}
-      ${tab('ranking', '🏅 Ranking')}
+      ${tab('calendario', '≡ƒùô∩╕Å Calendario')}
+      ${tab('ranking', '≡ƒÅà Ranking')}
       ${esStaff ? `<button class="btn primary small" style="margin-left:auto" onclick="editarTorneo(null)">+ Nuevo torneo</button>` : ''}
     </div>
     ${TORNEOS_VISTA === 'ranking' ? torneoRankingHTML(r.ranking || []) : torneoCalendarioHTML()}`;
@@ -2300,7 +2301,7 @@ function formTorneo(id) {
       <div class="field"><label>Lugar</label><input id="trLugar" value="${val('lugar')}" placeholder="Polideportivo / Gym"></div>
       <div class="field"><label>Tipo</label><input id="trTipo" value="${val('tipo', 'IBJJF')}" placeholder="IBJJF, Gi, No-Gi..."></div>
       <div class="field"><label>Link</label><input id="trUrl" value="${val('url')}" placeholder="ibjjf.com/..."></div>
-      <div class="field" style="grid-column:1/-1"><label>Descripción</label>
+      <div class="field" style="grid-column:1/-1"><label>Descripci├│n</label>
         <textarea id="trDesc" style="width:100%;min-height:60px">${val('descripcion')}</textarea></div>
       <div class="field" style="grid-column:1/-1">
         <button class="btn primary btn-block" type="submit">${t ? 'Guardar cambios' : 'Crear torneo'}</button></div>
@@ -2335,7 +2336,7 @@ function editarTorneo(id) { formTorneo(id); }
 
 async function borrarTorneo(id) {
   const t = TORNEOS_CACHE.find(x => x.id === id);
-  if (!confirm(`¿Eliminar "${t ? t.nombre : 'este torneo'}"? Se borran también sus inscripciones.`)) return;
+  if (!confirm(`┬┐Eliminar "${t ? t.nombre : 'este torneo'}"? Se borran tambi├⌐n sus inscripciones.`)) return;
   try {
     await api('/api/torneos/' + id, { method: 'DELETE' });
     toast('Torneo eliminado');
@@ -2353,19 +2354,19 @@ async function inscribirEnTorneo(torneoId, alumnoId) {
   // la categoria propia del alumno viene precargada: es lo que eligio en su perfil
   const cat = actual ? actual.categoria : '';
   openModal(`
-    <h3>${actual ? 'Editar inscripción' : 'Inscribir en'}<br>${esc(t.nombre)}</h3>
+    <h3>${actual ? 'Editar inscripci├│n' : 'Inscribir en'}<br>${esc(t.nombre)}</h3>
     <form id="insForm" class="grid2">
       <div class="field" style="grid-column:1/-1"><label>Alumno</label>
         <select id="inAlumno" ${alumnoId ? 'disabled' : ''} required>
-          <option value="">Elegí un alumno</option>
-          ${alumnos.map(a => `<option value="${a.id}"${a.id === sel ? ' selected' : ''}>${esc(a.nombre)}${a.cinturon ? ' · ' + esc(a.cinturon) : ''}</option>`).join('')}
+          <option value="">Eleg├¡ un alumno</option>
+          ${alumnos.map(a => `<option value="${a.id}"${a.id === sel ? ' selected' : ''}>${esc(a.nombre)}${a.cinturon ? ' ┬╖ ' + esc(a.cinturon) : ''}</option>`).join('')}
         </select></div>
-      <div class="field" style="grid-column:1/-1"><label>Categoría de inscripción</label>
-        <input id="inCat" value="${esc(cat)}" placeholder="Ej: Medio · Adulto · Con Gi">
-        <small class="hint">Se completa con la categoría que eligió el alumno en su Perfil.</small></div>
+      <div class="field" style="grid-column:1/-1"><label>Categor├¡a de inscripci├│n</label>
+        <input id="inCat" value="${esc(cat)}" placeholder="Ej: Medio ┬╖ Adulto ┬╖ Con Gi">
+        <small class="hint">Se completa con la categor├¡a que eligi├│ el alumno en su Perfil.</small></div>
       <div class="field" style="grid-column:1/-1"><label>Medalla</label>
         <select id="inMedalla">
-          <option value="">Sin medalla (todavía no compite)</option>
+          <option value="">Sin medalla (todav├¡a no compite)</option>
           ${MEDALLAS.map(m => `<option value="${m.v}"${actual && actual.medalla === m.v ? ' selected' : ''}>${m.lbl}</option>`).join('')}
         </select></div>
       <div class="field" style="grid-column:1/-1"><label>Nota</label>
@@ -2390,7 +2391,7 @@ async function inscribirEnTorneo(torneoId, alumnoId) {
   $('#insForm').addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const id = alumnoId || parseInt($('#inAlumno').value, 10);
-    if (!id) { toast('Elegí un alumno'); return; }
+    if (!id) { toast('Eleg├¡ un alumno'); return; }
     const btn = ev.target.querySelector('button[type=submit]');
     btn.disabled = true; btn.textContent = 'Guardando...';
     try {
@@ -2404,17 +2405,17 @@ async function inscribirEnTorneo(torneoId, alumnoId) {
         },
       });
       closeModal();
-      toast('Inscripción guardada');
+      toast('Inscripci├│n guardada');
       renderTorneos($('#sec-torneos'));
     } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = 'Guardar'; }
   });
 }
 
 async function quitarInscripcion(iid) {
-  if (!confirm('¿Quitar a este alumno del torneo?')) return;
+  if (!confirm('┬┐Quitar a este alumno del torneo?')) return;
   try {
     await api('/api/torneos/torneo/' + iid, { method: 'DELETE' });
-    toast('Inscripción quitada');
+    toast('Inscripci├│n quitada');
     renderTorneos($('#sec-torneos'));
   } catch (e) { toast(e.message); }
 }
@@ -2425,14 +2426,14 @@ async function quitarInscripcion(iid) {
 function filaAviso(a) {
   const pend = a.estado === 'pendiente';
   return `<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08)">
-    <button class="btn ghost" onclick="verComprobante(${a.id})" style="width:44px;height:44px;padding:0;font-size:19px;border-radius:8px;flex-shrink:0" title="Ver comprobante">🧾</button>
+    <button class="btn ghost" onclick="verComprobante(${a.id})" style="width:44px;height:44px;padding:0;font-size:19px;border-radius:8px;flex-shrink:0" title="Ver comprobante">≡ƒº╛</button>
     <div style="flex:1;min-width:0">
-      <div><b>${esc(a.alumno_nombre)}</b> · ${a.mes}/${a.anio} · <b>$${num(a.monto)}</b></div>
-      <div class="small" style="color:var(--muted)">${esc(a.fecha)}${a.nota && a.nota !== 'Cuota mensual' ? ' · ' + esc(a.nota) : ''}${a.tiene_comprobante ? '' : ' · sin comprobante'}${a.profesor_id ? ` · 💰 cobra ${esc(a.profesor_nombre || 'profesor')}` : ''}</div>
+      <div><b>${esc(a.alumno_nombre)}</b> ┬╖ ${a.mes}/${a.anio} ┬╖ <b>$${num(a.monto)}</b></div>
+      <div class="small" style="color:var(--muted)">${esc(a.fecha)}${a.nota && a.nota !== 'Cuota mensual' ? ' ┬╖ ' + esc(a.nota) : ''}${a.tiene_comprobante ? '' : ' ┬╖ sin comprobante'}${a.profesor_id ? ` ┬╖ ≡ƒÆ░ cobra ${esc(a.profesor_nombre || 'profesor')}` : ''}</div>
     </div>
     <div class="flex" style="gap:6px;flex-shrink:0">
       ${pend ? `<button class="btn primary small" onclick="verComprobante(${a.id})">Revisar</button>` : ''}
-      ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${a.id})">🗑</button>` : ''}
+      ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${a.id})">≡ƒùæ</button>` : ''}
     </div>
   </div>`;
 }
@@ -2453,58 +2454,58 @@ async function renderPagos(el) {
     ${secHeader('Registrar pago')}
     ${pendientes.length ? `
     <div class="card">
-      <h3>⏳ Comprobantes para revisar (${pendientes.length})</h3>
-      <p class="small">Llegaron después del vencimiento, así que no se acreditaron solos. Decidí si se acreditan y si va con recargo por demora.</p>
+      <h3>ΓÅ│ Comprobantes para revisar (${pendientes.length})</h3>
+      <p class="small">Llegaron despu├⌐s del vencimiento, as├¡ que no se acreditaron solos. Decid├¡ si se acreditan y si va con recargo por demora.</p>
       ${pendientes.map(filaAviso).join('')}
     </div>` : ''}
     ${acreditados.length ? `
     <div class="card">
-      <h3>🗂 Comprobantes acreditados (${acreditados.length})</h3>
-      <p class="small">Los que el sistema acreditó solo al recibirlos. Quedan guardados por si los necesitás revisar.</p>
+      <h3>≡ƒùé Comprobantes acreditados (${acreditados.length})</h3>
+      <p class="small">Los que el sistema acredit├│ solo al recibirlos. Quedan guardados por si los necesit├ís revisar.</p>
       ${acreditados.map(filaAviso).join('')}
     </div>` : ''}
     <div class="card">
       <form id="pagoForm" class="grid2">
         <div class="field"><label>Alumno</label><select id="pAlumno" required>
-          <option value="">— Elegí el alumno —</option>
+          <option value="">ΓÇö Eleg├¡ el alumno ΓÇö</option>
           ${alumnos.alumnos.map(a => `<option value="${a.id}" data-cuota="${a.cuota_mensual || 0}" data-acts="${esc(a.actividades || '')}">${esc(a.nombre)}</option>`).join('')}</select></div>
         <div class="field"><label>Reparto del dinero</label><select id="pProfe">
-          <option value="0">Automático — 60% entre los profes (30% academia, 10% admin)</option>
+          <option value="0">Autom├ítico ΓÇö 60% entre los profes (30% academia, 10% admin)</option>
           ${profesores.profesores.map(p => `<option value="${p.id}">Todo a ${esc(p.nombre)}</option>`).join('')}</select></div>
         <div class="field" style="grid-column:1/-1" id="pRepartoBox"></div>
         <div class="field"><label>Monto ($)</label><input type="number" step="0.01" id="pMonto" required></div>
-        <div class="field" style="grid-column:1/-1"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="pAum" style="width:18px;height:18px"> Sumar aumento (recargo por demora) — desmarcalo si el alumno pagó antes del vencimiento 📅</label></div>
-        <div class="field"><label>Método</label><select id="pMetodo">
+        <div class="field" style="grid-column:1/-1"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="pAum" style="width:18px;height:18px"> Sumar aumento (recargo por demora) ΓÇö desmarcalo si el alumno pag├│ antes del vencimiento ≡ƒôà</label></div>
+        <div class="field"><label>M├⌐todo</label><select id="pMetodo">
           ${METODOS.map(m => `<option>${m}</option>`).join('')}</select></div>
         <div class="field"><label>Mes</label><select id="pMes">
           ${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${i + 1 === mes ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></div>
-        <div class="field"><label>Año</label><input type="number" id="pAnio" value="${anio}"></div>
+        <div class="field"><label>A├▒o</label><input type="number" id="pAnio" value="${anio}"></div>
         <div class="field" style="grid-column:1/-1"><label>Nota (opcional)</label><input type="text" id="pNota" placeholder="Ej: cuota agosto"></div>
-        <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">💳 Registrar pago y notificar</button></div>
-        <div class="field" style="grid-column:1/-1"><button class="btn warn btn-block" type="button" style="margin-top:6px" onclick="abrirPagoFamilia()">👨‍👩‍👧 Pagar familia completa</button></div>
+        <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">≡ƒÆ│ Registrar pago y notificar</button></div>
+        <div class="field" style="grid-column:1/-1"><button class="btn warn btn-block" type="button" style="margin-top:6px" onclick="abrirPagoFamilia()">≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº Pagar familia completa</button></div>
       </form>
     </div>
     <div class="card">
       <div class="flex space-between">
-        <div><h3 style="margin:0">📊 Reporte mensual de ingresos</h3><p class="small">Total cobrado, métodos usados y deudores del mes.</p></div>
+        <div><h3 style="margin:0">≡ƒôè Reporte mensual de ingresos</h3><p class="small">Total cobrado, m├⌐todos usados y deudores del mes.</p></div>
         <button class="btn primary small" onclick="abrirReporte()">Ver reporte</button>
       </div>
       <div class="flex mt" style="gap:8px">
-        <button class="btn ghost small" onclick="abrirMetricas()">📈 Métricas del año</button>
-        <button class="btn ghost small" onclick="exportarPagosExcel()">📥 Exportar pagos a Excel</button>
+        <button class="btn ghost small" onclick="abrirMetricas()">≡ƒôê M├⌐tricas del a├▒o</button>
+        <button class="btn ghost small" onclick="exportarPagosExcel()">≡ƒôÑ Exportar pagos a Excel</button>
       </div>
     </div>
     <div class="card">
       <h3>${R === 'profesor' ? 'Mis pagos recibidos' : 'Historial de pagos'}</h3>
       <div style="overflow:auto"><table>
-        <tr><th>Fecha</th><th>Alumno</th><th>Profesor</th><th>Mes</th><th>Método</th><th>Monto</th><th>Recibo</th>${R === 'admin' ? '<th></th>' : ''}</tr>
+        <tr><th>Fecha</th><th>Alumno</th><th>Profesor</th><th>Mes</th><th>M├⌐todo</th><th>Monto</th><th>Recibo</th>${R === 'admin' ? '<th></th>' : ''}</tr>
         ${pagos.pagos.length ? pagos.pagos.map(p => `<tr>
           <td>${esc(p.fecha)}</td><td><div class="flex" style="gap:8px">${avatarHTML('', p.alumno_nombre, 'sm')}<span>${esc(p.alumno_nombre)}</span></div></td>
-          <td>${esc(p.profesor_nombre || '—')}</td><td>${p.mes}/${p.anio}</td>
+          <td>${esc(p.profesor_nombre || 'ΓÇö')}</td><td>${p.mes}/${p.anio}</td>
           <td>${esc(p.metodo)}</td><td><b>$${num(p.monto)}</b></td>
-          <td><a class="btn ghost small" href="/recibo/${p.id}" target="_blank" rel="noopener">🧾</a></td>
-          ${R === 'admin' ? `<td><button class="btn bad small" onclick="borrarPago(${p.id})">🗑</button></td>` : ''}</tr>`).join('')
-          : '<tr><td colspan="7" class="empty">Todavía no hay pagos registrados</td></tr>'}
+          <td><a class="btn ghost small" href="/recibo/${p.id}" target="_blank" rel="noopener">≡ƒº╛</a></td>
+          ${R === 'admin' ? `<td><button class="btn bad small" onclick="borrarPago(${p.id})">≡ƒùæ</button></td>` : ''}</tr>`).join('')
+          : '<tr><td colspan="7" class="empty">Todav├¡a no hay pagos registrados</td></tr>'}
       </table></div>
     </div>`;
 
@@ -2528,7 +2529,7 @@ async function renderPagos(el) {
       const nombre = p ? esc(p.nombre) : 'el profesor elegido';
       box.innerHTML = `<small style="color:var(--muted)">Reparto elegido a mano: ${monto
         ? `el 60% (<b style="color:var(--good)">$${num(mProfes)}</b>) para ${nombre}`
-        : `el 60% para ${nombre}`} · Tatami y academia $${num(mTatami)} · Administrativo $${num(mAdmin)}.</small>`;
+        : `el 60% para ${nombre}`} ┬╖ Tatami y academia $${num(mTatami)} ┬╖ Administrativo $${num(mAdmin)}.</small>`;
       return;
     }
     if (!acts.length) { box.innerHTML = ''; return; }
@@ -2537,14 +2538,14 @@ async function renderPagos(el) {
       return acts.some(a => pa.includes(a));
     });
     if (!profs.length) {
-      box.innerHTML = '<small style="color:var(--muted)">Ningún profesor da las actividades de este alumno, el pago quedará sin repartir (o asignalo a mano arriba).</small>';
+      box.innerHTML = '<small style="color:var(--muted)">Ning├║n profesor da las actividades de este alumno, el pago quedar├í sin repartir (o asignalo a mano arriba).</small>';
       return;
     }
-    const partes = `El 60% se reparte en partes iguales entre ${profs.length} profesor${profs.length > 1 ? 'es' : ''}: ${profs.map(p => esc(p.nombre)).join('  ·  ')}.`;
+    const partes = `El 60% se reparte en partes iguales entre ${profs.length} profesor${profs.length > 1 ? 'es' : ''}: ${profs.map(p => esc(p.nombre)).join('  ┬╖  ')}.`;
     let mitad = '';
     if (monto) {
       const cadaUno = r2(mProfes / profs.length);
-      mitad = `<br><small style="color:var(--good)">Profes $${num(mProfes)} ($${num(cadaUno)} c/u) · Tatami y academia $${num(mTatami)} · Administrativo $${num(mAdmin)}</small>`;
+      mitad = `<br><small style="color:var(--good)">Profes $${num(mProfes)} ($${num(cadaUno)} c/u) ┬╖ Tatami y academia $${num(mTatami)} ┬╖ Administrativo $${num(mAdmin)}</small>`;
     }
     box.innerHTML = `<small style="color:var(--muted)">Actividades: ${acts.map(a => esc(a)).join(', ')}. ${partes}${mitad}</small>`;
   }
@@ -2566,14 +2567,14 @@ async function renderPagos(el) {
       aplicar_cargo: $('#pAum') ? $('#pAum').checked : false };
     try {
       const res = await api('/api/pagos', { method: 'POST', body });
-      let msg = res.cargo ? `Pago registrado ✓ (incluye $${num(res.cargo)} de recargo por demora)` : 'Pago registrado ✓';
+      let msg = res.cargo ? `Pago registrado Γ£ô (incluye $${num(res.cargo)} de recargo por demora)` : 'Pago registrado Γ£ô';
       if (res.reparto && res.reparto.length > 1) {
-        msg += ` · Profes: ${res.reparto.map(r => `${r.profesor} $${num(r.monto)}`).join(' / ')}`;
+        msg += ` ┬╖ Profes: ${res.reparto.map(r => `${r.profesor} $${num(r.monto)}`).join(' / ')}`;
       } else if (res.reparto && res.reparto.length === 1) {
-        msg += ` · Profes: todo para ${res.reparto[0].profesor}`;
+        msg += ` ┬╖ Profes: todo para ${res.reparto[0].profesor}`;
       }
       if (res.destinos && res.destinos.length) {
-        msg += ` · ${res.destinos.map(d => `${DESTINO_LABEL[d.destino] || d.destino} $${num(d.monto)}`).join(' · ')}`;
+        msg += ` ┬╖ ${res.destinos.map(d => `${DESTINO_LABEL[d.destino] || d.destino} $${num(d.monto)}`).join(' ┬╖ ')}`;
       }
       toast(msg);
       renderPagos($('#sec-pagos'));
@@ -2586,34 +2587,34 @@ async function renderPagos(el) {
 async function abrirPagoFamilia() {
   const d = await api('/api/familias').catch(() => ({ familias: [] }));
   const fams = (d.familias || []).filter(f => f.titular_id);
-  if (!fams.length) { toast('Todavía no hay grupos familiares con titular'); return; }
+  if (!fams.length) { toast('Todav├¡a no hay grupos familiares con titular'); return; }
   const mes = new Date().getMonth() + 1;
   openModal(`
-    <h3>👨‍👩‍👧 Pagar familia completa</h3>
+    <h3>≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº Pagar familia completa</h3>
     <p class="small" style="color:var(--muted);margin:0">Registra la cuota (con descuento familiar) de todos los integrantes de una vez. Saltea becados y los que ya pagaron ese mes.</p>
     <div class="field"><label>Familia</label><select id="pfTitular">
-      <option value="">— elegí la familia —</option>
+      <option value="">ΓÇö eleg├¡ la familia ΓÇö</option>
       ${fams.map(f => {
         const t = (f.miembros || []).find(m => m.id === f.titular_id) || {};
-        return `<option value="${f.titular_id}">${esc(t.nombre || '¿?')} · ${esc(f.nombre)} (${(f.miembros || []).length} integrantes · total $${num(f.total)}/mes)</option>`;
+        return `<option value="${f.titular_id}">${esc(t.nombre || '┬┐?')} ┬╖ ${esc(f.nombre)} (${(f.miembros || []).length} integrantes ┬╖ total $${num(f.total)}/mes)</option>`;
       }).join('')}
     </select></div>
-    <div class="field"><label>¿A qué profesor le pagó?</label><select id="pfProfe">
+    <div class="field"><label>┬┐A qu├⌐ profesor le pag├│?</label><select id="pfProfe">
       ${(PROFESORES_CACHE || []).map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('')}
     </select></div>
     <div class="grid2">
-      <div class="field"><label>Método</label><select id="pfMetodo">${METODOS.map(m => `<option>${m}</option>`).join('')}</select></div>
+      <div class="field"><label>M├⌐todo</label><select id="pfMetodo">${METODOS.map(m => `<option>${m}</option>`).join('')}</select></div>
       <div class="field"><label>Mes</label><select id="pfMes">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${i + 1 === mes ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></div>
     </div>
-    <div class="field"><label>Año</label><input type="number" id="pfAnio" value="${new Date().getFullYear()}"></div>
-    <div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="pfAum" style="width:18px;height:18px"> Sumar aumento (recargo por demora) — desmarcalo si pagaron antes del vencimiento 📅</label></div>
+    <div class="field"><label>A├▒o</label><input type="number" id="pfAnio" value="${new Date().getFullYear()}"></div>
+    <div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="pfAum" style="width:18px;height:18px"> Sumar aumento (recargo por demora) ΓÇö desmarcalo si pagaron antes del vencimiento ≡ƒôà</label></div>
     <div class="field"><label>Nota (opcional)</label><input type="text" id="pfNota" placeholder="Ej: cuota familiar agosto"></div>
-    <button class="btn primary btn-block mt" onclick="pagarFamilia()">💳 Registrar pago de toda la familia</button>
+    <button class="btn primary btn-block mt" onclick="pagarFamilia()">≡ƒÆ│ Registrar pago de toda la familia</button>
     <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
 }
 async function pagarFamilia() {
   const titular_id = +$('#pfTitular').value;
-  if (!titular_id) { toast('Elegí la familia'); return; }
+  if (!titular_id) { toast('Eleg├¡ la familia'); return; }
   try {
     const res = await api('/api/pagos/familia', { method: 'POST', body: {
       titular_id,
@@ -2623,26 +2624,26 @@ async function pagarFamilia() {
       metodo: $('#pfMetodo').value,
       nota: $('#pfNota').value,
       aplicar_cargo: $('#pfAum') ? $('#pfAum').checked : false } });
-    toast(`💳 ${res.cantidad} pagos registrados de ${esc(res.familia)} por $${num(res.total)}`);
+    toast(`≡ƒÆ│ ${res.cantidad} pagos registrados de ${esc(res.familia)} por $${num(res.total)}`);
     closeModal();
     renderPagos($('#sec-pagos'));
   } catch (e) { toast(e.message); }
 }
 async function borrarPago(id) {
-  if (!confirm('¿Eliminar este pago?')) return;
+  if (!confirm('┬┐Eliminar este pago?')) return;
   await api('/api/pagos/' + id, { method: 'DELETE' }).catch(e => toast(e.message));
   renderPagos($('#sec-pagos'));
 }
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 function abrirMensajeMasivo() {
   openModal(`
-    <h3>📣 Mandar mensaje</h3>
-    <p class="small">Les llega como notificación (app + push si tienen permisos).</p>
-    <div class="field"><label>Mensaje</label><textarea id="mMsg" rows="3" maxlength="500" placeholder='Ej: HOY A ENTRENAR 🥋'></textarea></div>
-    <div class="field"><label>Título (opcional)</label><input id="mTit" value="📣 Mensaje de la academia"></div>
+    <h3>≡ƒôú Mandar mensaje</h3>
+    <p class="small">Les llega como notificaci├│n (app + push si tienen permisos).</p>
+    <div class="field"><label>Mensaje</label><textarea id="mMsg" rows="3" maxlength="500" placeholder='Ej: HOY A ENTRENAR ≡ƒÑï'></textarea></div>
+    <div class="field"><label>T├¡tulo (opcional)</label><input id="mTit" value="≡ƒôú Mensaje de la academia"></div>
     <div class="field"><label>Enviar a</label><select id="mDesti">
       <option value="alumnos">A todos los alumnos</option>
-      <option value="especifico">A un alumno específico...</option>
+      <option value="especifico">A un alumno espec├¡fico...</option>
     </select></div>
     <div class="field" id="mEspecificoWrap" style="display:none"><label>Alumno</label><select id="mEspecifico"></select></div>
     <button class="btn primary btn-block" id="mBtn">Enviar</button>`);
@@ -2658,27 +2659,27 @@ function abrirMensajeMasivo() {
   });
   $('#mBtn').addEventListener('click', async () => {
     const texto = $('#mMsg').value.trim();
-    if (!texto) { toast('Escribí el mensaje'); return; }
+    if (!texto) { toast('Escrib├¡ el mensaje'); return; }
     const body = { texto, titulo: $('#mTit').value };
     if ($('#mDesti').value === 'especifico') {
       const aid = +$('#mEspecifico').value;
-      if (!aid) { toast('Elegí un alumno'); return; }
+      if (!aid) { toast('Eleg├¡ un alumno'); return; }
       body.alumno_id = aid;
     }
     closeModal();
     try {
       const r = await api('/api/mensajes/broadcast', { method: 'POST', body });
-      toast('Mensaje enviado ✓');
+      toast('Mensaje enviado Γ£ô');
     } catch (err) { toast(err.message); }
   });
 }
 function abrirReporte() {
   const hoy = new Date();
   openModal(`
-    <h3>📊 Reporte mensual</h3>
+    <h3>≡ƒôè Reporte mensual</h3>
     <div class="grid2">
       <div class="field"><label>Mes</label><select id="rMes">${MESES.map((m, i) => `<option value="${i + 1}" ${i + 1 === hoy.getMonth() + 1 ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
-      <div class="field"><label>Año</label><input type="number" id="rAnio" value="${hoy.getFullYear()}"></div>
+      <div class="field"><label>A├▒o</label><input type="number" id="rAnio" value="${hoy.getFullYear()}"></div>
     </div>
     <button class="btn primary btn-block" id="rBtn">Ver reporte</button>`);
   $('#rBtn').addEventListener('click', async () => {
@@ -2687,26 +2688,26 @@ function abrirReporte() {
       const metodos = Object.entries(rep.por_metodo || {}).map(([k, v]) => `<div class="flex space-between" style="padding:6px 0;border-bottom:1px dashed var(--line)"><span>${esc(k)}</span><b>$${num(v)}</b></div>`).join('');
       const pctBar = (pct, color) => `<div style="background:${color};width:${pct}%;height:8px;border-radius:4px;min-width:${pct > 0 ? '8px' : '0'}"></div>`;
       $('#modalBody').innerHTML = `
-        <h3>📊 Reporte ${MESES[rep.mes - 1]} ${rep.anio}</h3>
+        <h3>≡ƒôè Reporte ${MESES[rep.mes - 1]} ${rep.anio}</h3>
         <div class="stat-card"><div class="num">$${num(rep.total)}</div><div class="lbl">Total cobrado (${rep.cantidad} pago${rep.cantidad === 1 ? '' : 's'})</div></div>
 
-        <div class="small mb mt" style="margin-top:14px"><b>💳 Pagos</b></div>
+        <div class="small mb mt" style="margin-top:14px"><b>≡ƒÆ│ Pagos</b></div>
         <div style="display:flex;gap:4px;height:8px;border-radius:4px;overflow:hidden;margin-bottom:6px">
           ${pctBar(rep.pct_pagaron, 'var(--good)')}${pctBar(rep.pct_no_pagaron, 'var(--bad)')}
         </div>
-        <div class="flex space-between small" style="margin-bottom:4px"><span style="color:var(--good)">✅ Pagaron: ${rep.cant_pagaron}/${rep.total_alumnos} (${rep.pct_pagaron}%)</span></div>
-        <div class="flex space-between small" style="margin-bottom:8px"><span style="color:var(--bad)">❌ No pagaron: ${rep.cant_no_pagaron}/${rep.total_alumnos} (${rep.pct_no_pagaron}%)</span></div>
-        ${rep.alumnos_que_pagaron && rep.alumnos_que_pagaron.length ? `<div style="max-height:120px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px;margin-bottom:8px">${rep.alumnos_que_pagaron.map(a => `<div class="flex space-between" style="padding:3px 0;border-bottom:1px solid var(--line)"><span class="small">${esc(a.nombre)} <span style="color:var(--muted)">${esc(a.cinturon || '')}</span></span><span class="small">$${num(a.monto)} · ${esc(a.metodo)}</span></div>`).join('')}</div>` : ''}
+        <div class="flex space-between small" style="margin-bottom:4px"><span style="color:var(--good)">Γ£à Pagaron: ${rep.cant_pagaron}/${rep.total_alumnos} (${rep.pct_pagaron}%)</span></div>
+        <div class="flex space-between small" style="margin-bottom:8px"><span style="color:var(--bad)">Γ¥î No pagaron: ${rep.cant_no_pagaron}/${rep.total_alumnos} (${rep.pct_no_pagaron}%)</span></div>
+        ${rep.alumnos_que_pagaron && rep.alumnos_que_pagaron.length ? `<div style="max-height:120px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px;margin-bottom:8px">${rep.alumnos_que_pagaron.map(a => `<div class="flex space-between" style="padding:3px 0;border-bottom:1px solid var(--line)"><span class="small">${esc(a.nombre)} <span style="color:var(--muted)">${esc(a.cinturon || '')}</span></span><span class="small">$${num(a.monto)} ┬╖ ${esc(a.metodo)}</span></div>`).join('')}</div>` : ''}
 
-        <div class="small mb mt" style="margin-top:14px"><b>✅ Asistencia</b></div>
+        <div class="small mb mt" style="margin-top:14px"><b>Γ£à Asistencia</b></div>
         <div style="display:flex;gap:4px;height:8px;border-radius:4px;overflow:hidden;margin-bottom:6px">
           ${pctBar(rep.pct_asistieron, 'var(--accent2)')}${pctBar(rep.pct_no_asistieron, '#888')}
         </div>
-        <div class="flex space-between small" style="margin-bottom:4px"><span style="color:var(--accent2)">🏃 Entrenaron: ${rep.cant_asistieron}/${rep.total_alumnos} (${rep.pct_asistieron}%)</span></div>
-        <div class="flex space-between small" style="margin-bottom:8px"><span>💤 No entrenaron: ${rep.cant_no_asistieron}/${rep.total_alumnos} (${rep.pct_no_asistieron}%)</span></div>
+        <div class="flex space-between small" style="margin-bottom:4px"><span style="color:var(--accent2)">≡ƒÅâ Entrenaron: ${rep.cant_asistieron}/${rep.total_alumnos} (${rep.pct_asistieron}%)</span></div>
+        <div class="flex space-between small" style="margin-bottom:8px"><span>≡ƒÆñ No entrenaron: ${rep.cant_no_asistieron}/${rep.total_alumnos} (${rep.pct_no_asistieron}%)</span></div>
         ${rep.alumnos_que_asistieron && rep.alumnos_que_asistieron.length ? `<div style="max-height:120px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px;margin-bottom:8px">${rep.alumnos_que_asistieron.map(a => `<div class="flex space-between" style="padding:3px 0;border-bottom:1px solid var(--line)"><span class="small">${esc(a.nombre)} <span style="color:var(--muted)">${esc(a.cinturon || '')}</span></span><span class="small">${a.clases} clase${a.clases === 1 ? '' : 's'}</span></div>`).join('')}</div>` : ''}
 
-        <div class="small mb mt" style="margin-top:14px"><b>💰 Por método de pago:</b></div>${metodos || '<div class="small" style="color:var(--muted)">Sin pagos este mes.</div>'}
+        <div class="small mb mt" style="margin-top:14px"><b>≡ƒÆ░ Por m├⌐todo de pago:</b></div>${metodos || '<div class="small" style="color:var(--muted)">Sin pagos este mes.</div>'}
         <div class="small mb mt" style="margin-top:12px">${rep.deudores.length} alumno${rep.deudores.length === 1 ? '' : 's'} debe${rep.deudores.length === 1 ? '' : 'n'} la cuota${rep.deudores.length ? ':' : ''}</div>
         ${rep.deudores.length ? `<div style="max-height:200px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px">${rep.deudores.map(d => `<div class="flex space-between" style="padding:5px 0;border-bottom:1px solid var(--line)"><span>${esc(d.nombre)} <span class="small" style="color:var(--muted)">${esc(d.cinturon || '')}</span></span><b>$${num(d.cuota_mensual || 0)}</b></div>`).join('')}</div>` : ''}
         <p class="small" style="color:var(--warn)">${rep.avisos_pend} aviso(s) de pago pendiente(s) de revisar.</p>
@@ -2717,14 +2718,14 @@ function abrirReporte() {
 
 function exportarPagosExcel() {
   const hoy = new Date();
-  const anio = parseInt(prompt('Año a exportar:', String(hoy.getFullYear())), 10);
+  const anio = parseInt(prompt('A├▒o a exportar:', String(hoy.getFullYear())), 10);
   if (isNaN(anio)) return;
   window.open('/api/exportar_pagos?anio=' + anio, '_blank');
 }
 
 async function abrirMetricas() {
   const hoy = new Date();
-  const anio = parseInt(prompt('Año de las métricas:', String(hoy.getFullYear())), 10);
+  const anio = parseInt(prompt('A├▒o de las m├⌐tricas:', String(hoy.getFullYear())), 10);
   if (isNaN(anio)) return;
   try {
     const d = await api('/api/metricas_pagos?anio=' + anio);
@@ -2734,17 +2735,17 @@ async function abrirMetricas() {
     const bars = serie.map((s, i) => `
       <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0">
         <div class="small" style="color:var(--muted);font-size:10px">$${num(s.ingresos)}</div>
-        <div title="${MESES[i]}·${anio}" style="width:14px;background:var(--accent2);border-radius:3px;height:${Math.max(2, Math.round(s.ingresos * 120 / max))}px;opacity:${s.ingresos ? '1' : '.25'};min-height:2px"></div>
+        <div title="${MESES[i]}┬╖${anio}" style="width:14px;background:var(--accent2);border-radius:3px;height:${Math.max(2, Math.round(s.ingresos * 120 / max))}px;opacity:${s.ingresos ? '1' : '.25'};min-height:2px"></div>
         <div class="small" style="color:var(--muted);font-size:9px">${MESES[i]}</div>
       </div>`).join('');
     openModal(`
-      <h3>📈 Ingresos ${anio}</h3>
-      <div class="stat-card"><div class="num">$${num(d.total_ingresos)}</div><div class="lbl">Total cobrado en el año</div></div>
-      <div class="small mb mt"><b>💰 Por mes</b> <span style="color:var(--muted)">(máx $${num(max)})</span></div>
+      <h3>≡ƒôê Ingresos ${anio}</h3>
+      <div class="stat-card"><div class="num">$${num(d.total_ingresos)}</div><div class="lbl">Total cobrado en el a├▒o</div></div>
+      <div class="small mb mt"><b>≡ƒÆ░ Por mes</b> <span style="color:var(--muted)">(m├íx $${num(max)})</span></div>
       <div style="display:flex;align-items:flex-end;gap:2px;height:150px;padding:8px 4px;border:1px solid var(--line);border-radius:8px">${bars}</div>
-      <div class="small mb mt" style="margin-top:14px"><b>🎯 Morosidad por mes</b> <span style="color:var(--muted)">(${d.total_alumnos} activ${d.total_alumnos === 1 ? 'o' : 'os'})</span></div>
+      <div class="small mb mt" style="margin-top:14px"><b>≡ƒÄ» Morosidad por mes</b> <span style="color:var(--muted)">(${d.total_alumnos} activ${d.total_alumnos === 1 ? 'o' : 'os'})</span></div>
       ${serie.map((s, i) => `<div class="flex space-between small" style="padding:3px 0;border-bottom:1px dashed var(--line)">
-        <span>${MESES[i]}. — ${s.deudores} debiendo</span>
+        <span>${MESES[i]}. ΓÇö ${s.deudores} debiendo</span>
         <b style="color:${s.pct_morosidad > 50 ? 'var(--bad)' : 'var(--good)'}">${s.pct_morosidad}%</b>
       </div>`).join('')}
       <button class="btn ghost btn-block" onclick="closeModal()">Cerrar</button>`);
@@ -2754,38 +2755,38 @@ async function verComprobante(id) {
   const a = AVISOS_CACHE[id];
   if (!a) { toast('No hay comprobante'); return; }
   AVISO_AUMENTO = true;
-  openModal('<h3>🧾 Comprobante</h3><p class="small" style="color:var(--muted)">Cargando…</p>');
+  openModal('<h3>≡ƒº╛ Comprobante</h3><p class="small" style="color:var(--muted)">CargandoΓÇª</p>');
   let d;
   try { d = await api('/api/avisos_pago/' + id + '/comprobante'); }
   catch (e) { closeModal(); toast(e.message); return; }
   const esImg = d.comprobante.indexOf('data:image/') === 0;
   const cuerpo = esImg
     ? `<img src="${esc(d.comprobante)}" style="width:100%;border-radius:10px;background:#fff">`
-    : `<div class="flex center" style="flex-direction:column;gap:10px;padding:20px 0;color:var(--muted)"><div style="font-size:44px">📄</div><p style="margin:0">Comprobante en formato PDF</p>
-       <a class="btn primary small" href="${esc(d.comprobante)}" download="comprobante-${esc(d.alumno_nombre || id)}.pdf" style="text-decoration:none">⬇ Descargar PDF</a>
-       <a class="btn ghost small" href="${esc(d.comprobante)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Ver PDF</a></div>`;
-  const cabeza = `<h3>🧾 Comprobante · ${esc(d.alumno_nombre)}</h3>
-    <p class="small">Cuota de <b>${d.mes}/${d.anio}</b> por <b>$${num(d.monto)}</b>${d.nota && d.nota !== 'Cuota mensual' ? ' · ' + esc(d.nota) : ''}${d.profesor_id ? ` · 💰 el 60% es para <b>${esc(d.profesor_nombre || 'profesor')}</b>` : ''}</p>`;
+    : `<div class="flex center" style="flex-direction:column;gap:10px;padding:20px 0;color:var(--muted)"><div style="font-size:44px">≡ƒôä</div><p style="margin:0">Comprobante en formato PDF</p>
+       <a class="btn primary small" href="${esc(d.comprobante)}" download="comprobante-${esc(d.alumno_nombre || id)}.pdf" style="text-decoration:none">Γ¼ç Descargar PDF</a>
+       <a class="btn ghost small" href="${esc(d.comprobante)}" target="_blank" rel="noopener" style="text-decoration:none">≡ƒæü Ver PDF</a></div>`;
+  const cabeza = `<h3>≡ƒº╛ Comprobante ┬╖ ${esc(d.alumno_nombre)}</h3>
+    <p class="small">Cuota de <b>${d.mes}/${d.anio}</b> por <b>$${num(d.monto)}</b>${d.nota && d.nota !== 'Cuota mensual' ? ' ┬╖ ' + esc(d.nota) : ''}${d.profesor_id ? ` ┬╖ ≡ƒÆ░ el 60% es para <b>${esc(d.profesor_nombre || 'profesor')}</b>` : ''}</p>`;
 
-  // Ya acreditado: ficha de solo lectura. El sistema lo acreditó al recibir el
-  // comprobante, asi que acá no hay nada que confirmar.
+  // Ya acreditado: ficha de solo lectura. El sistema lo acredit├│ al recibir el
+  // comprobante, asi que ac├í no hay nada que confirmar.
   if (d.estado === 'confirmado') {
     $('#modalBody').innerHTML = `${cabeza}
-      <div class="tag tag-al-dia" style="display:inline-block;margin-bottom:10px">✓ Acreditado${d.confirmado_fecha ? ' el ' + esc(d.confirmado_fecha) : ''}</div>
+      <div class="tag tag-al-dia" style="display:inline-block;margin-bottom:10px">Γ£ô Acreditado${d.confirmado_fecha ? ' el ' + esc(d.confirmado_fecha) : ''}</div>
       ${cuerpo}
       <div class="flex mt" style="gap:8px">
-        ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${d.id})">🗑 Descartar</button>` : ''}
+        ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${d.id})">≡ƒùæ Descartar</button>` : ''}
         <button class="btn ghost small" onclick="closeModal()">Cerrar</button>
       </div>`;
     return;
   }
-  // Pendiente: el staff decide a qué profesor le paga antes de confirmar. El
+  // Pendiente: el staff decide a qu├⌐ profesor le paga antes de confirmar. El
   // alumno solo ve la eleccion que hizo al subir el comprobante.
   let campoProfe = '';
   if (USER.role !== 'alumno') {
     let profs = (await api('/api/profesores_disponibles').catch(() => ({ profesores: [] }))).profesores || [];
-    // Si el elegido quedó dado de baja no aparece en la lista: se agrega a mano
-    // para que no se pierda lo que eligió el alumno.
+    // Si el elegido qued├│ dado de baja no aparece en la lista: se agrega a mano
+    // para que no se pierda lo que eligi├│ el alumno.
     if (d.profesor_id && !profs.some(p => p.id === d.profesor_id)) {
       profs = [{ id: d.profesor_id, nombre: d.profesor_nombre || 'Profesor' }].concat(profs);
     }
@@ -2795,21 +2796,21 @@ async function verComprobante(id) {
           <option value="0">Repartir entre los profes de sus actividades</option>
           ${profs.map(p => `<option value="${p.id}" ${p.id === d.profesor_id ? 'selected' : ''}>Todo a ${esc(p.nombre)}</option>`).join('')}
         </select>
-        <p class="small" style="margin:4px 0 0;color:var(--muted)">Si lo cambiás acá, manda sobre lo que eligió el alumno.</p></div>`;
+        <p class="small" style="margin:4px 0 0;color:var(--muted)">Si lo cambi├ís ac├í, manda sobre lo que eligi├│ el alumno.</p></div>`;
     }
   } else if (d.profesor_id) {
-    campoProfe = `<p class="small">💰 Le estás pagando a <b>${esc(d.profesor_nombre || 'profesor')}</b>.</p>`;
+    campoProfe = `<p class="small">≡ƒÆ░ Le est├ís pagando a <b>${esc(d.profesor_nombre || 'profesor')}</b>.</p>`;
   }
   $('#modalBody').innerHTML = `${cabeza}
     ${cuerpo}
-    <div class="field"><label>Monto a registrar (ajustalo si pagó el valor anterior)</label>
+    <div class="field"><label>Monto a registrar (ajustalo si pag├│ el valor anterior)</label>
       <input type="number" id="avMonto" value="${d.monto || ''}" min="1">
       <p class="small" style="margin:2px 0 0;color:var(--muted)">El recargo por demora se calcula sobre este monto.</p></div>
     ${campoProfe}
     <button type="button" id="avAumBtn" class="btn small btn-block" style="margin:0 0 10px" onclick="toggleAvisoAumento()"></button>
     <div class="flex mt" style="gap:8px">
-      <button class="btn primary small" onclick="confirmarAviso(${d.id})">✅ Confirmar y registrar</button>
-      ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${d.id})">🗑 Descartar</button>` : ''}
+      <button class="btn primary small" onclick="confirmarAviso(${d.id})">Γ£à Confirmar y registrar</button>
+      ${USER.role === 'admin' ? `<button class="btn bad small" onclick="descartarAviso(${d.id})">≡ƒùæ Descartar</button>` : ''}
     </div>
   `;
   actualizarBotonAumento();
@@ -2817,28 +2818,28 @@ async function verComprobante(id) {
 function actualizarBotonAumento() {
   const b = $('#avAumBtn');
   if (!b) return;
-  b.innerHTML = 'Sumar aumento (recargo por demora): <b style="color:' + (AVISO_AUMENTO ? 'var(--warn)' : '#7fd87f') + '">' + (AVISO_AUMENTO ? 'SÍ' : 'NO') + '</b>';
+  b.innerHTML = 'Sumar aumento (recargo por demora): <b style="color:' + (AVISO_AUMENTO ? 'var(--warn)' : '#7fd87f') + '">' + (AVISO_AUMENTO ? 'S├ì' : 'NO') + '</b>';
 }
 function toggleAvisoAumento() { AVISO_AUMENTO = !AVISO_AUMENTO; actualizarBotonAumento(); }
 async function confirmarAviso(id) {
   const a = AVISOS_CACHE[id] || {};
   const mEl = $('#avMonto');
   let monto = mEl ? parseFloat(mEl.value) : (a.monto || 0);
-  if (!monto || isNaN(monto) || monto <= 0) { toast('Ingresá un monto válido'); return; }
+  if (!monto || isNaN(monto) || monto <= 0) { toast('Ingres├í un monto v├ílido'); return; }
   const selProfe = $('#avProfeSel');
-  // Se lee antes de cerrar el modal: define quién cobra el 60%.
+  // Se lee antes de cerrar el modal: define qui├⌐n cobra el 60%.
   const profesorId = selProfe ? (+selProfe.value || 0) : undefined;
   closeModal();
   try {
     const body = { monto, aplicar_cargo: AVISO_AUMENTO };
     if (profesorId !== undefined) body.profesor_id = profesorId;
     const res = await api('/api/avisos_pago/' + id + '/confirmar', { method: 'POST', body });
-    toast(res.cargo ? 'Pago confirmado ✓ (incluye $' + num(res.cargo) + ' de recargo por demora)' : 'Pago confirmado y registrado ✓ (sin aumento)');
+    toast(res.cargo ? 'Pago confirmado Γ£ô (incluye $' + num(res.cargo) + ' de recargo por demora)' : 'Pago confirmado y registrado Γ£ô (sin aumento)');
     renderPagos($('#sec-pagos'));
   } catch (e) { toast(e.message); }
 }
 async function descartarAviso(id) {
-  if (!confirm('¿Descartar este aviso? No se registra ningún pago.')) return;
+  if (!confirm('┬┐Descartar este aviso? No se registra ning├║n pago.')) return;
   closeModal();
   try {
     await api('/api/avisos_pago/' + id, { method: 'DELETE' });
@@ -2855,7 +2856,7 @@ async function renderMisPagos(el) {
   const c = me.cuota || {};
   const estado = c.estado;
   const cls = estado === 'al_dia' || estado === 'becado' ? 'tag-al-dia' : estado === 'por_vencer' ? 'tag-por-vencer' : 'tag-deuda';
-  const lbl = estado === 'al_dia' ? 'Al día ✓' : estado === 'becado' ? '🎖 Becado' : estado === 'por_vencer' ? 'Por vencer' : 'Debe la cuota';
+  const lbl = estado === 'al_dia' ? 'Al d├¡a Γ£ô' : estado === 'becado' ? '≡ƒÄû Becado' : estado === 'por_vencer' ? 'Por vencer' : 'Debe la cuota';
   const aviso = pagos.aviso_pendiente;
   const ultimo = pagos.ultimo_aviso;
   // Solo cuenta el acreditado si es de la cuota de hoy: si mando el
@@ -2871,88 +2872,88 @@ async function renderMisPagos(el) {
     <div class="card">
       <div class="flex space-between">
         <div>
-          <h3 style="margin:0">${exento ? '🎖 Estás becado' : 'Cuota de ' + c.mes + '/' + c.anio}</h3>
-          <p class="small">${exento ? 'No pagás cuota mensual: la academia te cubre la inscripción. No necesitás mandar comprobantes.' : `Tu cuota mensual es <b>$${num(c.cuota)}</b> · se considera paga hasta el día ${c.due_day} del mes${c.cargo_demora_pct ? ` · <b style="color:var(--warn)">si pagás después, se suma un ${c.cargo_demora_pct}% de recargo</b>` : ''}.`}</p>
+          <h3 style="margin:0">${exento ? '≡ƒÄû Est├ís becado' : 'Cuota de ' + c.mes + '/' + c.anio}</h3>
+          <p class="small">${exento ? 'No pag├ís cuota mensual: la academia te cubre la inscripci├│n. No necesit├ís mandar comprobantes.' : `Tu cuota mensual es <b>$${num(c.cuota)}</b> ┬╖ se considera paga hasta el d├¡a ${c.due_day} del mes${c.cargo_demora_pct ? ` ┬╖ <b style="color:var(--warn)">si pag├ís despu├⌐s, se suma un ${c.cargo_demora_pct}% de recargo</b>` : ''}.`}</p>
         </div>
         <div class="tag ${cls}" style="font-size:14px;padding:6px 14px">${lbl}</div>
       </div>
-      ${exento ? '' : `<p class="small mt">💰 Aboná ${c.cuota ? '$' + num(c.cuota) : 'tu cuota'}${me.pago_alias ? ' por transferencia al alias/CVU de la academia' : ''} y <b>sí o sí mandá el comprobante de pago</b>: tu cuota queda acreditada apenas lo recibimos.</p>`}
-      ${acreditado && !exento ? `<p class="small mt" style="color:var(--ok,#7fd87f)">✅ Comprobante de ${acreditado.mes}/${acreditado.anio} recibido y acreditado.${acreditado.profesor_id ? ` El 60% es para <b>${esc(acreditado.profesor_nombre || 'tu profesor')}</b>.` : ''}</p><button class="btn ghost btn-block" onclick="verComprobante(${acreditado.id})">🧾 Ver mi comprobante</button>` : ''}
-      ${aviso && !exento ? `<p class="small mt" style="color:var(--warn)">⏳ Comprobante de ${aviso.mes}/${aviso.anio} enviado.${aviso.profesor_id ? ` Le estás pagando a <b>${esc(aviso.profesor_nombre || 'tu profesor')}</b>.` : ''} Tu cuota ya venció, así que el profe/admin lo revisa antes de acreditarlo.</p>` : ''}
-      ${!exento && estado !== 'al_dia' && !aviso && !acreditado ? `<button class="btn primary btn-block" onclick="avisarPago()">🧾 Mandar comprobante de pago</button>` : ''}
-      ${!exento && me.mp_habilitado && estado !== 'al_dia' && !aviso && !acreditado ? `<button class="btn primary btn-block" style="background:linear-gradient(90deg,#00c3ff,#0aa2e0);border:none" onclick="pagarMercadoPago()">💳 Pagar con MercadoPago</button>` : ''}
+      ${exento ? '' : `<p class="small mt">≡ƒÆ░ Abon├í ${c.cuota ? '$' + num(c.cuota) : 'tu cuota'}${me.pago_alias ? ' por transferencia al alias/CVU de la academia' : ''} y <b>s├¡ o s├¡ mand├í el comprobante de pago</b>: tu cuota queda acreditada apenas lo recibimos.</p>`}
+      ${acreditado && !exento ? `<p class="small mt" style="color:var(--ok,#7fd87f)">Γ£à Comprobante de ${acreditado.mes}/${acreditado.anio} recibido y acreditado.${acreditado.profesor_id ? ` El 60% es para <b>${esc(acreditado.profesor_nombre || 'tu profesor')}</b>.` : ''}</p><button class="btn ghost btn-block" onclick="verComprobante(${acreditado.id})">≡ƒº╛ Ver mi comprobante</button>` : ''}
+      ${aviso && !exento ? `<p class="small mt" style="color:var(--warn)">ΓÅ│ Comprobante de ${aviso.mes}/${aviso.anio} enviado.${aviso.profesor_id ? ` Le est├ís pagando a <b>${esc(aviso.profesor_nombre || 'tu profesor')}</b>.` : ''} Tu cuota ya venci├│, as├¡ que el profe/admin lo revisa antes de acreditarlo.</p>` : ''}
+      ${!exento && estado !== 'al_dia' && !aviso && !acreditado ? `<button class="btn primary btn-block" onclick="avisarPago()">≡ƒº╛ Mandar comprobante de pago</button>` : ''}
+      ${!exento && me.mp_habilitado && estado !== 'al_dia' && !aviso && !acreditado ? `<button class="btn primary btn-block" style="background:linear-gradient(90deg,#00c3ff,#0aa2e0);border:none" onclick="pagarMercadoPago()">≡ƒÆ│ Pagar con MercadoPago</button>` : ''}
     </div>
     ${me.pago_alias ? `
     <div class="card">
-      <h3>🏦 Pagar por transferencia</h3>
-      <p class="small">Págale al alias/CVU de la academia y después <b>mandá el comprobante</b> (foto o captura). Queda acreditado al instante.</p>
+      <h3>≡ƒÅª Pagar por transferencia</h3>
+      <p class="small">P├ígale al alias/CVU de la academia y despu├⌐s <b>mand├í el comprobante</b> (foto o captura). Queda acreditado al instante.</p>
       <div class="alias-box" id="aliasBox">${esc(me.pago_alias)}</div>
-      <button class="btn ghost btn-block" onclick="copiarAlias()">📋 Copiar alias / CVU</button>
+      <button class="btn ghost btn-block" onclick="copiarAlias()">≡ƒôï Copiar alias / CVU</button>
     </div>` : ''}
     ${me.pago_link ? `
     <div class="card">
-      <h3>🔗 Pagar online</h3>
+      <h3>≡ƒöù Pagar online</h3>
       <p class="small">Te llevamos al link de pago de la academia. MercadoPago nos avisa solo y acreditamos tu cuota al instante.</p>
-      <a class="btn primary btn-block" href="${esc(me.pago_link)}" target="_blank" rel="noopener noreferrer" onclick="marcarLinkPago(this)">💳 Pagar con MercadoPago</a>
+      <a class="btn primary btn-block" href="${esc(me.pago_link)}" target="_blank" rel="noopener noreferrer" onclick="marcarLinkPago(this)">≡ƒÆ│ Pagar con MercadoPago</a>
       <div class="small" style="color:var(--muted);margin-top:8px;word-break:break-all">${esc(me.pago_link)}</div>
     </div>` : ''}
     <div class="card"><h3>Mis pagos</h3>
       <div style="overflow:auto"><table>
-        <tr><th>Fecha</th><th>Profesor que recibió</th><th>Mes</th><th>Método</th><th>Monto</th><th>Recibo</th></tr>
+        <tr><th>Fecha</th><th>Profesor que recibi├│</th><th>Mes</th><th>M├⌐todo</th><th>Monto</th><th>Recibo</th></tr>
         ${pagos.pagos.length ? pagos.pagos.map(p => `<tr>
-          <td>${esc(p.fecha)}</td><td>${esc(p.profesor_nombre || '—')}</td>
+          <td>${esc(p.fecha)}</td><td>${esc(p.profesor_nombre || 'ΓÇö')}</td>
           <td>${p.mes}/${p.anio}</td><td>${esc(p.metodo)}</td><td><b>$${num(p.monto)}</b></td>
-          <td><a class="btn ghost small" href="/recibo/${p.id}" target="_blank" rel="noopener">🧾</a></td></tr>`).join('')
-          : '<tr><td colspan="6" class="empty">Aún no registraste pagos</td></tr>'}
+          <td><a class="btn ghost small" href="/recibo/${p.id}" target="_blank" rel="noopener">≡ƒº╛</a></td></tr>`).join('')
+          : '<tr><td colspan="6" class="empty">A├║n no registraste pagos</td></tr>'}
       </table></div>
     </div>`;
 }
 async function pagarMercadoPago() {
   const btn = event && event.currentTarget;
-  if (btn) { btn.disabled = true; btn.textContent = 'Abriendo MercadoPago…'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Abriendo MercadoPagoΓÇª'; }
   try {
     const r = await api('/api/checkout', { method: 'POST' });
     if (r.init_point) {
       const w = window.open(r.init_point, '_blank', 'noopener');
       if (!w) location.href = r.init_point;
-      else toast('Abrimos MercadoPago en una pestaña nueva 🛒');
+      else toast('Abrimos MercadoPago en una pesta├▒a nueva ≡ƒ¢Æ');
     } else toast(r.error || 'No se pudo generar el pago');
   } catch (e) { toast(e.message); }
-  finally { if (btn) { btn.disabled = false; btn.innerHTML = '💳 Pagar con MercadoPago'; } }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = '≡ƒÆ│ Pagar con MercadoPago'; } }
 }
 function marcarLinkPago(a) {
   try { a.dataset.clic = '1'; a.style.opacity = '.75'; } catch (e) {}
-  toast('Abriendo el link de pago 🛒 Después mandá el comprobante.');
+  toast('Abriendo el link de pago ≡ƒ¢Æ Despu├⌐s mand├í el comprobante.');
 }
 async function avisarPago() {
-  // El alumno puede decirle a qué profesor le está pagando. Si no elige, el
+  // El alumno puede decirle a qu├⌐ profesor le est├í pagando. Si no elige, el
   // sistema reparte entre los que dan sus actividades (como siempre).
   const profs = (await api('/api/profesores_disponibles').catch(() => ({ profesores: [] }))).profesores || [];
   openModal(`
-    <h3>🧾 Mandar comprobante de pago</h3>
-    <p class="small">Subí una <b>foto, captura o PDF</b> del comprobante de pago. Si tu cuota está a tiempo, queda acreditada al instante.</p>
+    <h3>≡ƒº╛ Mandar comprobante de pago</h3>
+    <p class="small">Sub├¡ una <b>foto, captura o PDF</b> del comprobante de pago. Si tu cuota est├í a tiempo, queda acreditada al instante.</p>
     <div class="field"><label>Comprobante (JPG, PNG o PDF)</label>
       <input type="file" id="avComprobante" accept="image/*,application/pdf">
       <div id="avPreview" class="mt" style="display:none"><img id="avPreviewImg" style="max-width:100%;border-radius:10px;background:#fff"></div>
       <div id="avFileName" class="small mt" style="display:none;color:var(--muted)"></div>
     </div>
     ${profs.length ? `
-    <div class="field"><label>¿A qué profesor le pagás? (opcional)</label>
+    <div class="field"><label>┬┐A qu├⌐ profesor le pag├ís? (opcional)</label>
       <select id="avProfe">
         <option value="0">Repartir entre los profes de mis actividades</option>
         ${profs.map(p => `<option value="${p.id}">Todo a ${esc(p.nombre)}</option>`).join('')}
       </select>
-      <p class="small" style="margin:4px 0 0;color:var(--muted)">Si elegís a un profe, ese se lleva el 60% de la cuota (30% academia, 10% admin). Si no, se divide entre los que dan tus actividades.</p>
+      <p class="small" style="margin:4px 0 0;color:var(--muted)">Si eleg├¡s a un profe, ese se lleva el 60% de la cuota (30% academia, 10% admin). Si no, se divide entre los que dan tus actividades.</p>
     </div>` : ''}
-    <button class="btn primary btn-block" id="avEnviar">📤 Enviar aviso</button>
-    <p class="small" style="color:var(--muted)">Si mandás el comprobante con la cuota vencida, el profe/admin lo revisa antes de acreditarlo.</p>
+    <button class="btn primary btn-block" id="avEnviar">≡ƒôñ Enviar aviso</button>
+    <p class="small" style="color:var(--muted)">Si mand├ís el comprobante con la cuota vencida, el profe/admin lo revisa antes de acreditarlo.</p>
   `);
   const input = $('#avComprobante');
   input.addEventListener('change', () => {
     const f = input.files && input.files[0];
     if (!f) return;
-    if (!/^image\/(png|jpe?g|webp)|^application\/pdf/.test(f.type)) { toast('Elegí una imagen (JPG/PNG) o un PDF'); input.value = ''; return; }
-    if (f.size > 12 * 1024 * 1024) { toast('El archivo es muy grande (máx 12MB)'); input.value = ''; return; }
+    if (!/^image\/(png|jpe?g|webp)|^application\/pdf/.test(f.type)) { toast('Eleg├¡ una imagen (JPG/PNG) o un PDF'); input.value = ''; return; }
+    if (f.size > 12 * 1024 * 1024) { toast('El archivo es muy grande (m├íx 12MB)'); input.value = ''; return; }
     $('#avFileName').style.display = 'none';
     $('#avFileName').textContent = '';
     if (f.type.indexOf('image/') === 0) {
@@ -2962,12 +2963,12 @@ async function avisarPago() {
     } else {
       $('#avPreview').style.display = 'none';
       $('#avFileName').style.display = '';
-      $('#avFileName').textContent = '📄 ' + f.name + ' (' + (Math.round(f.size / 1024)) + ' KB)';
+      $('#avFileName').textContent = '≡ƒôä ' + f.name + ' (' + (Math.round(f.size / 1024)) + ' KB)';
     }
   });
   $('#avEnviar').addEventListener('click', () => {
     const f = input.files && input.files[0];
-    if (!f) { toast('Elegí el comprobante primero'); return; }
+    if (!f) { toast('Eleg├¡ el comprobante primero'); return; }
     const r = new FileReader();
     r.onload = async () => {
       try {
@@ -2978,7 +2979,7 @@ async function avisarPago() {
         closeModal();
         const elegido = profs.find(p => p.id === (res.profesor_id || 0));
         if (res.auto) {
-          toast('Pago acreditado ✓ Ya quedó registrado tu comprobante.'
+          toast('Pago acreditado Γ£ô Ya qued├│ registrado tu comprobante.'
             + (elegido ? ' El 60% es para ' + elegido.nombre + '.' : '')
             + (res.cargo ? ' Incluye $' + num(res.cargo) + ' de recargo por demora.' : ''));
         } else {
@@ -2996,13 +2997,13 @@ async function copiarAlias() {
   const txt = box.textContent.trim();
   try {
     await navigator.clipboard.writeText(txt);
-    toast('Alias/CVU copiado ✓');
+    toast('Alias/CVU copiado Γ£ô');
   } catch (e) {
     const ta = document.createElement('textarea');
     ta.value = txt;
     document.body.appendChild(ta);
     ta.select();
-    try { document.execCommand('copy'); toast('Alias/CVU copiado ✓'); }
+    try { document.execCommand('copy'); toast('Alias/CVU copiado Γ£ô'); }
     catch (e2) { toast('Copialo manualmente'); }
     document.body.removeChild(ta);
   }
@@ -3015,10 +3016,10 @@ function bjjBadge(a) {
   const b = a.bjj;
   if (!b || !b.division) return '';
   if (!b.ok) {
-    const falta = { 'Falta el genero': '⚧ falta género', 'Falta el peso': '⚖️ falta peso', 'Falta la fecha de nacimiento': '🎂 falta fecha' };
-    return `<div class="small" style="color:var(--muted)">🥋 Competición: ${esc(falta[b.motivo] || 'faltan datos')}</div>`;
+    const falta = { 'Falta el genero': 'ΓÜº falta g├⌐nero', 'Falta el peso': 'ΓÜû∩╕Å falta peso', 'Falta la fecha de nacimiento': '≡ƒÄé falta fecha' };
+    return `<div class="small" style="color:var(--muted)">≡ƒÑï Competici├│n: ${esc(falta[b.motivo] || 'faltan datos')}</div>`;
   }
-  return `<div class="small">🥋 Competición: <b>${esc(b.division_peso)}</b> · ${esc(b.division)}${b.gi ? '' : ' · No-Gi'}</div>`;
+  return `<div class="small">≡ƒÑï Competici├│n: <b>${esc(b.division_peso)}</b> ┬╖ ${esc(b.division)}${b.gi ? '' : ' ┬╖ No-Gi'}</div>`;
 }
 
 async function renderAlumnos(el) {
@@ -3030,30 +3031,30 @@ async function renderAlumnos(el) {
   const card = (a) => {
     const c = a.cuota;
     const cls = c.estado === 'al_dia' ? 'tag-al-dia' : c.estado === 'por_vencer' ? 'tag-por-vencer' : 'tag-deuda';
-    const lbl = c.estado === 'al_dia' ? 'Al día' : c.estado === 'por_vencer' ? 'Por vencer' : 'Debe ' + c.mes + '/' + c.anio;
+    const lbl = c.estado === 'al_dia' ? 'Al d├¡a' : c.estado === 'por_vencer' ? 'Por vencer' : 'Debe ' + c.mes + '/' + c.anio;
     return `<div class="alum-card" data-q="${esc((a.nombre + ' ' + (a.cinturon || '') + ' ' + ((a.bjj && a.bjj.division_peso) || '')).toLowerCase())}">
       ${avatarHTML(a.foto, a.nombre, 'lg')}
-      <div class="al-nombre">${esc(a.nombre)}${a.role === 'profesor' ? '<span class="tag profesor">🧑‍🏫 Profesor</span>' : ''}${a.activo ? '' : '<div><span class="tag tag-deuda">inactivo</span></div>'}</div>
-      <div class="small" style="margin-top:4px">👤 @${esc(a.username || '—')}</div>
-      <div class="small" style="margin-top:4px">${beltHTML(a.cinturon)} · ${a.edad != null ? a.edad + ' años' : '—'}</div>
-      <div class="small">Actividades: ${(a.actividades || (a.gi_pref === 'Gi' ? 'Gi' : a.gi_pref === 'NoGi' ? 'NoGi' : '')).split(',').filter(Boolean).map(x => `<span class="tag gi">${esc(x.trim())}</span>`).join(' ') || '—'}</div>
-      ${a.beca ? `<div class="small">🎖 <b>Becado</b> · no paga cuota</div>` : `<div class="small">Cuota: <b>$${num(a.familia ? a.familia.cuota_final : a.cuota_mensual)}</b> · <span class="tag ${cls}">${lbl}</span></div>`}
-      ${a.familia ? `<div class="small">👨‍👩‍👧 <b>${esc(a.familia.nombre)}</b> ${a.familia.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}${a.familia.descuento ? `<span class="tag tag-por-vencer">ahorra $${num(a.familia.descuento)}</span>` : ''}</div>` : ''}
-      ${a.en_pausa ? `<div class="small"><span class="tag tag-por-vencer">⏸ En pausa${a.pausa_hasta ? ' hasta ' + esc(a.pausa_hasta) : ''}</span></div>` : ''}
+      <div class="al-nombre">${esc(a.nombre)}${a.role === 'profesor' ? '<span class="tag profesor">≡ƒºæΓÇì≡ƒÅ½ Profesor</span>' : ''}${a.activo ? '' : '<div><span class="tag tag-deuda">inactivo</span></div>'}</div>
+      <div class="small" style="margin-top:4px">≡ƒæñ @${esc(a.username || 'ΓÇö')}</div>
+      <div class="small" style="margin-top:4px">${beltHTML(a.cinturon)} ┬╖ ${a.edad != null ? a.edad + ' a├▒os' : 'ΓÇö'}</div>
+      <div class="small">Actividades: ${(a.actividades || (a.gi_pref === 'Gi' ? 'Gi' : a.gi_pref === 'NoGi' ? 'NoGi' : '')).split(',').filter(Boolean).map(x => `<span class="tag gi">${esc(x.trim())}</span>`).join(' ') || 'ΓÇö'}</div>
+      ${a.beca ? `<div class="small">≡ƒÄû <b>Becado</b> ┬╖ no paga cuota</div>` : `<div class="small">Cuota: <b>$${num(a.familia ? a.familia.cuota_final : a.cuota_mensual)}</b> ┬╖ <span class="tag ${cls}">${lbl}</span></div>`}
+      ${a.familia ? `<div class="small">≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº <b>${esc(a.familia.nombre)}</b> ${a.familia.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}${a.familia.descuento ? `<span class="tag tag-por-vencer">ahorra $${num(a.familia.descuento)}</span>` : ''}</div>` : ''}
+      ${a.en_pausa ? `<div class="small"><span class="tag tag-por-vencer">ΓÅ╕ En pausa${a.pausa_hasta ? ' hasta ' + esc(a.pausa_hasta) : ''}</span></div>` : ''}
       ${bjjBadge(a)}
-      <div class="small">🥋 <b>${a.asistencias}</b> asistencias</div>
+      <div class="small">≡ƒÑï <b>${a.asistencias}</b> asistencias</div>
       <div class="al-actions">
-        <button class="btn ghost small" onclick="formAlumno(${a.id})">✏️</button>
-        <button class="btn ghost small" onclick="cambiarCuota(${a.id},'${escJs(a.nombre)}',${a.cuota_mensual || 0})">💲</button>
-        <button class="btn ghost small" onclick="verFicha(${a.id},'${escJs(a.nombre)}')">🩺</button>
-        <button class="btn ghost small" onclick="verGrado(${a.id},'${escJs(a.nombre)}')">🥋</button>
-        <button class="btn ghost small" onclick="verNotas(${a.id},'${escJs(a.nombre)}')">📝</button>
-        <button class="btn good small" onclick="notificarDeuda(${a.id})">🔔</button>
-        ${USER.role !== 'alumno' ? `<button class="btn ${a.activo ? 'bad' : 'good'} small" onclick="toggleActivo(${a.id},${a.activo ? 1 : 0})">${a.activo ? '🚫 Desactivar' : '✅ Reactivar'}</button>` : ''}
-        ${USER.role !== 'alumno' ? `<button class="btn ${a.beca ? 'bad' : 'good'} small" title="${a.beca ? 'Quitar beca' : 'Becar (no paga nada)'}" onclick="toggleBeca(${a.id},${a.beca ? 1 : 0},'${escJs(a.nombre)}')">🎖</button>` : ''}
-        ${USER.role === 'admin' ? `<button class="btn ghost small" title="Convertir en profesor" onclick="hacerProfesor(${a.id},'${escJs(a.nombre)}')">👨‍🏫</button>` : ''}
-        ${USER.role === 'admin' ? `<button class="btn ghost small" onclick="reiniciarPassword(${a.id},'${escJs(a.nombre)}')">🔑</button>` : ''}
-        ${USER.role === 'admin' ? `<button class="btn bad small" onclick="eliminarAlumno(${a.id},'${escJs(a.nombre)}')">🗑</button>` : ''}
+        <button class="btn ghost small" onclick="formAlumno(${a.id})">Γ£Å∩╕Å</button>
+        <button class="btn ghost small" onclick="cambiarCuota(${a.id},'${escJs(a.nombre)}',${a.cuota_mensual || 0})">≡ƒÆ▓</button>
+        <button class="btn ghost small" onclick="verFicha(${a.id},'${escJs(a.nombre)}')">≡ƒ⌐║</button>
+        <button class="btn ghost small" onclick="verGrado(${a.id},'${escJs(a.nombre)}')">≡ƒÑï</button>
+        <button class="btn ghost small" onclick="verNotas(${a.id},'${escJs(a.nombre)}')">≡ƒô¥</button>
+        <button class="btn good small" onclick="notificarDeuda(${a.id})">≡ƒöö</button>
+        ${USER.role !== 'alumno' ? `<button class="btn ${a.activo ? 'bad' : 'good'} small" onclick="toggleActivo(${a.id},${a.activo ? 1 : 0})">${a.activo ? '≡ƒÜ½ Desactivar' : 'Γ£à Reactivar'}</button>` : ''}
+        ${USER.role !== 'alumno' ? `<button class="btn ${a.beca ? 'bad' : 'good'} small" title="${a.beca ? 'Quitar beca' : 'Becar (no paga nada)'}" onclick="toggleBeca(${a.id},${a.beca ? 1 : 0},'${escJs(a.nombre)}')">≡ƒÄû</button>` : ''}
+        ${USER.role === 'admin' ? `<button class="btn ghost small" title="Convertir en profesor" onclick="hacerProfesor(${a.id},'${escJs(a.nombre)}')">≡ƒæ¿ΓÇì≡ƒÅ½</button>` : ''}
+        ${USER.role === 'admin' ? `<button class="btn ghost small" onclick="reiniciarPassword(${a.id},'${escJs(a.nombre)}')">≡ƒöæ</button>` : ''}
+        ${USER.role === 'admin' ? `<button class="btn bad small" onclick="eliminarAlumno(${a.id},'${escJs(a.nombre)}')">≡ƒùæ</button>` : ''}
       </div>
     </div>`;
   };
@@ -3061,20 +3062,20 @@ async function renderAlumnos(el) {
     const lis = d.alumnos.filter(a => catOf(a) === c);
     return `<div class="sec-grupo" data-cat="${c}">
       <div class="gr-header">${catLbl[c] || c} <span class="small" style="color:var(--muted)">(${lis.length})</span></div>
-      <div class="alum-grid">${lis.map(card).join('') || '<div class="empty">No hay alumnos en esta categoría.</div>'}</div>
+      <div class="alum-grid">${lis.map(card).join('') || '<div class="empty">No hay alumnos en esta categor├¡a.</div>'}</div>
     </div>`;
   };
   const total = d.alumnos.length;
   const esStaff = USER.role === 'admin' || USER.role === 'profesor';
   el.innerHTML = `
-    ${secHeader('Alumnos', esStaff ? 'Se registran solos en la pantalla de ingreso, o los creás vos acá' : 'Los alumnos se registran solos en la pantalla de ingreso')}
+    ${secHeader('Alumnos', esStaff ? 'Se registran solos en la pantalla de ingreso, o los cre├ís vos ac├í' : 'Los alumnos se registran solos en la pantalla de ingreso')}
     ${esStaff ? `<div class="card">
-      <p class="small">Alta de perfil: creás la cuenta y le generás usuario y contraseña. Si los dejás vacíos se generan solos.</p>
+      <p class="small">Alta de perfil: cre├ís la cuenta y le gener├ís usuario y contrase├▒a. Si los dej├ís vac├¡os se generan solos.</p>
       <button class="btn good" onclick="formAlumno()">+ Nuevo alumno</button>
     </div>` : ''}
     ${USER.role === 'admin' || USER.role === 'profesor' ? `<div class="mb">
-      <button class="btn good" onclick="exportarAlumnosExcel()">📥 Exportar alumnos a Excel (Adultos / Juveniles / Kids)</button>
-      <p class="small" style="margin:6px 0 0">Descarga un archivo .xlsx con los datos de los alumnos activos (nombre, DNI, dirección, teléfonos, categoría, etc.). Solo alumnos <b>activos</b>.</p>
+      <button class="btn good" onclick="exportarAlumnosExcel()">≡ƒôÑ Exportar alumnos a Excel (Adultos / Juveniles / Kids)</button>
+      <p class="small" style="margin:6px 0 0">Descarga un archivo .xlsx con los datos de los alumnos activos (nombre, DNI, direcci├│n, tel├⌐fonos, categor├¡a, etc.). Solo alumnos <b>activos</b>.</p>
     </div>` : ''}
     <div class="chips" id="alumnoCats">${[
       ['todos', 'Todos'],
@@ -3086,7 +3087,7 @@ async function renderAlumnos(el) {
       return `<button class="chip ${filtro === k ? 'active' : ''}" data-cat="${k}">${lbl} (${n})</button>`;
     }).join('')}</div>
     <div class="mb">
-      <input class="search" style="max-width:100%" id="alumnoBusq" placeholder="🔍 Buscar alumno...">
+      <input class="search" style="max-width:100%" id="alumnoBusq" placeholder="≡ƒöì Buscar alumno...">
     </div>
     ${filtro === 'todos' ? grupos.map(cont).join('') : cont(filtro)}`;
   $('#alumnoCats').querySelectorAll('.chip').forEach((b) => {
@@ -3114,18 +3115,18 @@ async function verFicha(id, nombre) {
   const fichaLlena = a.medic_enfermedades || a.medic_alergias || a.medic_medicacion || a.medic_lesiones || a.medic_info;
   const fila = (label, val) => val ? `<p class="small" style="margin:6px 0"><b>${label}:</b> ${esc(val)}</p>` : '';
   openModal(`
-    <h3>🩺 Ficha de ${esc(nombre)}</h3>
-    ${a.tel ? `<div class="small mb">📱 ${esc(a.tel)}</div>` : ''}
+    <h3>≡ƒ⌐║ Ficha de ${esc(nombre)}</h3>
+    ${a.tel ? `<div class="small mb">≡ƒô▒ ${esc(a.tel)}</div>` : ''}
     ${a.ficha_fecha ? `<div class="small mb" style="color:var(--muted)">Actualizada el ${esc(a.ficha_fecha)}</div>` : ''}
     ${fichaLlena ? `<div style="background:var(--bg2);border-radius:8px;padding:10px">
-        ${fila('🫀 Enfermedades', a.medic_enfermedades)}
-        ${fila('🤧 Alergias', a.medic_alergias)}
-        ${fila('💊 Medicación', a.medic_medicacion)}
-        ${fila('🦴 Lesiones', a.medic_lesiones)}
+        ${fila('≡ƒ½Ç Enfermedades', a.medic_enfermedades)}
+        ${fila('≡ƒñº Alergias', a.medic_alergias)}
+        ${fila('≡ƒÆè Medicaci├│n', a.medic_medicacion)}
+        ${fila('≡ƒª┤ Lesiones', a.medic_lesiones)}
         ${a.medic_info ? `<p class="small" style="margin:6px 0;white-space:pre-wrap"><b>Observaciones:</b> ${esc(a.medic_info)}</p>` : ''}
-      </div>` : '<div class="tag tag-deuda mb">⚠ Sin ficha médica cargada</div>'}
-    ${a.emergency_contact ? `<p class="small" style="background:var(--bg2);border-radius:8px;padding:10px;margin-top:8px"><b>📞 Contacto de emergencia:</b> ${esc(a.emergency_contact)}</p>` : ''}
-    <button class="btn ghost btn-block mt" onclick="editarFicha(${id},'${escJs(nombre)}')">✏️ Completar / actualizar ficha</button>
+      </div>` : '<div class="tag tag-deuda mb">ΓÜá Sin ficha m├⌐dica cargada</div>'}
+    ${a.emergency_contact ? `<p class="small" style="background:var(--bg2);border-radius:8px;padding:10px;margin-top:8px"><b>≡ƒô₧ Contacto de emergencia:</b> ${esc(a.emergency_contact)}</p>` : ''}
+    <button class="btn ghost btn-block mt" onclick="editarFicha(${id},'${escJs(nombre)}')">Γ£Å∩╕Å Completar / actualizar ficha</button>
     <button class="btn ghost btn-block" onclick="closeModal()">Cerrar</button>`);
 }
 
@@ -3133,16 +3134,16 @@ async function editarFicha(id, nombre) {
   const a = (await api('/api/alumnos')).alumnos.find(x => x.id === id);
   const escv = (v) => esc((v || '').replace(/"/g, '&quot;'));
   openModal(`
-    <h3>🩺 Editar ficha de ${esc(nombre)}</h3>
+    <h3>≡ƒ⌐║ Editar ficha de ${esc(nombre)}</h3>
     <form id="fichaForm" class="grid2">
-      <div class="field" style="grid-column:1/-1"><label>🫀 Enfermedades / condiciones</label><input id="fEnf" value="${escv(a.medic_enfermedades)}" placeholder="Ej: asma, presión alta"></div>
-      <div class="field"><label>🤧 Alergias</label><input id="fAlergias" value="${escv(a.medic_alergias)}" placeholder="Ej: penicilina"></div>
-      <div class="field"><label>💊 Medicación</label><input id="fMed" value="${escv(a.medic_medicacion)}" placeholder="Ej: salbutamol"></div>
-      <div class="field"><label>🦴 Lesiones / operaciones</label><input id="fLes" value="${escv(a.medic_lesiones)}" placeholder="Ej: rodilla"></div>
+      <div class="field" style="grid-column:1/-1"><label>≡ƒ½Ç Enfermedades / condiciones</label><input id="fEnf" value="${escv(a.medic_enfermedades)}" placeholder="Ej: asma, presi├│n alta"></div>
+      <div class="field"><label>≡ƒñº Alergias</label><input id="fAlergias" value="${escv(a.medic_alergias)}" placeholder="Ej: penicilina"></div>
+      <div class="field"><label>≡ƒÆè Medicaci├│n</label><input id="fMed" value="${escv(a.medic_medicacion)}" placeholder="Ej: salbutamol"></div>
+      <div class="field"><label>≡ƒª┤ Lesiones / operaciones</label><input id="fLes" value="${escv(a.medic_lesiones)}" placeholder="Ej: rodilla"></div>
       <div class="field" style="grid-column:1/-1"><label>Observaciones</label><textarea id="fObs" rows="3" placeholder="Cualquier otra cosa que debamos saber">${escv(a.medic_info)}</textarea></div>
-      <div class="field"><label>📞 Contacto de emergencia</label><input id="fEmer" value="${escv(a.emergency_contact)}" placeholder="Nombre y teléfono"></div>
+      <div class="field"><label>≡ƒô₧ Contacto de emergencia</label><input id="fEmer" value="${escv(a.emergency_contact)}" placeholder="Nombre y tel├⌐fono"></div>
       <div class="field" style="grid-column:1/-1"><label>Fecha de la ficha</label><input type="date" id="fFecha" value="${a.ficha_fecha ? esc(a.ficha_fecha) : fechaHoyLocal()}"></div>
-      <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">💾 Guardar ficha</button></div>
+      <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">≡ƒÆ╛ Guardar ficha</button></div>
     </form>
     <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
   $('#fichaForm').addEventListener('submit', async (e) => {
@@ -3153,7 +3154,7 @@ async function editarFicha(id, nombre) {
         medic_medicacion: $('#fMed').value, medic_lesiones: $('#fLes').value,
         medic_info: $('#fObs').value, emergency_contact: $('#fEmer').value,
         ficha_fecha: $('#fFecha').value } });
-      toast('Ficha guardada ✓');
+      toast('Ficha guardada Γ£ô');
       closeModal();
       verFicha(id, nombre);
     } catch (err) { toast(err.message); }
@@ -3164,23 +3165,23 @@ async function verGrado(id, nombre) {
   const a = (await api('/api/alumnos')).alumnos.find(x => x.id === id);
   const belts = BELTS_POR_CAT[a.categoria] || BELTS_ADULT;
   openModal(`
-    <h3>🥋 Examen de ${esc(nombre)}</h3>
-    <div class="small mb">Cinturón actual: ${beltHTML(a.cinturon)} · Próximo examen: <b>${a.proximo_examen ? esc(a.proximo_examen) : 'No agendado'}</b></div>
+    <h3>≡ƒÑï Examen de ${esc(nombre)}</h3>
+    <div class="small mb">Cintur├│n actual: ${beltHTML(a.cinturon)} ┬╖ Pr├│ximo examen: <b>${a.proximo_examen ? esc(a.proximo_examen) : 'No agendado'}</b></div>
     <form id="gradoForm" class="grid2">
-      <div class="field"><label>Nuevo cinturón</label><select id="gCinturon">${belts.map(b => `<option ${a.cinturon === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
+      <div class="field"><label>Nuevo cintur├│n</label><select id="gCinturon">${belts.map(b => `<option ${a.cinturon === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
       <div class="field"><label>Fecha del examen</label><input type="date" id="gFecha" value="${fechaHoyLocal()}"></div>
-      <div class="field" style="grid-column:1/-1"><label>Notas</label><input type="text" id="gNotas" placeholder="Ej: aprobó katas perfecto"></div>
-      <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">✅ Registrar promoción</button></div>
+      <div class="field" style="grid-column:1/-1"><label>Notas</label><input type="text" id="gNotas" placeholder="Ej: aprob├│ katas perfecto"></div>
+      <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Γ£à Registrar promoci├│n</button></div>
     </form>
     <form id="exForm" style="margin-top:10px">
-      <div class="field"><label>Agendar próximo examen</label><div style="display:flex;gap:8px"><input type="date" id="gProx" class="flex:1"><button class="btn ghost" type="submit">Guardar</button></div></div>
+      <div class="field"><label>Agendar pr├│ximo examen</label><div style="display:flex;gap:8px"><input type="date" id="gProx" class="flex:1"><button class="btn ghost" type="submit">Guardar</button></div></div>
     </form>
     <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
   $('#gradoForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
       await api('/api/alumnos/' + id + '/grado', { method: 'POST', body: { cinturon: $('#gCinturon').value, fecha: $('#gFecha').value, notas: $('#gNotas').value } });
-      toast('Promoción registrada ✓ Se notificó al alumno');
+      toast('Promoci├│n registrada Γ£ô Se notific├│ al alumno');
       closeModal();
       renderAlumnos($('#sec-alumnos'));
     } catch (err) { toast(err.message); }
@@ -3189,7 +3190,7 @@ async function verGrado(id, nombre) {
     e.preventDefault();
     try {
       await api('/api/alumnos/' + id + '/proximo_examen', { method: 'POST', body: { fecha: $('#gProx').value } });
-      toast('Examen agendado ✓ Se notificó al alumno');
+      toast('Examen agendado Γ£ô Se notific├│ al alumno');
       closeModal();
       renderAlumnos($('#sec-alumnos'));
     } catch (err) { toast(err.message); }
@@ -3199,7 +3200,7 @@ async function verGrado(id, nombre) {
 async function verNotas(id, nombre) {
   const a = (await api('/api/alumnos')).alumnos.find(x => x.id === id);
   openModal(`
-    <h3>📝 Notas internas de ${esc(nombre)}</h3>
+    <h3>≡ƒô¥ Notas internas de ${esc(nombre)}</h3>
     <p class="small">Visibles solo para admin y profesores.</p>
     <textarea id="notasTxt" rows="4" style="width:100%">${esc(a.notas_internas || '')}</textarea>
     <button class="btn primary btn-block mt" id="notasBtn">Guardar</button>
@@ -3207,7 +3208,7 @@ async function verNotas(id, nombre) {
   $('#notasBtn').addEventListener('click', async () => {
     try {
       await api('/api/alumnos/' + id + '/notas', { method: 'PUT', body: { notas: $('#notasTxt').value } });
-      toast('Notas guardadas ✓');
+      toast('Notas guardadas Γ£ô');
       closeModal();
     } catch (err) { toast(err.message); }
   });
@@ -3215,16 +3216,16 @@ async function verNotas(id, nombre) {
 
 async function toggleActivo(id, activo) {
   const accion = activo ? 'desactivar' : 'reactivar';
-  if (!confirm(activo ? '¿Desactivar a este alumno? No va a poder entrar hasta que lo reactives.' : '¿Reactivar a este alumno?')) return;
+  if (!confirm(activo ? '┬┐Desactivar a este alumno? No va a poder entrar hasta que lo reactives.' : '┬┐Reactivar a este alumno?')) return;
   try {
     await api('/api/alumnos/' + id, { method: 'PUT', body: { activo: activo ? 0 : 1 } });
-    toast(activo ? 'Alumno desactivado.' : 'Alumno reactivado ✓');
+    toast(activo ? 'Alumno desactivado.' : 'Alumno reactivado Γ£ô');
     renderAlumnos($('#sec-alumnos'));
   } catch (err) { toast(err.message); }
 }
 
 async function formAlumno(id) {
-  // Sin id = alta (botón "+ Nuevo alumno"); con id = edición, como siempre.
+  // Sin id = alta (bot├│n "+ Nuevo alumno"); con id = edici├│n, como siempre.
   const esNuevo = !id;
   const vacio = { nombre: '', dni: '', direccion: '', edad: '', peso: '', genero: '', tel: '',
     tel_tutor: '', tel_2: '', nacimiento: '', categoria: 'adulto', cinturon: '', actividades: '',
@@ -3237,31 +3238,31 @@ async function formAlumno(id) {
     <form id="alForm" class="grid2">
       <div class="field"><label>Nombre y apellido</label><input id="aNombre" value="${esc(a.nombre)}" required></div>
       ${esNuevo ? `
-      <div class="field"><label>Usuario</label><input id="aUser" placeholder="si lo dejás vacío se genera"></div>
-      <div class="field"><label>Contraseña</label><input id="aPass" placeholder="si lo dejás vacío: alumno123"></div>` : ''}
+      <div class="field"><label>Usuario</label><input id="aUser" placeholder="si lo dej├ís vac├¡o se genera"></div>
+      <div class="field"><label>Contrase├▒a</label><input id="aPass" placeholder="si lo dej├ís vac├¡o: alumno123"></div>` : ''}
       <div class="field"><label>DNI</label><input type="text" id="aDni" value="${esc(a.dni || '')}"></div>
-      <div class="field"><label>Dirección / domicilio</label><input type="text" id="aDir" placeholder="Ej: Calle 1 N° 123, Madryn" value="${esc(a.direccion || '')}"></div>
+      <div class="field"><label>Direcci├│n / domicilio</label><input type="text" id="aDir" placeholder="Ej: Calle 1 N┬░ 123, Madryn" value="${esc(a.direccion || '')}"></div>
       <div class="field"><label>Edad</label><input type="number" id="aEdad" value="${a.edad != null ? a.edad : ''}"></div>
       <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" id="aPeso" value="${a.peso != null ? a.peso : ''}"></div>
-      <div class="field"><label>Género</label><select id="aGenero">
+      <div class="field"><label>G├⌐nero</label><select id="aGenero">
         <option value="">Sin definir</option>
         <option value="M" ${a.genero === 'M' ? 'selected' : ''}>Masculino</option>
         <option value="F" ${a.genero === 'F' ? 'selected' : ''}>Femenino</option></select></div>
-      <div class="field"><label>Teléfono</label><input type="tel" id="aTel" value="${esc(a.tel || '')}"></div>
-      <div class="field"><label>📞 Tel. padre/madre/tutor ${a.categoria === 'kids' || a.categoria === 'juveniles' ? '<span style="color:#ff9b8f">(obligatorio)</span>' : ''}</label><input type="tel" id="aTutor" value="${esc(a.tel_tutor || '')}"></div>
-      <div class="field"><label>📞 Segundo teléfono</label><input type="tel" id="aTel2" value="${esc(a.tel_2 || '')}"></div>
+      <div class="field"><label>Tel├⌐fono</label><input type="tel" id="aTel" value="${esc(a.tel || '')}"></div>
+      <div class="field"><label>≡ƒô₧ Tel. padre/madre/tutor ${a.categoria === 'kids' || a.categoria === 'juveniles' ? '<span style="color:#ff9b8f">(obligatorio)</span>' : ''}</label><input type="tel" id="aTutor" value="${esc(a.tel_tutor || '')}"></div>
+      <div class="field"><label>≡ƒô₧ Segundo tel├⌐fono</label><input type="tel" id="aTel2" value="${esc(a.tel_2 || '')}"></div>
       <div class="field"><label>Fecha de nacimiento${esNuevo ? ' <span style="color:#ff9b8f">(obligatoria)</span>' : ''}</label><input type="date" id="aNac" value="${a.nacimiento || ''}" ${esNuevo ? 'required' : ''}></div>
-      <div class="field"><label>Categoría</label><select id="aCat">${CATEGORIAS.map(c => `<option value="${c}" ${a.categoria === c ? 'selected' : ''}>${catLabel(c)}</option>`).join('')}</select></div>
-      <div class="field"><label>Cinturón</label><select id="aCinturon"></select></div>
+      <div class="field"><label>Categor├¡a</label><select id="aCat">${CATEGORIAS.map(c => `<option value="${c}" ${a.categoria === c ? 'selected' : ''}>${catLabel(c)}</option>`).join('')}</select></div>
+      <div class="field"><label>Cintur├│n</label><select id="aCinturon"></select></div>
       <div class="field" style="grid-column:1/-1"><label>Actividades</label>
         <div class="chips">
           ${TIPOS_ACTIVIDAD.map(ac => `<label class="chip"><input type="checkbox" name="actAct" value="${ac}" ${(a.actividades || '').split(',').map(s => s.trim()).includes(ac) ? 'checked' : ''}><span>${ac}</span></label>`).join('')}
         </div>
       <div class="field"><label>Cuota mensual ($)</label><input type="number" step="0.01" id="aCuota" value="${a.cuota_mensual != null ? a.cuota_mensual : ''}" disabled></div>
-      <div class="field"><label>⏸ Pausa desde (fechas vacías = sin pausa)</label><input type="date" id="aPausaDesde" value="${a.pausa_desde || ''}"></div>
-      <div class="field"><label>⏸ Pausa hasta</label><input type="date" id="aPausaHasta" value="${a.pausa_hasta || ''}"></div>
-      <div class="field" style="grid-column:1/-1"><label>🩺 Ficha médica (opcional)</label><textarea id="aMedic" rows="2" placeholder="Lesiones, alergias, medicación...">${esc(a.medic_info || '')}</textarea></div>
-      <div class="field" style="grid-column:1/-1"><label>📞 Contacto de emergencia (opcional)</label><input type="text" id="aEmer" placeholder="Nombre y teléfono" value="${esc(a.emergency_contact || '')}"></div>
+      <div class="field"><label>ΓÅ╕ Pausa desde (fechas vac├¡as = sin pausa)</label><input type="date" id="aPausaDesde" value="${a.pausa_desde || ''}"></div>
+      <div class="field"><label>ΓÅ╕ Pausa hasta</label><input type="date" id="aPausaHasta" value="${a.pausa_hasta || ''}"></div>
+      <div class="field" style="grid-column:1/-1"><label>≡ƒ⌐║ Ficha m├⌐dica (opcional)</label><textarea id="aMedic" rows="2" placeholder="Lesiones, alergias, medicaci├│n...">${esc(a.medic_info || '')}</textarea></div>
+      <div class="field" style="grid-column:1/-1"><label>≡ƒô₧ Contacto de emergencia (opcional)</label><input type="text" id="aEmer" placeholder="Nombre y tel├⌐fono" value="${esc(a.emergency_contact || '')}"></div>
       ${a.categoria === 'kids' || a.categoria === 'juveniles' ? `<div class="field" style="grid-column:1/-1"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
         <input type="checkbox" id="aFotoOk" style="width:18px;height:18px" ${a.foto_ok ? 'checked' : ''}>
         <span>Autorizado por un mayor para exponer fotos del menor (redes y muro)</span></label></div>` : ''}
@@ -3292,10 +3293,10 @@ async function formAlumno(id) {
     try {
       if (esNuevo) {
         const r = await api('/api/alumnos', { method: 'POST', body });
-        toast(`Alumno creado · usuario: ${r.username} · contraseña: ${r.password}`);
+        toast(`Alumno creado ┬╖ usuario: ${r.username} ┬╖ contrase├▒a: ${r.password}`);
       } else {
         await api('/api/alumnos/' + a.id, { method: 'PUT', body });
-        toast('Alumno actualizado ✓');
+        toast('Alumno actualizado Γ£ô');
       }
       closeModal(); renderAlumnos($('#sec-alumnos'));
     } catch (err) { toast(err.message); }
@@ -3306,7 +3307,7 @@ function cambiarCuotaProfe(id, nombre, actual) {
   openModal(`
     <h3>Cuota de ${esc(nombre)}</h3>
     <form id="cuotaProfeForm">
-      <p class="small">Los profesores también pagan cuota. Cargale el monto mensual; si no lo cargás, el profesor no figura como deudor y no puede pagar con MercadoPago.</p>
+      <p class="small">Los profesores tambi├⌐n pagan cuota. Cargale el monto mensual; si no lo carg├ís, el profesor no figura como deudor y no puede pagar con MercadoPago.</p>
       <div class="field"><label>Cuota mensual ($)</label>
         <input type="number" step="0.01" id="cpMonto" value="${actual || ''}" required></div>
       <button class="btn primary btn-block" type="submit">Guardar cuota</button>
@@ -3315,7 +3316,7 @@ function cambiarCuotaProfe(id, nombre, actual) {
     e.preventDefault();
     try {
       await api('/api/profesores/' + id + '/cuota', { method: 'PUT', body: { cuota_mensual: +$('#cpMonto').value } });
-      closeModal(); toast('Cuota del profesor actualizada ✓');
+      closeModal(); toast('Cuota del profesor actualizada Γ£ô');
       renderProfesores($('#sec-profesores'));
     } catch (err) { toast(err.message); }
   });
@@ -3325,7 +3326,7 @@ function cambiarCuota(id, nombre, actual) {
   openModal(`
     <h3>Cambiar cuota de ${esc(nombre)}</h3>
     <form id="cuotaForm">
-      <div class="field"><label>Nueva cuota mensual ($) — solo admin/profesor puede cambiar</label>
+      <div class="field"><label>Nueva cuota mensual ($) ΓÇö solo admin/profesor puede cambiar</label>
         <input type="number" step="0.01" id="cMonto" value="${actual || ''}" required></div>
       <button class="btn primary btn-block" type="submit">Guardar cuota</button>
     </form>`);
@@ -3333,34 +3334,34 @@ function cambiarCuota(id, nombre, actual) {
     e.preventDefault();
     try {
       await api('/api/alumnos/' + id + '/cuota', { method: 'PUT', body: { cuota_mensual: +$('#cMonto').value } });
-      closeModal(); toast('Cuota actualizada y alumno notificado ✓');
+      closeModal(); toast('Cuota actualizada y alumno notificado Γ£ô');
       renderAlumnos($('#sec-alumnos'));
     } catch (err) { toast(err.message); }
   });
 }
 
 async function eliminarAlumno(id, nombre) {
-  if (!confirm(`¿Eliminar a ${nombre} y todos sus datos?`)) return;
+  if (!confirm(`┬┐Eliminar a ${nombre} y todos sus datos?`)) return;
   await api('/api/alumnos/' + id, { method: 'DELETE' }).catch(e => toast(e.message));
   toast('Alumno eliminado');
   renderAlumnos($('#sec-alumnos'));
 }
 
 async function hacerProfesor(id, nombre) {
-  if (!confirm(`¿Convertir a ${nombre} en profesor? Conserva su usuario, contraseña, pagos y asistencias; deja de contar como alumno.`)) return;
+  if (!confirm(`┬┐Convertir a ${nombre} en profesor? Conserva su usuario, contrase├▒a, pagos y asistencias; deja de contar como alumno.`)) return;
   try {
     await api('/api/alumnos/' + id + '/profesor', { method: 'POST' });
-    toast(`✅ ${nombre} ahora es profesor`);
+    toast(`Γ£à ${nombre} ahora es profesor`);
     renderAlumnos($('#sec-alumnos')).catch(() => {});
     renderProfesores($('#sec-profesores')).catch(() => {});
   } catch (e) { toast(e.message); }
 }
 
 async function toggleBeca(id, actual, nombre) {
-  if (actual ? !confirm(`¿Quitarle la beca a ${nombre}? Vuelve a pagar cuota.`) : !confirm(`¿Becar a ${nombre}? No paga más nada hasta que le quites la beca.`)) return;
+  if (actual ? !confirm(`┬┐Quitarle la beca a ${nombre}? Vuelve a pagar cuota.`) : !confirm(`┬┐Becar a ${nombre}? No paga m├ís nada hasta que le quites la beca.`)) return;
   try {
     const r = await api('/api/alumnos/' + id + '/beca', { method: 'POST' });
-    toast(r.beca ? `🎖 ${nombre} quedó becado (no paga)` : `${nombre} ya no está becado`);
+    toast(r.beca ? `≡ƒÄû ${nombre} qued├│ becado (no paga)` : `${nombre} ya no est├í becado`);
     renderAlumnos($('#sec-alumnos')).catch(() => {});
   } catch (e) { toast(e.message); }
 }
@@ -3368,7 +3369,7 @@ async function toggleBeca(id, actual, nombre) {
 async function notificarDeuda(id) {
   try {
     const d = await api('/api/notify_deuda', { method: 'POST', body: { alumno_id: id } });
-    toast(`Recordatorio enviado a ${d.avisados} alumno(s) 🔔`);
+    toast(`Recordatorio enviado a ${d.avisados} alumno(s) ≡ƒöö`);
   } catch (e) { toast(e.message); }
 }
 
@@ -3383,22 +3384,22 @@ async function renderAsistencia(el) {
     <div class="card">
       <div class="flex mb">
         <select id="asClase" style="padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--bg2);color:var(--txt);flex:1">
-          <option value="">— Elegí la clase —</option>
-          ${horarios.horarios.map(h => `<option value="${h.id}" data-profe="${h.profesor_id || ''}">${esc(h.dia_nombre)} ${esc(h.hora)} · ${esc(h.tipo || 'Gi')} · ${esc(h.nivel || 'Todos')}</option>`).join('')}
+          <option value="">ΓÇö Eleg├¡ la clase ΓÇö</option>
+          ${horarios.horarios.map(h => `<option value="${h.id}" data-profe="${h.profesor_id || ''}">${esc(h.dia_nombre)} ${esc(h.hora)} ┬╖ ${esc(h.tipo || 'Gi')} ┬╖ ${esc(h.nivel || 'Todos')}</option>`).join('')}
         </select>
         <input type="date" id="asFecha" value="${hoy}" style="padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--bg2);color:var(--txt)">
       </div>
       <div id="asLista" class="mt">
-        <div class="empty">Elegí una clase para marcar los alumnos presentes.</div>
+        <div class="empty">Eleg├¡ una clase para marcar los alumnos presentes.</div>
       </div>
       <div class="flex space-between mt">
-        <span class="marcador">✅ Presentes hoy: <b id="asCount">0</b></span>
+        <span class="marcador">Γ£à Presentes hoy: <b id="asCount">0</b></span>
         <button class="btn good" id="asGuardar" hidden>Guardar asistencia</button>
       </div>
     </div>
 
     <div class="card mt">
-      <div class="small mb">📅 Ver qué alumnos asistieron en un día (hoy, ayer, mañana o cualquier fecha)</div>
+      <div class="small mb">≡ƒôà Ver qu├⌐ alumnos asistieron en un d├¡a (hoy, ayer, ma├▒ana o cualquier fecha)</div>
       <div class="flex" style="gap:8px">
         <input type="date" id="diaFecha" value="${hoy}" style="padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--bg2);color:var(--txt);flex:1">
         <button class="btn primary" id="diaVer">Ver asistencia</button>
@@ -3412,7 +3413,7 @@ async function renderAsistencia(el) {
     const cid = +$('#asClase').value;
     const fecha = $('#asFecha').value;
     const lista = $('#asLista');
-    if (!cid) { lista.innerHTML = '<div class="empty">Elegí una clase.</div>'; $('#asGuardar').hidden = true; return; }
+    if (!cid) { lista.innerHTML = '<div class="empty">Eleg├¡ una clase.</div>'; $('#asGuardar').hidden = true; return; }
     const presentes = await api('/api/asistencia_dia?clase_id=' + cid + '&fecha=' + fecha).catch(() => ({ presentes: [] }));
     const set = new Set(presentes.presentes);
     lista.innerHTML = alumnos.alumnos.map(a => `
@@ -3420,7 +3421,7 @@ async function renderAsistencia(el) {
         <input type="checkbox" class="asCheck" value="${a.id}" ${set.has(a.id) ? 'checked' : ''} data-nombre="${esc(a.nombre)}">
         ${avatarHTML(a.foto, a.nombre, 'sm')}
         <span class="nom">${esc(a.nombre)}</span>
-        <span class="meta">${beltHTML(a.cinturon)} · ${a.edad != null ? a.edad : ''} años · 🥋${a.asistencias}</span>
+        <span class="meta">${beltHTML(a.cinturon)} ┬╖ ${a.edad != null ? a.edad : ''} a├▒os ┬╖ ≡ƒÑï${a.asistencias}</span>
       </label>`).join('') || '<div class="empty">No hay alumnos cargados.</div>';
     $('#asGuardar').hidden = false;
     contar();
@@ -3441,7 +3442,7 @@ async function renderAsistencia(el) {
     const presentes = $$('.asCheck:checked').map(c => +c.value);
     try {
       await api('/api/asistencia', { method: 'POST', body: { clase_id: cid, fecha, presentes } });
-      toast(`Asistencia guardada: ${presentes.length} presentes ✓`);
+      toast(`Asistencia guardada: ${presentes.length} presentes Γ£ô`);
     } catch (e) { toast(e.message); }
   });
 }
@@ -3449,8 +3450,8 @@ async function renderAsistencia(el) {
 async function verAsistenciaDia() {
   const box = $('#diaResult');
   const fecha = $('#diaFecha').value;
-  if (!fecha) { toast('Elegí una fecha'); return; }
-  box.innerHTML = '<div class="small" style="color:var(--muted)">Cargando…</div>';
+  if (!fecha) { toast('Eleg├¡ una fecha'); return; }
+  box.innerHTML = '<div class="small" style="color:var(--muted)">CargandoΓÇª</div>';
   let d;
   try {
     d = await api('/api/asistencia_por_dia?fecha=' + fecha);
@@ -3459,17 +3460,17 @@ async function verAsistenciaDia() {
     return;
   }
   box.innerHTML = `
-    <div class="small mb">${esc(d.dia)} ${fecha} · <b>${d.clases_dictadas}</b> clase${d.clases_dictadas === 1 ? '' : 's'} ese día</div>
+    <div class="small mb">${esc(d.dia)} ${fecha} ┬╖ <b>${d.clases_dictadas}</b> clase${d.clases_dictadas === 1 ? '' : 's'} ese d├¡a</div>
     ${d.clases.length ? d.clases.map(c => `
       <div style="padding:8px 0;border-bottom:1px solid var(--line)">
         <div class="flex space-between">
-          <div><b>${esc(c.hora)}</b> · <span class="tag ${slugTipo(c.tipo)}">${esc(c.tipo)}</span> · ${esc(c.nivel)}${c.profesor ? ' · <span class="profe">' + esc(c.profesor) + '</span>' : ''}</div>
-          <div class="small">✅ ${c.cantidad}</div>
+          <div><b>${esc(c.hora)}</b> ┬╖ <span class="tag ${slugTipo(c.tipo)}">${esc(c.tipo)}</span> ┬╖ ${esc(c.nivel)}${c.profesor ? ' ┬╖ <span class="profe">' + esc(c.profesor) + '</span>' : ''}</div>
+          <div class="small">Γ£à ${c.cantidad}</div>
         </div>
         ${c.presentes.length
           ? `<div class="small" style="margin-top:4px">${c.presentes.map(p => `<span class="tag tag-al-dia">${esc(p.nombre)}</span>`).join(' ')}</div>`
           : '<div class="small" style="color:var(--muted)">Sin asistencias marcadas</div>'}
-      </div>`).join('') : '<div class="empty">No hay clases cargadas para este día.</div>'}
+      </div>`).join('') : '<div class="empty">No hay clases cargadas para este d├¡a.</div>'}
   `;
 }
 
@@ -3482,26 +3483,26 @@ async function renderDeudores(el) {
     ${secHeader('Alumnos con deuda')}
     <div class="card">
       <div class="flex space-between mb">
-        <span class="small">Alumnos sin pago del mes actual o por vencer. Los que están en pausa temporal no aparecen acá.</span>
-        <button class="btn warn" onclick="notificarTodas()">🔔 Notificar a todos</button>
+        <span class="small">Alumnos sin pago del mes actual o por vencer. Los que est├ín en pausa temporal no aparecen ac├í.</span>
+        <button class="btn warn" onclick="notificarTodas()">≡ƒöö Notificar a todos</button>
       </div>
       <div style="overflow:auto"><table>
-        <tr><th>Alumno</th><th>Cuota</th><th>Estado</th><th>Días sin pago</th><th>Acción</th></tr>
+        <tr><th>Alumno</th><th>Cuota</th><th>Estado</th><th>D├¡as sin pago</th><th>Acci├│n</th></tr>
         ${d.deudores.length ? d.deudores.map(x => `
           <tr>
             <td><div class="flex" style="gap:8px">${avatarHTML(x.foto, x.nombre, 'sm')}<b>${esc(x.nombre)}</b></div> ${beltHTML(x.cinturon)}</td>
             <td>$${num(x.cuota_mensual)}</td>
             <td><span class="tag ${x.estado === 'deuda' ? 'tag-deuda' : 'tag-por-vencer'}">${x.estado === 'deuda' ? 'Debe' : 'Por vencer'}</span></td>
             <td>${x.dias_deuda}</td>
-            <td><button class="btn warn small" onclick="notificarDeuda(${x.id})">🔔 Recordar</button></td>
-          </tr>`).join('') : '<tr><td colspan="5" class="empty">🎉 No hay deudores. Todos al día.</td></tr>'}
+            <td><button class="btn warn small" onclick="notificarDeuda(${x.id})">≡ƒöö Recordar</button></td>
+          </tr>`).join('') : '<tr><td colspan="5" class="empty">≡ƒÄë No hay deudores. Todos al d├¡a.</td></tr>'}
       </table></div>
     </div>`;
 }
 async function notificarTodas() {
   try {
     const d = await api('/api/notify_deuda', { method: 'POST', body: {} });
-    toast(`Recordatorio enviado a ${d.avisados} alumnos 🔔`);
+    toast(`Recordatorio enviado a ${d.avisados} alumnos ≡ƒöö`);
   } catch (e) { toast(e.message); }
 }
 
@@ -3511,9 +3512,9 @@ async function notificarTodas() {
 async function renderEstadisticas(el) {
   const d = await api('/api/estadisticas_asistencia');
   el.innerHTML = `
-    ${secHeader('Estadísticas de asistencia', 'Comparecencia por alumno: % de clases a las que asistió sobre las dictadas, en los últimos 6 meses')}
+    ${secHeader('Estad├¡sticas de asistencia', 'Comparecencia por alumno: % de clases a las que asisti├│ sobre las dictadas, en los ├║ltimos 6 meses')}
     <div class="card mb">
-      <div class="small mb">📅 Días que se dictaron clases por mes</div>
+      <div class="small mb">≡ƒôà D├¡as que se dictaron clases por mes</div>
       <div style="display:flex;gap:6px">${d.meses.map((m, i) => `
         <div style="flex:1;text-align:center;padding:6px;background:var(--bg2);border-radius:8px">
           <div class="small">${esc(m)}</div><b>${d.dias_con_clases[i]}</b>
@@ -3524,17 +3525,17 @@ async function renderEstadisticas(el) {
         <tr><th>Alumno</th>${d.meses.map(m => `<th>${esc(m)}</th>`).join('')}<th>Total</th></tr>
         ${d.alumnos.length ? d.alumnos.map(a => `
           <tr>
-            <td><div class="flex" style="gap:8px">${avatarHTML(a.foto, a.nombre, 'sm')}<b>${esc(a.nombre)}</b></div> ${beltHTML(a.cinturon)}${a.en_pausa ? ' <span class="tag tag-por-vencer">⏸ en pausa</span>' : ''}</td>
+            <td><div class="flex" style="gap:8px">${avatarHTML(a.foto, a.nombre, 'sm')}<b>${esc(a.nombre)}</b></div> ${beltHTML(a.cinturon)}${a.en_pausa ? ' <span class="tag tag-por-vencer">ΓÅ╕ en pausa</span>' : ''}</td>
             ${a.serie.map(s => `
               <td style="min-width:56px;text-align:center">
                 ${s.pct == null
-                  ? '<span class="small" style="color:var(--muted)">—</span>'
+                  ? '<span class="small" style="color:var(--muted)">ΓÇö</span>'
                   : `<div style="height:34px;width:16px;background:var(--bg2);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:bottom">
                        <div style="height:${Math.max(8, s.pct)}%;width:100%;background:var(--accent2)" title="${s.pct}% (${s.asist}/${s.dias})"></div>
                      </div>${s.pct}%`}
               </td>`).join('')}
             <td><b>${a.total_asist}</b></td>
-          </tr>`).join('') : '<tr><td colspan="' + (d.meses.length + 2) + '" class="empty">Todavía no hay alumnos activos.</td></tr>'}
+          </tr>`).join('') : '<tr><td colspan="' + (d.meses.length + 2) + '" class="empty">Todav├¡a no hay alumnos activos.</td></tr>'}
       </table></div>
     </div>`;
 }
@@ -3554,13 +3555,13 @@ async function renderPlanes(el) {
   const semanaSel = $('#planSemana') ? $('#planSemana').value : '';
   const d = await api('/api/planes' + (esStaff && semanaSel ? '?semana=' + semanaSel : ''));
   el.innerHTML = `
-    ${secHeader('Planes del profe', esStaff ? 'Objetivo o plan de entrenamiento por semana, asignado a categoría y cinturón.' : 'El plan del profe para esta semana, para tu cinturón.')}
+    ${secHeader('Planes del profe', esStaff ? 'Objetivo o plan de entrenamiento por semana, asignado a categor├¡a y cintur├│n.' : 'El plan del profe para esta semana, para tu cintur├│n.')}
     <div class="card mb">
       <div class="flex space-between" style="align-items:center">
         <span class="small">Semana del <b>${fmtFechaISO(d.semana_inicio)}</b> al <b>${fmtFechaISO(d.semana_fin)}</b></span>
         ${esStaff ? `<div class="flex" style="gap:8px">
           <input type="date" id="planSemana" class="small" value="${d.semana_inicio}" onchange="renderPlanes($('#sec-planes'))" aria-label="Elegir otra semana">
-          <button class="btn primary" onclick="formPlan()">＋ Crear plan</button>
+          <button class="btn primary" onclick="formPlan()">∩╝ï Crear plan</button>
         </div>` : ''}
       </div>
     </div>
@@ -3570,17 +3571,17 @@ async function renderPlanes(el) {
           <div class="flex space-between" style="align-items:flex-start">
             <div>
               <b>${esc(p.titulo)}</b>
-              ${esStaff ? ` <button class="btn ghost small" onclick="formPlan(${p.id})">✏️</button> <button class="btn bad small" onclick="borrarPlan(${p.id})">🗑</button>` : ''}
+              ${esStaff ? ` <button class="btn ghost small" onclick="formPlan(${p.id})">Γ£Å∩╕Å</button> <button class="btn bad small" onclick="borrarPlan(${p.id})">≡ƒùæ</button>` : ''}
               <div class="small" style="margin-top:4px">
                 <span class="tag ${p.categoria === 'todos' ? 'alumno' : p.categoria}">${p.categoria === 'todos' ? 'Todos' : esc(p.categoria)}</span>
                 <span class="tag ${p.cinturon === 'todos' ? 'alumno' : p.cinturon}">${p.cinturon === 'todos' ? 'Todos los cinturones' : esc(p.cinturon)}</span>
-                ${p.autor ? '<span style="color:var(--muted)">· ' + esc(p.autor) + '</span>' : ''}
+                ${p.autor ? '<span style="color:var(--muted)">┬╖ ' + esc(p.autor) + '</span>' : ''}
               </div>
             </div>
-            ${R === 'alumno' ? `<button class="btn ${p.hecho ? 'good' : 'ghost'} small" onclick="togglePlanHecho(${p.id})">${p.hecho ? '✓ Lo hice' : 'Marca que lo hiciste'}</button>` : ''}
+            ${R === 'alumno' ? `<button class="btn ${p.hecho ? 'good' : 'ghost'} small" onclick="togglePlanHecho(${p.id})">${p.hecho ? 'Γ£ô Lo hice' : 'Marca que lo hiciste'}</button>` : ''}
           </div>
           ${p.descripcion ? `<p class="small" style="white-space:pre-wrap;margin:8px 0 0">${esc(p.descripcion)}</p>` : ''}
-        </div>`).join('') : '<div class="empty">Todavía no hay planes para esta semana.</div>'}
+        </div>`).join('') : '<div class="empty">Todav├¡a no hay planes para esta semana.</div>'}
     </div>`;
 }
 
@@ -3594,12 +3595,12 @@ function formPlan(id) {
     return fechaLocalDe(new Date(dia.getTime() - diff * 86400000));
   })();
   openModal(`
-    <h3>${esNuevo ? '➕ Crear plan del profe' : '✏️ Editar plan'}</h3>
+    <h3>${esNuevo ? 'Γ₧ò Crear plan del profe' : 'Γ£Å∩╕Å Editar plan'}</h3>
     <form id="planForm" class="grid2">
-      <div class="field" style="grid-column:1/-1"><label>Título (objetivo del plan)</label><input id="plTitulo" required placeholder="Ej: Semana de claves de muñeca"></div>
-      <div class="field" style="grid-column:1/-1"><label>Descripción / qué practicar</label><textarea id="plDesc" rows="4" placeholder="Detallá el plan: técnica, series, lo que se espera lograr..."></textarea></div>
-      <div class="field"><label>Categoría</label><select id="plCat"><option value="todos">Todos</option>${catSel}</select></div>
-      <div class="field"><label>Cinturón</label><select id="plCintur"><option value="todos">Todos</option>${cintSel}</select></div>
+      <div class="field" style="grid-column:1/-1"><label>T├¡tulo (objetivo del plan)</label><input id="plTitulo" required placeholder="Ej: Semana de claves de mu├▒eca"></div>
+      <div class="field" style="grid-column:1/-1"><label>Descripci├│n / qu├⌐ practicar</label><textarea id="plDesc" rows="4" placeholder="Detall├í el plan: t├⌐cnica, series, lo que se espera lograr..."></textarea></div>
+      <div class="field"><label>Categor├¡a</label><select id="plCat"><option value="todos">Todos</option>${catSel}</select></div>
+      <div class="field"><label>Cintur├│n</label><select id="plCintur"><option value="todos">Todos</option>${cintSel}</select></div>
       <div class="field" style="grid-column:1/-1"><label>Semana (comienza el lunes de esa semana)</label><input type="date" id="plFecha" value="${lunesISO}"></div>
       <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Guardar plan</button></div>
     </form>`);
@@ -3620,8 +3621,8 @@ function formPlan(id) {
     const body = { titulo: $('#plTitulo').value.trim(), descripcion: $('#plDesc').value,
       categoria: $('#plCat').value, cinturon: $('#plCintur').value, fecha: $('#plFecha').value };
     try {
-      if (esNuevo) { await api('/api/planes', { method: 'POST', body }); toast('Plan creado ✓'); }
-      else { await api('/api/planes/' + id, { method: 'PUT', body }); toast('Plan actualizado ✓'); }
+      if (esNuevo) { await api('/api/planes', { method: 'POST', body }); toast('Plan creado Γ£ô'); }
+      else { await api('/api/planes/' + id, { method: 'PUT', body }); toast('Plan actualizado Γ£ô'); }
       closeModal(); renderPlanes($('#sec-planes'));
     } catch (err) { toast(err.message); }
   });
@@ -3635,7 +3636,7 @@ async function togglePlanHecho(id) {
 }
 
 async function borrarPlan(id) {
-  if (!confirm('¿Eliminar este plan?')) return;
+  if (!confirm('┬┐Eliminar este plan?')) return;
   try {
     await api('/api/planes/' + id, { method: 'DELETE' });
     toast('Plan eliminado');
@@ -3653,17 +3654,17 @@ async function renderProfesores(el) {
     ${secHeader('Profesores')}
     ${USER.role === 'admin' ? `
     <div class="card">
-      <p class="small">⚡ Convertí un alumno existente en profesor <b>sin crearle otra cuenta</b> (conserva usuario, contraseña y datos):</p>
+      <p class="small">ΓÜí Convert├¡ un alumno existente en profesor <b>sin crearle otra cuenta</b> (conserva usuario, contrase├▒a y datos):</p>
       <div class="flex" style="gap:8px;flex-wrap:wrap">
         ${(() => { const soloAlumnos = alum.filter(a => a.role !== 'profesor'); return `
         <select id="promoSelect" class="search" style="max-width:none;flex:1;min-width:220px">
-          ${soloAlumnos.map(a => `<option value="${a.id}">${esc(a.nombre)} — @${esc(a.username)}</option>`).join('') || '<option value="" disabled>No hay alumnos activos</option>'}
+          ${soloAlumnos.map(a => `<option value="${a.id}">${esc(a.nombre)} ΓÇö @${esc(a.username)}</option>`).join('') || '<option value="" disabled>No hay alumnos activos</option>'}
         </select>
         <button class="btn primary" onclick="promoverProfesor()" ${soloAlumnos.length ? '' : 'disabled'}>Convertir en profesor</button>`; })()}
       </div>
     </div>` : ''}
     <div class="card">
-      <p class="small">Los profesores se crean su propia cuenta con el <b>código de la academia</b> (lo encontrás en Configuración), o los podés crear vos acá.</p>
+      <p class="small">Los profesores se crean su propia cuenta con el <b>c├│digo de la academia</b> (lo encontr├ís en Configuraci├│n), o los pod├⌐s crear vos ac├í.</p>
       <button class="btn primary" onclick="formProfesor()">+ Crear profesor</button>
     </div>
     <div class="card"><div style="overflow:auto"><table>
@@ -3671,13 +3672,13 @@ async function renderProfesores(el) {
       ${d.profesores.length ? d.profesores.map(p => `
         <tr>
           <td><div class="flex" style="gap:8px">${avatarHTML(p.foto, p.nombre, 'sm')}<b>${esc(p.nombre)}</b></div></td><td>${beltHTML(p.cinturon)}</td>
-          <td>${p.edad != null ? p.edad : '—'}</td><td>${p.peso ? p.peso + 'kg' : '—'}</td>
+          <td>${p.edad != null ? p.edad : 'ΓÇö'}</td><td>${p.peso ? p.peso + 'kg' : 'ΓÇö'}</td>
           <td>@${esc(p.username)}</td><td>${p.clases}</td>
           <td>${p.cuota_mensual ? '$' + num(p.cuota_mensual) : '<span style="color:var(--warn)">sin cargar</span>'}</td>
           <td><div class="flex" style="gap:6px;flex-wrap:wrap">
-            ${USER.role === 'admin' ? `<button class="btn ghost small" onclick="cambiarCuotaProfe(${p.id},'${escJs(p.nombre)}',${p.cuota_mensual || 0})">💲</button>` : ''}
-            <button class="btn bad small" onclick="eliminarProfesor(${p.id},'${escJs(p.nombre)}')">🗑 Eliminar</button></div></td>
-        </tr>`).join('') : '<tr><td colspan="8" class="empty">Todavía no hay profesores.</td></tr>'}
+            ${USER.role === 'admin' ? `<button class="btn ghost small" onclick="cambiarCuotaProfe(${p.id},'${escJs(p.nombre)}',${p.cuota_mensual || 0})">≡ƒÆ▓</button>` : ''}
+            <button class="btn bad small" onclick="eliminarProfesor(${p.id},'${escJs(p.nombre)}')">≡ƒùæ Eliminar</button></div></td>
+        </tr>`).join('') : '<tr><td colspan="8" class="empty">Todav├¡a no hay profesores.</td></tr>'}
     </table></div></div>`;
 }
 
@@ -3686,7 +3687,7 @@ function promoverProfesor() {
   const opt = sel.options[sel.selectedIndex];
   if (!opt || !opt.value) { toast('No hay alumnos para convertir'); return; }
   const id = parseInt(opt.value, 10);
-  const nombre = opt.textContent.replace(/ — @.*$/, '');
+  const nombre = opt.textContent.replace(/ ΓÇö @.*$/, '');
   hacerProfesor(id, nombre);
 }
 
@@ -3695,13 +3696,13 @@ async function formProfesor() {
     <h3>Crear profesor</h3>
     <form id="profeForm" class="grid2">
       <div class="field" style="grid-column:1/-1"><label>Nombre y apellido</label><input id="prNombre" required></div>
-      <div class="field"><label>Usuario</label><input id="prUser" placeholder="si lo dejas vacío se genera"></div>
-      <div class="field"><label>Contraseña</label><input id="prPass" placeholder="si lo dejas vacío: profe123"></div>
+      <div class="field"><label>Usuario</label><input id="prUser" placeholder="si lo dejas vac├¡o se genera"></div>
+      <div class="field"><label>Contrase├▒a</label><input id="prPass" placeholder="si lo dejas vac├¡o: profe123"></div>
       <div class="field"><label>Edad</label><input type="number" id="prEdad"></div>
       <div class="field"><label>Peso (kg)</label><input type="number" step="0.1" id="prPeso"></div>
       <div class="field"><label>Faixa</label><select id="prCinturon">${BELTS_ADULT.map(b => `<option>${b}</option>`).join('')}</select></div>
-      <div class="field" style="grid-column:1/-1"><label>Cuota mensual ($) — los profesores también pagan</label>
-        <input type="number" step="0.01" id="prCuota" placeholder="si lo dejás vacío se usa la cuota por defecto"></div>
+      <div class="field" style="grid-column:1/-1"><label>Cuota mensual ($) ΓÇö los profesores tambi├⌐n pagan</label>
+        <input type="number" step="0.01" id="prCuota" placeholder="si lo dej├ís vac├¡o se usa la cuota por defecto"></div>
       <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Crear</button></div>
     </form>`);
   $('#profeForm').addEventListener('submit', async (e) => {
@@ -3713,14 +3714,14 @@ async function formProfesor() {
     if ($('#prPass').value) body.password = $('#prPass').value;
     try {
       const d = await api('/api/profesores', { method: 'POST', body });
-      closeModal(); toast(`Profesor creado · usuario: ${d.username} · contraseña: ${d.password}`);
+      closeModal(); toast(`Profesor creado ┬╖ usuario: ${d.username} ┬╖ contrase├▒a: ${d.password}`);
       renderProfesores($('#sec-profesores'));
     } catch (err) { toast(err.message); }
   });
 }
 
 async function eliminarProfesor(id, nombre) {
-  if (!confirm(`¿Eliminar al profesor ${nombre}? Sus clases quedan sin asignar y sus pagos se conservan.`)) return;
+  if (!confirm(`┬┐Eliminar al profesor ${nombre}? Sus clases quedan sin asignar y sus pagos se conservan.`)) return;
   await api('/api/profesores/' + id, { method: 'DELETE' }).catch(e => toast(e.message));
   toast('Profesor eliminado');
   renderProfesores($('#sec-profesores'));
@@ -3732,58 +3733,58 @@ async function eliminarProfesor(id, nombre) {
 async function renderConfig(el) {
   const s = await api('/api/settings');
   el.innerHTML = `
-    ${secHeader('Configuración')}
+    ${secHeader('Configuraci├│n')}
     <div class="card">
       <h3>Academia</h3>
       <form id="cfgForm" class="grid2">
         <div class="field"><label>Nombre de la academia</label><input id="cNombre" value="${esc(s.academy_name)}"></div>
         <div class="field"><label>Color principal</label><input type="color" id="cColor" value="${esc(s.academy_color || '#9b5de5')}" style="padding:4px;height:42px"></div>
-        <div class="field"><label>Código de la academia (para que los profes se registren)</label><input id="cCodigo" value="${esc(s.academy_code)}"></div>
+        <div class="field"><label>C├│digo de la academia (para que los profes se registren)</label><input id="cCodigo" value="${esc(s.academy_code)}"></div>
         <div class="field"><label>Cuota mensual por defecto ($)</label><input id="cCuota" value="${esc(s.default_cuota)}"></div>
         <div class="field"><label>Precio 1 actividad / 1 profe ($)</label><input type="number" id="cPrecio1" value="${esc(s.precio_act_1 ?? '45000')}" placeholder="45000"></div>
         <div class="field"><label>Precio 2 actividades / 2 profes ($)</label><input type="number" id="cPrecio2" value="${esc(s.precio_act_2 ?? '60000')}" placeholder="60000"></div>
-        <div class="field"><label>Precio 3 o más actividades / 3+ profes ($)</label><input type="number" id="cPrecio3" value="${esc(s.precio_act_3 ?? '80000')}" placeholder="80000"><small class="hint">La cuota se calcula sola según cuántas actividades entrena el alumno.</small></div>
-        <div class="field"><label>Día de vencimiento (día del mes)</label><input type="number" id="cDue" value="${esc(s.due_day)}"></div>
+        <div class="field"><label>Precio 3 o m├ís actividades / 3+ profes ($)</label><input type="number" id="cPrecio3" value="${esc(s.precio_act_3 ?? '80000')}" placeholder="80000"><small class="hint">La cuota se calcula sola seg├║n cu├íntas actividades entrena el alumno.</small></div>
+        <div class="field"><label>D├¡a de vencimiento (d├¡a del mes)</label><input type="number" id="cDue" value="${esc(s.due_day)}"></div>
         <div class="field"><label>Recargo por pago con demora (%)</label><input type="number" id="cDemora" value="${esc(s.cargo_demora_pct ?? '10')}" placeholder="10"></div>
         <div class="field"><label>Descuento familiar: 2 integrantes (%)</label><input type="number" id="cDescFam2" value="${esc(s.desc_familiar2 ?? s.desc_familiar ?? '10')}" placeholder="10"></div>
         <div class="field"><label>Descuento familiar: 3 integrantes (%)</label><input type="number" id="cDescFam3" value="${esc(s.desc_familiar3 ?? '15')}" placeholder="15"></div>
-        <div class="field"><label>Descuento familiar: 4 o más integrantes (%)</label><input type="number" id="cDescFam4" value="${esc(s.desc_familiar4 ?? '20')}" placeholder="20"><small class="hint">Con 2 o más integrantes, TODOS pagan con descuento. Cada cantidad de integrantes puede tener un % distinto y autónomamente puede quedar en 0 para no descontar.</small></div>
-        <div class="field" style="grid-column:1/-1"><label>Link de pago en línea (ej: link de MercadoPago)</label><input id="cLink" value="${esc(s.pago_link || '')}" placeholder="https://link.mercadopago.com.ar/... (dejalo vacío para ocultar el botón de pago)"></div>
-        <div class="field" style="grid-column:1/-1"><label>Alias o CVU para transferencia</label><input id="cAlias" value="${esc(s.pago_alias || '')}" placeholder="ej: academia.nexo.madryn (dejalo vacío para ocultarlo)"></div>
-        <div class="field" style="grid-column:1/-1"><label>Desplazamiento desde UTC (zona horaria de la academia)</label><input type="number" step="0.5" id="cTz" value="${esc(s.tz_offset ?? '-3')}" placeholder="-3"><small class="hint">Argentina: -3. Sirve para que el "hoy" no se cambie a la madrugada del día siguiente por la diferencia con UTC.</small></div>
-        <div class="field" style="grid-column:1/-1"><label>Access Token de MercadoPago (APP_USR-...) para el botón de pago en línea</label><input id="cMpTk" value="${esc(s.mp_access_token || '')}" placeholder="APP_USR-... (dejalo vacío para ocultar el botón de pago online)"></div>
-        <div class="field"><label>Número WhatsApp de la academia (con código país)</label><input id="cWp" value="${esc(s.wp_numero || '')}" placeholder="549299..."></div>
-        <div class="field"><label>Logro de asistencias (cada cuántas avisar)</label><input type="number" id="cLogroAsist" value="${esc(s.logro_asist ?? '50')}"></div>
-        <div class="field"><label>Logro de videos vistos (cada cuántos avisar)</label><input type="number" id="cLogroVids" value="${esc(s.logro_videos ?? '25')}"></div>
-        <div class="field" style="grid-column:1/-1"><label>Asistencias para sugerir examen de cinturón</label><input type="number" id="cMinExamen" value="${esc(s.asis_min_examen ?? '30')}"><small class="hint">Cuando un alumno llega a esa cantidad, se avisa al staff (no al alumno) que está listo para el próximo examen. Se reinicia el aviso cuando se registra una promoción.</small></div>
-        <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Guardar configuración</button></div>
+        <div class="field"><label>Descuento familiar: 4 o m├ís integrantes (%)</label><input type="number" id="cDescFam4" value="${esc(s.desc_familiar4 ?? '20')}" placeholder="20"><small class="hint">Con 2 o m├ís integrantes, TODOS pagan con descuento. Cada cantidad de integrantes puede tener un % distinto y aut├│nomamente puede quedar en 0 para no descontar.</small></div>
+        <div class="field" style="grid-column:1/-1"><label>Link de pago en l├¡nea (ej: link de MercadoPago)</label><input id="cLink" value="${esc(s.pago_link || '')}" placeholder="https://link.mercadopago.com.ar/... (dejalo vac├¡o para ocultar el bot├│n de pago)"></div>
+        <div class="field" style="grid-column:1/-1"><label>Alias o CVU para transferencia</label><input id="cAlias" value="${esc(s.pago_alias || '')}" placeholder="ej: academia.nexo.madryn (dejalo vac├¡o para ocultarlo)"></div>
+        <div class="field" style="grid-column:1/-1"><label>Desplazamiento desde UTC (zona horaria de la academia)</label><input type="number" step="0.5" id="cTz" value="${esc(s.tz_offset ?? '-3')}" placeholder="-3"><small class="hint">Argentina: -3. Sirve para que el "hoy" no se cambie a la madrugada del d├¡a siguiente por la diferencia con UTC.</small></div>
+        <div class="field" style="grid-column:1/-1"><label>Access Token de MercadoPago (APP_USR-...) para el bot├│n de pago en l├¡nea</label><input id="cMpTk" value="${esc(s.mp_access_token || '')}" placeholder="APP_USR-... (dejalo vac├¡o para ocultar el bot├│n de pago online)"></div>
+        <div class="field"><label>N├║mero WhatsApp de la academia (con c├│digo pa├¡s)</label><input id="cWp" value="${esc(s.wp_numero || '')}" placeholder="549299..."></div>
+        <div class="field"><label>Logro de asistencias (cada cu├íntas avisar)</label><input type="number" id="cLogroAsist" value="${esc(s.logro_asist ?? '50')}"></div>
+        <div class="field"><label>Logro de videos vistos (cada cu├íntos avisar)</label><input type="number" id="cLogroVids" value="${esc(s.logro_videos ?? '25')}"></div>
+        <div class="field" style="grid-column:1/-1"><label>Asistencias para sugerir examen de cintur├│n</label><input type="number" id="cMinExamen" value="${esc(s.asis_min_examen ?? '30')}"><small class="hint">Cuando un alumno llega a esa cantidad, se avisa al staff (no al alumno) que est├í listo para el pr├│ximo examen. Se reinicia el aviso cuando se registra una promoci├│n.</small></div>
+        <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Guardar configuraci├│n</button></div>
       </form>
     </div>
     <div class="card">
-      <h3>📣 Mensajes automáticos</h3>
-      <p class="small">Cada alumno recibe el mensaje <b>una vez por día</b> si supera los días sin entrenar o sin pagar (el que pase primero).</p>
+      <h3>≡ƒôú Mensajes autom├íticos</h3>
+      <p class="small">Cada alumno recibe el mensaje <b>una vez por d├¡a</b> si supera los d├¡as sin entrenar o sin pagar (el que pase primero).</p>
       <form id="autoForm" class="grid2">
         <div class="field"><label>Mensaje que reciben</label><input id="aMsg" value="${esc(s.auto_mensaje || '')}" style="grid-column:1/-1"></div>
-        <div class="field"><label>Días sin entrenar para avisar</label><input type="number" id="aInact" value="${esc(s.auto_inact_dias ?? '15')}"></div>
-        <div class="field"><label>Días sin pagar para avisar</label><input type="number" id="aDeuda" value="${esc(s.auto_deuda_dias ?? '30')}"></div>
-        <div class="field" style="grid-column:1/-1"><label><input type="checkbox" id="aActivo" ${s.auto_mensaje_activo === '1' ? 'checked' : ''}> Activar mensajes automáticos</label></div>
+        <div class="field"><label>D├¡as sin entrenar para avisar</label><input type="number" id="aInact" value="${esc(s.auto_inact_dias ?? '15')}"></div>
+        <div class="field"><label>D├¡as sin pagar para avisar</label><input type="number" id="aDeuda" value="${esc(s.auto_deuda_dias ?? '30')}"></div>
+        <div class="field" style="grid-column:1/-1"><label><input type="checkbox" id="aActivo" ${s.auto_mensaje_activo === '1' ? 'checked' : ''}> Activar mensajes autom├íticos</label></div>
         <div class="field" style="grid-column:1/-1">
-          <button class="btn primary btn-block" type="submit">💾 Guardar mensaje automático</button>
-          <button class="btn ghost btn-block" type="button" onclick="enviarAutoAhora()">🚀 Enviar ahora a quienes corresponda</button>
+          <button class="btn primary btn-block" type="submit">≡ƒÆ╛ Guardar mensaje autom├ítico</button>
+          <button class="btn ghost btn-block" type="button" onclick="enviarAutoAhora()">≡ƒÜÇ Enviar ahora a quienes corresponda</button>
         </div>
       </form>
     </div>
     <div class="card">
-      <h3>📲 Notificaciones push</h3>
-      <p class="small">Si no te llegan las notificaciones al celular, activá el permiso y probá una.</p>
-      <button class="btn primary btn-block" onclick="activarPush()">🔔 Activar notificaciones</button>
-      <button class="btn ghost btn-block mt" onclick="testPush()">🧪 Probar notificación</button>
+      <h3>≡ƒô▓ Notificaciones push</h3>
+      <p class="small">Si no te llegan las notificaciones al celular, activ├í el permiso y prob├í una.</p>
+      <button class="btn primary btn-block" onclick="activarPush()">≡ƒöö Activar notificaciones</button>
+      <button class="btn ghost btn-block mt" onclick="testPush()">≡ƒº¬ Probar notificaci├│n</button>
       <p class="small mt" id="pushDiag" style="color:var(--muted)"></p>
     </div>
     <div class="card">
       <h3>Actualizar cuota masiva</h3>
-      <p class="small">Aplica el valor de "Cuota mensual por defecto" a <b>todos los alumnos activos</b> y les manda una notificación a cada uno.</p>
-      <button class="btn warn btn-block" onclick="aplicarCuotaTodos()">🔄 Aplicar cuota a todos los alumnos</button>
+      <p class="small">Aplica el valor de "Cuota mensual por defecto" a <b>todos los alumnos activos</b> y les manda una notificaci├│n a cada uno.</p>
+      <button class="btn warn btn-block" onclick="aplicarCuotaTodos()">≡ƒöä Aplicar cuota a todos los alumnos</button>
     </div>`;
   $('#cfgForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -3794,7 +3795,7 @@ async function renderConfig(el) {
         precio_act_1: $('#cPrecio1').value, precio_act_2: $('#cPrecio2').value, precio_act_3: $('#cPrecio3').value,
         due_day: $('#cDue').value, cargo_demora_pct: $('#cDemora').value, desc_familiar2: $('#cDescFam2').value, desc_familiar3: $('#cDescFam3').value, desc_familiar4: $('#cDescFam4').value, pago_link: $('#cLink').value, pago_alias: $('#cAlias').value, tz_offset: $('#cTz').value,
         mp_access_token: $('#cMpTk').value, wp_numero: $('#cWp').value, logro_asist: $('#cLogroAsist').value, logro_videos: $('#cLogroVids').value, asis_min_examen: $('#cMinExamen').value } });
-      toast('Configuración guardada ✓');
+      toast('Configuraci├│n guardada Γ£ô');
       if (location.reload) { /* color aplicado al recargar */ }
       window.ACADEMY_NAME = $('#cNombre').value;
       $('#academyName').textContent = $('#cNombre').value;
@@ -3807,7 +3808,7 @@ async function renderConfig(el) {
       await api('/api/settings', { method: 'PUT', body: {
         auto_mensaje: $('#aMsg').value, auto_inact_dias: $('#aInact').value,
         auto_deuda_dias: $('#aDeuda').value, auto_mensaje_activo: $('#aActivo').checked ? '1' : '0' } });
-      toast('Mensaje automático guardado ✓');
+      toast('Mensaje autom├ítico guardado Γ£ô');
     } catch (err) { toast(err.message); }
   });
 }
@@ -3822,72 +3823,72 @@ async function testPush() {
   } catch (e) {
     toast(e.message);
     const el = pushDiagEl();
-    if (el) el.textContent = '✗ ' + e.message;
+    if (el) el.textContent = 'Γ£ù ' + e.message;
   }
 }
 async function activarPush() {
   try {
     if (!('Notification' in window)) { toast('Este navegador no soporta notificaciones'); return; }
-    if (Notification.permission === 'denied') { toast('Permiso denegado en el navegador. Entrá a Ajustes del sitio y permití las notificaciones.'); return; }
+    if (Notification.permission === 'denied') { toast('Permiso denegado en el navegador. Entr├í a Ajustes del sitio y permit├¡ las notificaciones.'); return; }
     const ok = await setupPush(true);
-    if (ok) toast('Notificaciones activadas ✓ Probá con el botón de abajo.');
+    if (ok) toast('Notificaciones activadas Γ£ô Prob├í con el bot├│n de abajo.');
   } catch (e) { toast('No se pudo activar: ' + e.message); }
 }
 async function perfilActivarPush() {
   try {
     if (!('Notification' in window)) { toast('Este navegador no soporta notificaciones'); return; }
-    if (Notification.permission === 'denied') { toast('Permiso denegado en el navegador. Entrá a Ajustes del sitio y permití las notificaciones.'); return; }
+    if (Notification.permission === 'denied') { toast('Permiso denegado en el navegador. Entr├í a Ajustes del sitio y permit├¡ las notificaciones.'); return; }
     const ok = await setupPush(true);
-    if (ok) toast('Notificaciones activadas ✓ Probá con el botón de abajo.');
+    if (ok) toast('Notificaciones activadas Γ£ô Prob├í con el bot├│n de abajo.');
   } catch (e) { toast('No se pudo activar: ' + e.message); }
 }
 async function aplicarCuotaTodos() {
-  if (!confirm('¿Actualizar la cuota de TODOS los alumnos activos al valor de "Cuota mensual por defecto"? Se les notifica a cada uno.')) return;
+  if (!confirm('┬┐Actualizar la cuota de TODOS los alumnos activos al valor de "Cuota mensual por defecto"? Se les notifica a cada uno.')) return;
   try {
     const r = await api('/api/settings/aplicar_cuota', { method: 'POST' });
-    toast(`Cuota actualizada en ${r.alumnos} alumnos ✓`);
+    toast(`Cuota actualizada en ${r.alumnos} alumnos Γ£ô`);
   } catch (e) { toast(e.message); }
 }
 async function enviarAutoAhora() {
   try {
     const r = await api('/api/mensajes/auto', { method: 'POST' });
-    toast(r.enviados.length ? `Mensaje enviado a ${r.enviados.length} alumnos (${r.enviados.map(x => x.nombre).join(', ')})` : 'Ningún alumno necesita aviso hoy.');
+    toast(r.enviados.length ? `Mensaje enviado a ${r.enviados.length} alumnos (${r.enviados.map(x => x.nombre).join(', ')})` : 'Ning├║n alumno necesita aviso hoy.');
   } catch (e) { toast(e.message); }
 }
 
-/* fetch academy name para el título */
+/* fetch academy name para el t├¡tulo */
 try { fetch('/api/settings').then(r => r.json()).then(s => {
   if (s.academy_name) window.ACADEMY_NAME = s.academy_name;
 }).catch(() => {}); } catch (e) {}
 
 /* =====================================================================
-   CHAT + GRUPOS POR CATEGORÍA
+   CHAT + GRUPOS POR CATEGOR├ìA
    ===================================================================== */
 
 async function renderChat(el) {
   const d = await api('/api/chats').catch(() => ({ chats: [] }));
   el.innerHTML = `
-    ${secHeader('💬 Chat')}
+    ${secHeader('≡ƒÆ¼ Chat')}
     <div class="card">
-      <h3>Grupos por categoría</h3>
-      <p class="small">Podés abrir un chat grupal automático para cada categoría.</p>
+      <h3>Grupos por categor├¡a</h3>
+      <p class="small">Pod├⌐s abrir un chat grupal autom├ítico para cada categor├¡a.</p>
       <div class="chips">
-        <button class="chip" onclick="abrirGrupo('kids')">🧒 Grupo Kids</button>
-        <button class="chip" onclick="abrirGrupo('juveniles')">👦 Grupo Juveniles</button>
-        <button class="chip" onclick="abrirGrupo('adulto')">🧑 Grupo Adultos</button>
+        <button class="chip" onclick="abrirGrupo('kids')">≡ƒºÆ Grupo Kids</button>
+        <button class="chip" onclick="abrirGrupo('juveniles')">≡ƒæª Grupo Juveniles</button>
+        <button class="chip" onclick="abrirGrupo('adulto')">≡ƒºæ Grupo Adultos</button>
       </div>
     </div>
     <div class="card">
       <h3>Chats directos</h3>
-      <button class="btn primary btn-block" onclick="nuevoChatDirecto()">➕ Nuevo chat</button>
+      <button class="btn primary btn-block" onclick="nuevoChatDirecto()">Γ₧ò Nuevo chat</button>
     </div>
     <div class="card">
       <h3>Tus conversaciones</h3>
       <div id="chatLista">${d.chats.length ? d.chats.map(c =>
         `<div class="flex space-between" style="padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer" onclick="abrirChatId(${c.id})">
-          <span><b>${esc(c.nombre)}</b> <span class="small" style="color:var(--muted)">${c.tipo === 'grupo' ? '· ' + c.miembros + ' miembros' : ''}</span></span>
-          <span class="small" style="color:var(--accent2)">Abrir →</span>
-        </div>`).join('') : '<div class="empty">Todavía no tenés conversaciones.</div>'}</div>
+          <span><b>${esc(c.nombre)}</b> <span class="small" style="color:var(--muted)">${c.tipo === 'grupo' ? '┬╖ ' + c.miembros + ' miembros' : ''}</span></span>
+          <span class="small" style="color:var(--accent2)">Abrir ΓåÆ</span>
+        </div>`).join('') : '<div class="empty">Todav├¡a no ten├⌐s conversaciones.</div>'}</div>
     </div>`;
 }
 
@@ -3906,7 +3907,7 @@ async function nuevoChatDirecto() {
       ${d.contactos.length ? d.contactos.map(c =>
         `<div class="flex space-between" style="padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer" onclick="crearDirecto(${c.id})">
           <span>${avatarHTML(c.foto, c.nombre, 'sm')} <b>${esc(c.nombre)}</b> ${c.cinturon ? beltHTML(c.cinturon) : ''}</span>
-          <span class="small" style="color:var(--accent2)">Abrir →</span>
+          <span class="small" style="color:var(--accent2)">Abrir ΓåÆ</span>
         </div>`).join('') : '<div class="empty">No hay contactos disponibles</div>'}
     </div>
     <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
@@ -3931,8 +3932,8 @@ async function abrirChatId(cid) {
     return;
   }
   const mensajes = (d.mensajes || []).map(m => chatMsgHTML(m)).join('');
-  // Activar la sección de chat sin volver a llamar a renderChat (que reemplazaría
-  // esta conversación por la lista de chats al completar su fetch).
+  // Activar la secci├│n de chat sin volver a llamar a renderChat (que reemplazar├¡a
+  // esta conversaci├│n por la lista de chats al completar su fetch).
   $$('.sec').forEach(s => s.classList.remove('active'));
   let secEl = $('#sec-chat');
   if (!secEl) {
@@ -3945,14 +3946,14 @@ async function abrirChatId(cid) {
   $$('#bottombar .bb-item').forEach(x => x.classList.toggle('active', x.dataset.sec === 'chat'));
   const el = secEl;
   el.innerHTML = `
-    ${secHeader('💬 ' + esc(d.chat.nombre || 'Chat'))}
-    <button class="btn ghost small mb" onclick="renderChat($('#sec-chat'))">← Volver a la lista</button>
+    ${secHeader('≡ƒÆ¼ ' + esc(d.chat.nombre || 'Chat'))}
+    <button class="btn ghost small mb" onclick="renderChat($('#sec-chat'))">ΓåÉ Volver a la lista</button>
     <div class="card">
-      <div id="chatMsgs" style="max-height:55vh;overflow:auto;display:flex;flex-direction:column">${mensajes || '<div class="empty">Decí hola 👋</div>'}</div>
+      <div id="chatMsgs" style="max-height:55vh;overflow:auto;display:flex;flex-direction:column">${mensajes || '<div class="empty">Dec├¡ hola ≡ƒæï</div>'}</div>
       <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
         <input type="file" id="chatFoto" accept="image/*,video/*" style="display:none">
-        <button class="btn ghost" onclick="$('#chatFoto').click()" title="Adjuntar foto o video">📎</button>
-        <input id="chatInput" placeholder="Escribí un mensaje..." style="flex:1">
+        <button class="btn ghost" onclick="$('#chatFoto').click()" title="Adjuntar foto o video">≡ƒôÄ</button>
+        <input id="chatInput" placeholder="Escrib├¡ un mensaje..." style="flex:1">
         <button class="btn primary" onclick="enviarChat()">Enviar</button>
       </div>
       <div id="chatAdjVista" class="mt small" style="display:none;color:var(--muted)"></div>
@@ -3966,13 +3967,13 @@ async function abrirChatId(cid) {
   if (fInp) fInp.addEventListener('change', () => {
     const f = fInp.files && fInp.files[0];
     if (!f) return;
-    if (!/^image\/(png|jpe?g|webp|gif)|^video\/(mp4|webm|quicktime)/.test(f.type)) { toast('Elegí una foto o un video (mp4/webm)'); fInp.value = ''; return; }
-    if (f.size > 25 * 1024 * 1024) { toast('El archivo es muy grande (máx 25MB)'); fInp.value = ''; return; }
+    if (!/^image\/(png|jpe?g|webp|gif)|^video\/(mp4|webm|quicktime)/.test(f.type)) { toast('Eleg├¡ una foto o un video (mp4/webm)'); fInp.value = ''; return; }
+    if (f.size > 25 * 1024 * 1024) { toast('El archivo es muy grande (m├íx 25MB)'); fInp.value = ''; return; }
     const r = new FileReader();
     r.onload = () => {
       CHAT_ADJ = { data: r.result, tipo: f.type.indexOf('image/') === 0 ? 'imagen' : 'video', nombre: f.name };
       const v = $('#chatAdjVista');
-      if (v) { v.style.display = ''; v.textContent = '📎 Adjuntado: ' + f.name + (CHAT_ADJ.tipo === 'imagen' ? ' (foto)' : ' (video)'); }
+      if (v) { v.style.display = ''; v.textContent = '≡ƒôÄ Adjuntado: ' + f.name + (CHAT_ADJ.tipo === 'imagen' ? ' (foto)' : ' (video)'); }
     };
     r.readAsDataURL(f);
   });
@@ -4001,7 +4002,7 @@ async function actualizarChatMsgs() {
   }
   CHAT_LAST_MSG = msgs.length ? msgs[msgs.length - 1].id : 0;
   const eraAbajo = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
-  box.innerHTML = msgs.map(m => chatMsgHTML(m)).join('') || '<div class="empty">Decí hola 👋</div>';
+  box.innerHTML = msgs.map(m => chatMsgHTML(m)).join('') || '<div class="empty">Dec├¡ hola ≡ƒæï</div>';
   if (eraAbajo) box.scrollTop = box.scrollHeight;
 }
 
@@ -4013,7 +4014,7 @@ function chatMsgHTML(m) {
   return `<div class="chat-msg ${m.user_id === USER.id ? 'own' : ''}">
       ${texto}
       ${adj}
-      <div class="chat-meta">${esc(m.nombre)} · ${esc(m.fecha)}</div>
+      <div class="chat-meta">${esc(m.nombre)} ┬╖ ${esc(m.fecha)}</div>
     </div>`;
 }
 
@@ -4045,13 +4046,13 @@ async function enviarChat() {
 async function renderMuro(el) {
   const d = await api('/api/muro').catch(() => ({ muro: [] }));
   el.innerHTML = `
-    ${secHeader('📢 Muro de la academia')}
+    ${secHeader('≡ƒôó Muro de la academia')}
     <div class="card">
-      <textarea id="muroTexto" placeholder="¿Qué está pasando? Si subís una lucha, contá de quién es: nombres, categoría, premios..." style="width:100%;min-height:70px"></textarea>
-      <div class="small" style="color:var(--muted);margin:6px 0">🎥 ¿Subís una lucha? Pegá el link de YouTube o elegí un archivo, y escribí de quién es la lucha arriba.</div>
+      <textarea id="muroTexto" placeholder="┬┐Qu├⌐ est├í pasando? Si sub├¡s una lucha, cont├í de qui├⌐n es: nombres, categor├¡a, premios..." style="width:100%;min-height:70px"></textarea>
+      <div class="small" style="color:var(--muted);margin:6px 0">≡ƒÄÑ ┬┐Sub├¡s una lucha? Peg├í el link de YouTube o eleg├¡ un archivo, y escrib├¡ de qui├⌐n es la lucha arriba.</div>
       <input type="text" id="muroLink" placeholder="Link de YouTube de la lucha (ej: https://youtube.com/watch?v=...)" style="width:100%;margin-bottom:6px">
       <input type="file" id="muroVideo" accept="video/mp4,video/webm,video/ogg,video/quicktime" style="margin-bottom:6px">
-      <label class="small" style="display:block;color:var(--muted);margin:6px 0 2px">📷 Subir fotos (hasta 5)</label>
+      <label class="small" style="display:block;color:var(--muted);margin:6px 0 2px">≡ƒô╖ Subir fotos (hasta 5)</label>
       <input type="file" id="muroFoto" accept="image/*" style="margin-bottom:6px">
       <button class="btn primary btn-block mt" onclick="publicarMuro()">Publicar</button>
     </div>
@@ -4060,13 +4061,13 @@ async function renderMuro(el) {
         <div class="post-card">
           <div class="post-head">
             ${avatarHTML(p.foto, p.nombre, 'sm')} <b>${esc(p.nombre)}</b> ${p.cinturon ? beltHTML(p.cinturon) : ''}
-            <span class="small" style="color:var(--muted)">· ${esc(p.fecha)}</span>
-            ${p.user_id === USER.id ? `<button class="btn ghost small" style="margin-left:auto" onclick="borrarMuro(${p.id})">🗑</button>` : ''}
+            <span class="small" style="color:var(--muted)">┬╖ ${esc(p.fecha)}</span>
+            ${p.user_id === USER.id ? `<button class="btn ghost small" style="margin-left:auto" onclick="borrarMuro(${p.id})">≡ƒùæ</button>` : ''}
           </div>
           ${p.texto ? `<p style="margin:8px 0">${esc(p.texto)}</p>` : ''}
           ${p.video ? muroVideoHTML(p.video) : ''}
           ${(p.fotos || []).length ? `<div style="display:flex;flex-wrap:wrap;gap:10px">${p.fotos.slice(0,4).map(f => `<img loading="lazy" decoding="async" src="${esc(f)}" style="max-width:150px;max-height:150px;border-radius:8px;object-fit:cover;cursor:pointer" onclick="verFoto(this.src)">`).join('')}</div>` : ''}
-        </div>`).join('') : '<div class="empty">Todavía no hay publicaciones.</div>'}
+        </div>`).join('') : '<div class="empty">Todav├¡a no hay publicaciones.</div>'}
     </div>`;
 }
 
@@ -4074,7 +4075,7 @@ function muroVideoHTML(v) {
   if (v.tipo === 'link') {
     const yid = youtubeId(v.url);
     if (yid) return `<div class="post-media"><iframe src="https://www.youtube.com/embed/${yid}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
-    return `<div class="post-media post-media-link"><a href="${esc(v.url)}" target="_blank" rel="noopener">🎬 ${esc(v.url)}</a></div>`;
+    return `<div class="post-media post-media-link"><a href="${esc(v.url)}" target="_blank" rel="noopener">≡ƒÄ¼ ${esc(v.url)}</a></div>`;
   }
   return `<div class="post-media"><video controls preload="none" playsinline><source src="${esc(v.url)}"></video></div>`;
 }
@@ -4089,7 +4090,7 @@ async function publicarMuro() {
   const link = $('#muroLink').value.trim();
   const vfile = $('#muroVideo').files && $('#muroVideo').files[0];
   let video = null;
-  if (link && vfile) { toast('Elegí una sola lucha: link de YouTube O archivo'); return; }
+  if (link && vfile) { toast('Eleg├¡ una sola lucha: link de YouTube O archivo'); return; }
   if (link) video = { link };
   else if (vfile) {
     try {
@@ -4098,10 +4099,10 @@ async function publicarMuro() {
       video = { archivo: dataUrl };
     } catch (e) { toast('No se pudo leer el video'); return; }
   }
-  if (!texto && !foto && !video) { toast('Escribí algo, subí una foto o un video'); return; }
+  if (!texto && !foto && !video) { toast('Escrib├¡ algo, sub├¡ una foto o un video'); return; }
   try {
     await api('/api/muro', { method: 'POST', body: { texto, fotos: foto ? [foto] : [], video } });
-    toast('Publicado ✓');
+    toast('Publicado Γ£ô');
     renderMuro($('#sec-muro'));
   } catch (e) { toast(e.message); }
 }
@@ -4129,7 +4130,7 @@ function comprimirImagen(file, maxW = 900) {
         res(cv.toDataURL('image/jpeg', 0.72));
       } catch (e) { res(leerArchivoBase64(file)); }
     };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagen inválida')); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagen inv├ílida')); };
     img.src = url;
   });
 }
@@ -4139,23 +4140,23 @@ function verFoto(src) {
     <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
 }
 async function borrarMuro(id) {
-  if (!confirm('¿Eliminar esta publicación?')) return;
+  if (!confirm('┬┐Eliminar esta publicaci├│n?')) return;
   try { await api('/api/muro/' + id, { method: 'DELETE' }); renderMuro($('#sec-muro')); }
   catch (e) { toast(e.message); }
 }
 
 /* =====================================================================
-   GALERÍA DE FOTOS
+   GALER├ìA DE FOTOS
    ===================================================================== */
 async function renderGaleria(el) {
   const d = await api('/api/muro').catch(() => ({ muro: [] }));
   const fotos = [];
   d.muro.forEach(p => (p.fotos || []).forEach(f => fotos.push({ f, n: p.nombre })));
   el.innerHTML = `
-    ${secHeader('🖼️ Galería de fotos')}
+    ${secHeader('≡ƒû╝∩╕Å Galer├¡a de fotos')}
     <div class="card">${fotos.length
       ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">${fotos.map(x => `<div style="position:relative"><img loading="lazy" decoding="async" src="${esc(x.f)}" style="width:100%;height:120px;object-fit:cover;border-radius:10px;cursor:pointer" onclick="verFoto(this.src)"><span class="small" style="position:absolute;bottom:4px;left:6px;color:#fff;text-shadow:0 1px 2px #000">${esc(x.n)}</span></div>`).join('')}</div>`
-      : '<div class="empty">Aún no hay fotos. Publicá una en el Muro 🖼️</div>'}</div>`;
+      : '<div class="empty">A├║n no hay fotos. Public├í una en el Muro ≡ƒû╝∩╕Å</div>'}</div>`;
 }
 
 /* =====================================================================
@@ -4163,16 +4164,16 @@ async function renderGaleria(el) {
    ===================================================================== */
 async function renderRanking(el) {
   const d = await api('/api/ranking').catch(() => ({ ranking: [] }));
-  const medallas = ['🥇', '🥈', '🥉'];
+  const medallas = ['≡ƒÑç', '≡ƒÑê', '≡ƒÑë'];
   el.innerHTML = `
-    ${secHeader('🏆 Ranking de la academia')}
+    ${secHeader('≡ƒÅå Ranking de la academia')}
     <div class="card">
-      <p class="small">Puntos: <b>+2</b> por asistencia · <b>+5</b> por video completado · <b>+1</b> por video visto.</p>
+      <p class="small">Puntos: <b>+2</b> por asistencia ┬╖ <b>+5</b> por video completado ┬╖ <b>+1</b> por video visto.</p>
       ${d.ranking.length ? d.ranking.map((r, i) => `
         <div class="flex space-between" style="padding:10px 0;border-bottom:1px solid var(--line)">
-          <span>${medallas[i] || (i + 1) + 'º'} ${avatarHTML(r.foto, r.nombre, 'sm')} <b>${esc(r.nombre)}</b> ${r.cinturon ? beltHTML(r.cinturon) : ''}</span>
-          <span class="small">${r.asistencias} asist · ${r.completados} vid · <b style="color:var(--accent2)">${r.puntos} pts</b></span>
-        </div>`).join('') : '<div class="empty">Todavía no hay datos para ranking.</div>'}
+          <span>${medallas[i] || (i + 1) + '┬║'} ${avatarHTML(r.foto, r.nombre, 'sm')} <b>${esc(r.nombre)}</b> ${r.cinturon ? beltHTML(r.cinturon) : ''}</span>
+          <span class="small">${r.asistencias} asist ┬╖ ${r.completados} vid ┬╖ <b style="color:var(--accent2)">${r.puntos} pts</b></span>
+        </div>`).join('') : '<div class="empty">Todav├¡a no hay datos para ranking.</div>'}
     </div>`;
 }
 
@@ -4182,25 +4183,25 @@ async function renderRanking(el) {
 async function renderMetas(el) {
   const d = await api('/api/metas').catch(() => ({ metas: [] }));
   el.innerHTML = `
-    ${secHeader('🎯 Mis metas de entrenamiento')}
+    ${secHeader('≡ƒÄ» Mis metas de entrenamiento')}
     <div class="card">
       <form id="metaForm" class="grid2">
         <div class="field" style="grid-column:1/-1"><label>Meta</label><input id="mTitulo" placeholder="ej: Entrenar 3 veces por semana"></div>
         <div class="field"><label>Tipo</label><select id="mTipo"><option value="semanas">Por semana</option><option value="mes">Por mes</option><option value="objetivo">Objetivo puntual</option></select></div>
         <div class="field"><label>Objetivo (veces/valor)</label><input type="number" id="mObj" value="3"></div>
-        <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">＋ Agregar meta</button></div>
+        <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">∩╝ï Agregar meta</button></div>
       </form>
     </div>
     <div class="card">
       <h3>Mis metas</h3>
       ${d.metas.length ? d.metas.map(m => `
         <div class="flex space-between" style="padding:10px 0;border-bottom:1px solid var(--line)">
-          <span>${m.cumplida ? '✅' : '⭕'} <b>${esc(m.titulo)}</b> <span class="small" style="color:var(--muted)">(${esc(m.tipo)} · ${m.objetivo})</span></span>
+          <span>${m.cumplida ? 'Γ£à' : 'Γ¡ò'} <b>${esc(m.titulo)}</b> <span class="small" style="color:var(--muted)">(${esc(m.tipo)} ┬╖ ${m.objetivo})</span></span>
           <span>
-            ${m.cumplida ? `<button class="btn ghost small" onclick="metaCumplida(${m.id},0)">Desmarcar</button>` : `<button class="btn primary small" onclick="metaCumplida(${m.id},1)">Cumplida ✓</button>`}
-            <button class="btn ghost small" onclick="borrarMeta(${m.id})">🗑</button>
+            ${m.cumplida ? `<button class="btn ghost small" onclick="metaCumplida(${m.id},0)">Desmarcar</button>` : `<button class="btn primary small" onclick="metaCumplida(${m.id},1)">Cumplida Γ£ô</button>`}
+            <button class="btn ghost small" onclick="borrarMeta(${m.id})">≡ƒùæ</button>
           </span>
-        </div>`).join('') : '<div class="empty">No tenés metas todavía. Agrega la primera 🎯</div>'}
+        </div>`).join('') : '<div class="empty">No ten├⌐s metas todav├¡a. Agrega la primera ≡ƒÄ»</div>'}
     </div>`;
   $('#metaForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -4226,12 +4227,12 @@ async function renderEncuestas(el) {
   const d = await api('/api/encuestas').catch(() => ({ encuestas: [] }));
   const esStaff = USER.role !== 'alumno';
   el.innerHTML = `
-    ${secHeader('📊 Encuestas')}
+    ${secHeader('≡ƒôè Encuestas')}
     ${esStaff ? `<div class="card">
       <h3>Crear encuesta</h3>
       <form id="encForm" class="grid2">
         <div class="field" style="grid-column:1/-1"><label>Pregunta</label><input id="eTitulo"></div>
-        <div class="field" style="grid-column:1/-1"><label>Opciones (una por línea)</label><textarea id="eOpc" style="width:100%;min-height:70px" placeholder="Opción 1&#10;Opción 2&#10;Opción 3"></textarea></div>
+        <div class="field" style="grid-column:1/-1"><label>Opciones (una por l├¡nea)</label><textarea id="eOpc" style="width:100%;min-height:70px" placeholder="Opci├│n 1&#10;Opci├│n 2&#10;Opci├│n 3"></textarea></div>
         <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Publicar encuesta</button></div>
       </form>
     </div>` : ''}
@@ -4239,18 +4240,18 @@ async function renderEncuestas(el) {
       ${d.encuestas.length ? d.encuestas.map(e => {
         const total = e.conteo.reduce((a, b) => a + b, 0);
         return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
-          <b>${esc(e.titulo)}</b> <span class="small" style="color:var(--muted)">· ${total} voto${total === 1 ? '' : 's'}</span>
+          <b>${esc(e.titulo)}</b> <span class="small" style="color:var(--muted)">┬╖ ${total} voto${total === 1 ? '' : 's'}</span>
           ${e.opciones.map((o, i) => {
             const pct = total ? Math.round(e.conteo[i] * 100 / total) : 0;
             const esMi = e.mi_voto === i;
             return `<div style="margin-top:6px">
-              <div class="flex space-between"><span class="small">${esMi ? '✓ ' : ''}${esc(o)}</span><span class="small">${e.conteo[i]} · ${pct}%</span></div>
+              <div class="flex space-between"><span class="small">${esMi ? 'Γ£ô ' : ''}${esc(o)}</span><span class="small">${e.conteo[i]} ┬╖ ${pct}%</span></div>
               <button class="btn ghost small" style="width:100%;margin-top:2px" onclick="votarEncuesta(${e.id},${i})">${esMi ? 'Cambiar voto' : 'Votar'}</button>
               <div style="height:6px;background:var(--bg);border-radius:4px;margin-top:2px"><div style="height:100%;width:${pct}%;background:var(--red);border-radius:4px"></div></div>
             </div>`;
           }).join('')}
         </div>`;
-      }).join('') : '<div class="empty">No hay encuestas todavía.</div>'}
+      }).join('') : '<div class="empty">No hay encuestas todav├¡a.</div>'}
     </div>`;
   if (esStaff) $('#encForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -4275,38 +4276,38 @@ async function renderEventos(el) {
   const esStaff = USER.role !== 'alumno';
   EVENTOS_CACHE = {};
   el.innerHTML = `
-    ${secHeader('🗓️ Eventos y actividades')}
+    ${secHeader('≡ƒùô∩╕Å Eventos y actividades')}
     ${esStaff ? `<div class="card">
       <h3>Crear evento</h3>
       <form id="evForm" class="grid2">
-        <div class="field"><label>Título</label><input id="vTitulo"></div>
+        <div class="field"><label>T├¡tulo</label><input id="vTitulo"></div>
         <div class="field"><label>Fecha del evento</label><input type="date" id="vFecha"></div>
         <div class="field"><label>Hora</label><input type="time" id="vHora"></div>
         <div class="field"><label>Lugar</label><input id="vLugar"></div>
-        <div class="field" style="grid-column:1/-1"><label>Descripción</label><textarea id="vDesc" style="width:100%;min-height:60px"></textarea></div>
+        <div class="field" style="grid-column:1/-1"><label>Descripci├│n</label><textarea id="vDesc" style="width:100%;min-height:60px"></textarea></div>
         <div class="field" style="grid-column:1/-1"><label>Foto del evento / flyer (hasta 5)</label>
           <input type="file" id="vFotos" accept="image/*" multiple>
           <div class="flex wrap mt" id="vFotosPre" style="gap:10px"></div>
-          <small class="hint">Subí el cartel o flyer del evento. Queda visible para todos.</small>
+          <small class="hint">Sub├¡ el cartel o flyer del evento. Queda visible para todos.</small>
         </div>
         <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Publicar evento</button></div>
       </form>
     </div>` : ''}
-    <div class="card"><h3>Próximos eventos</h3>
+    <div class="card"><h3>Pr├│ximos eventos</h3>
       ${d.eventos.length ? d.eventos.map(ev => `
         <div class="flex space-between" style="padding:10px 0;border-bottom:1px solid var(--line)">
           <div>
             <b>${esc(ev.titulo)}</b>
-            <div class="small" style="color:var(--muted)">${esc(ev.fecha_evento)}${ev.hora ? ' · ' + esc(ev.hora) : ''}${ev.lugar ? ' · ' + esc(ev.lugar) : ''}</div>
+            <div class="small" style="color:var(--muted)">${esc(ev.fecha_evento)}${ev.hora ? ' ┬╖ ' + esc(ev.hora) : ''}${ev.lugar ? ' ┬╖ ' + esc(ev.lugar) : ''}</div>
             ${ev.descripcion ? `<div class="small">${esc(ev.descripcion)}</div>` : ''}
             ${ev.fotos && ev.fotos.length ? `<div class="flex wrap mt" style="gap:10px">${ev.fotos.map((f, i) => `<img src="${esc(f)}" data-foto-ev="${ev.id}" data-foto-i="${i}" onclick="abrirFotoEvento(this)" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer" title="Ver foto">`).join('')}</div>` : ''}
-            <div class="small" style="color:var(--muted)">👥 ${ev.asisten_conf} confirmaron</div>
+            <div class="small" style="color:var(--muted)">≡ƒæÑ ${ev.asisten_conf} confirmaron</div>
           </div>
           <span>
-            <button class="btn ${ev.voy ? 'ghost' : 'primary'} small" onclick="asistirEvento(${ev.id}, ${ev.voy ? 1 : 0})">${ev.voy ? 'No asistiré' : 'Voy a ir ✓'}</button>
-            ${USER.role === 'admin' ? `<button class="btn ghost small" onclick="borrarEvento(${ev.id})">🗑</button>` : ''}
+            <button class="btn ${ev.voy ? 'ghost' : 'primary'} small" onclick="asistirEvento(${ev.id}, ${ev.voy ? 1 : 0})">${ev.voy ? 'No asistir├⌐' : 'Voy a ir Γ£ô'}</button>
+            ${USER.role === 'admin' ? `<button class="btn ghost small" onclick="borrarEvento(${ev.id})">≡ƒùæ</button>` : ''}
           </span>
-        </div>`).join('') : '<div class="empty">No hay eventos próximos.</div>'}
+        </div>`).join('') : '<div class="empty">No hay eventos pr├│ximos.</div>'}
       </div>`;
   d.eventos.forEach(ev => { EVENTOS_CACHE[ev.id] = ev; });
   if (esStaff) {
@@ -4349,13 +4350,13 @@ async function asistirEvento(id, voy) {
   catch (e) { toast(e.message); }
 }
 async function borrarEvento(id) {
-  if (!confirm('¿Eliminar este evento?')) return;
+  if (!confirm('┬┐Eliminar este evento?')) return;
   try { await api('/api/eventos/' + id, { method: 'DELETE' }); renderEventos($('#sec-eventos')); }
   catch (e) { toast(e.message); }
 }
 
 /* =====================================================================
-   HISTORIAL CON GRÁFICOS
+   HISTORIAL CON GR├üFICOS
    ===================================================================== */
 async function renderHistorial(el) {
   const d = await api('/api/historial').catch(() => ({ pagos: [], asistencia: [] }));
@@ -4365,9 +4366,9 @@ async function renderHistorial(el) {
   const maxPagos = Math.max(1, ...pagos.map(p => p.monto));
   const maxAsis = Math.max(1, ...asis.map(a => a.alumnos));
   el.innerHTML = `
-    ${secHeader('📈 Historial financiero y asistencia')}
+    ${secHeader('≡ƒôê Historial financiero y asistencia')}
     <div class="card">
-      <h3>💵 Ingresos por mes</h3>
+      <h3>≡ƒÆ╡ Ingresos por mes</h3>
       ${pagos.length ? `<div style="display:flex;align-items:flex-end;gap:8px;height:180px;padding-top:10px">
         ${pagos.map(p => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end">
           <span class="small" style="color:var(--accent2)">$${num(p.monto)}</span>
@@ -4377,7 +4378,7 @@ async function renderHistorial(el) {
       </div>` : '<div class="empty">Sin pagos registrados.</div>'}
     </div>
     <div class="card">
-      <h3>🥋 Asistencia diaria (este mes)</h3>
+      <h3>≡ƒÑï Asistencia diaria (este mes)</h3>
       ${asis.length ? `<div style="display:flex;align-items:flex-end;gap:4px;height:160px;padding-top:10px;overflow-x:auto">
         ${asis.map(a => `<div style="flex:1;min-width:20px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end">
           <div style="width:100%;background:var(--blue);border-radius:4px 4px 0 0;height:${Math.max(4, Math.round(a.alumnos * 140 / maxAsis))}px"></div>
@@ -4387,7 +4388,7 @@ async function renderHistorial(el) {
     </div>
     <div class="card">
       <h3>Exportar</h3>
-      <button class="btn primary" onclick="exportarExcel()">⬇️ Exportar historial a Excel</button>
+      <button class="btn primary" onclick="exportarExcel()">Γ¼ç∩╕Å Exportar historial a Excel</button>
     </div>`;
 }
 
@@ -4398,36 +4399,36 @@ async function exportarExcel() {
   try {
     const hist = await api('/api/historial').catch(() => ({ pagos: [], asistencia: [] }));
     const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    let csv = '\uFEFFMes,Año,Ingresos,Cantidad\n';
+    let csv = '\uFEFFMes,A├▒o,Ingresos,Cantidad\n';
     (hist.pagos || []).forEach(p => csv += MESES[p.mes - 1] + ',' + p.anio + ',$' + p.monto + ',' + p.n + '\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'historial_nexo.csv';
     a.click();
-    toast('Historial exportado ✓');
+    toast('Historial exportado Γ£ô');
   } catch (e) { toast(e.message); }
 }
 
 /* =====================================================================
-   RECUPERAR CONTRASEÑA OLVIDADA
+   RECUPERAR CONTRASE├æA OLVIDADA
    ===================================================================== */
 async function guardarSeguridad() {
   const q = ($('#pSecQ')?.value || '').trim();
   const a = ($('#pSecA')?.value || '').trim();
   const np = ($('#pSecPass')?.value || '');
-  if (!q || !a) { toast('Completá la pregunta y la respuesta de seguridad'); return; }
+  if (!q || !a) { toast('Complet├í la pregunta y la respuesta de seguridad'); return; }
   try {
     await api('/api/perfil/seguridad', { method: 'PUT', body: { pregunta: q, respuesta: a, nueva_password: np } });
-    toast('Seguridad guardada ✓');
+    toast('Seguridad guardada Γ£ô');
   } catch (e) { toast(e.message); }
 }
 
 async function reiniciarPassword(id, nombre) {
   openModal(`
-    <h3>🔑 Reiniciar contraseña de ${esc(nombre)}</h3>
-    <p class="small">Poné una contraseña nueva para ${esc(nombre)}. Se le notificará que su contraseña fue reiniciada.</p>
-    <div class="field"><label>Contraseña nueva (mín. 4 caracteres)</label><input type="password" id="nuevaPass"></div>
+    <h3>≡ƒöæ Reiniciar contrase├▒a de ${esc(nombre)}</h3>
+    <p class="small">Pon├⌐ una contrase├▒a nueva para ${esc(nombre)}. Se le notificar├í que su contrase├▒a fue reiniciada.</p>
+    <div class="field"><label>Contrase├▒a nueva (m├¡n. 4 caracteres)</label><input type="password" id="nuevaPass"></div>
     <button class="btn primary btn-block" onclick="hacerReinicio(${id})">Guardar y notificar</button>
     <button class="btn ghost btn-block" onclick="closeModal()">Cancelar</button>
   `);
@@ -4435,11 +4436,11 @@ async function reiniciarPassword(id, nombre) {
 
 async function hacerReinicio(id) {
   const np = $('#nuevaPass')?.value || '';
-  if (np.length < 4) { toast('La contraseña debe tener al menos 4 caracteres'); return; }
+  if (np.length < 4) { toast('La contrase├▒a debe tener al menos 4 caracteres'); return; }
   try {
     await api('/api/usuarios/' + id + '/password', { method: 'POST', body: { password: np } });
     closeModal();
-    toast('Contraseña reiniciada ✓ Se notificó al alumno.');
+    toast('Contrase├▒a reiniciada Γ£ô Se notific├│ al alumno.');
   } catch (e) { toast(e.message); }
 }
 function overlayRecup(markup) {
@@ -4461,8 +4462,8 @@ function overlayRecupCerrar() {
 
 function abrirModalRecuperar() {
   overlayRecup(`
-    <h3 style="color:#fff;margin:0 0 14px">Recuperar contraseña</h3>
-    <p class="small" style="color:var(--muted,#b59cc9)">Escribí tu usuario. Si configuraste la pregunta de seguridad, la respondes para cambiar la clave. Si no, pedile al profe/admin que la reinicie.</p>
+    <h3 style="color:#fff;margin:0 0 14px">Recuperar contrase├▒a</h3>
+    <p class="small" style="color:var(--muted,#b59cc9)">Escrib├¡ tu usuario. Si configuraste la pregunta de seguridad, la respondes para cambiar la clave. Si no, pedile al profe/admin que la reinicie.</p>
     <div class="field"><label>Tu usuario</label><input id="recUser" placeholder="Tu usuario"></div>
     <div id="recPasso"></div>
     <button type="button" class="btn primary btn-block" onclick="recPaso1()">Continuar</button>
@@ -4472,7 +4473,7 @@ function abrirModalRecuperar() {
 
 async function recPaso1() {
   const user = ($('#recUser')?.value || '').trim();
-  if (!user) { toast('Escribí tu usuario'); return; }
+  if (!user) { toast('Escrib├¡ tu usuario'); return; }
   try {
     const d = await api('/api/recuperar', { method: 'POST', body: { username: user } });
     const passo = document.getElementById('recPasso');
@@ -4481,12 +4482,12 @@ async function recPaso1() {
         <div class="field" style="margin-top:10px"><label>Pregunta de seguridad</label>
           <input value="${esc(d.pregunta)}" disabled style="opacity:.7"></div>
         <div class="field"><label>Tu respuesta</label><input id="recResp" placeholder="Respuesta"></div>
-        <div class="field"><label>Contraseña nueva (mín. 4 caracteres)</label><input type="password" id="recNueva"></div>
-        <button type="button" class="btn primary btn-block" onclick="recPaso2('${escJs(user)}')">Cambiar mi contraseña</button>`;
+        <div class="field"><label>Contrase├▒a nueva (m├¡n. 4 caracteres)</label><input type="password" id="recNueva"></div>
+        <button type="button" class="btn primary btn-block" onclick="recPaso2('${escJs(user)}')">Cambiar mi contrase├▒a</button>`;
     } else {
       if (passo) passo.innerHTML = `
         <p style="color:var(--warn,#f1c40f)">${esc(d.error || 'No tiene pregunta de seguridad configurada.')}</p>
-        <p class="small" style="color:var(--muted,#b59cc9)">Pedile al profe/admin que reinicie tu contraseña desde la pantalla de Alumnos.</p>`;
+        <p class="small" style="color:var(--muted,#b59cc9)">Pedile al profe/admin que reinicie tu contrase├▒a desde la pantalla de Alumnos.</p>`;
     }
   } catch (e) {
     const passo = document.getElementById('recPasso');
@@ -4497,13 +4498,13 @@ async function recPaso1() {
 async function recPaso2(user) {
   const resp = ($('#recResp')?.value || '').trim();
   const nueva = $('#recNueva')?.value || '';
-  if (!resp) { toast('Respondé la pregunta de seguridad'); return; }
-  if (nueva.length < 4) { toast('La contraseña debe tener al menos 4 caracteres'); return; }
+  if (!resp) { toast('Respond├⌐ la pregunta de seguridad'); return; }
+  if (nueva.length < 4) { toast('La contrase├▒a debe tener al menos 4 caracteres'); return; }
   try {
     const d = await api('/api/recuperar/verificar', { method: 'POST', body: { username: user, respuesta: resp, nueva_password: nueva } });
     if (d.ok) {
       overlayRecupCerrar();
-      toast('Contraseña cambiada ✓ Ingresá con tu clave nueva.');
+      toast('Contrase├▒a cambiada Γ£ô Ingres├í con tu clave nueva.');
     }
   } catch (e) { toast(e.message); }
 }
@@ -4520,38 +4521,38 @@ async function renderDiario(el) {
     <div class="post-card">
       <div class="post-head">
         ${avatarHTML(e.autor_foto, e.autor_nombre, 'sm')} <b>${esc(e.autor_nombre)}</b>
-        <span class="small" style="color:var(--muted)">· ${esc(e.fecha)}</span>
-        ${esStaff ? `<button class="btn ghost small" style="margin-left:auto" onclick="borrarDiario(${e.id})">🗑</button>` : ''}
+        <span class="small" style="color:var(--muted)">┬╖ ${esc(e.fecha)}</span>
+        ${esStaff ? `<button class="btn ghost small" style="margin-left:auto" onclick="borrarDiario(${e.id})">≡ƒùæ</button>` : ''}
       </div>
       ${e.titulo ? `<h4 style="margin:8px 0 4px">${esc(e.titulo)}</h4>` : ''}
       ${e.texto ? `<p class="small" style="white-space:pre-wrap;margin:6px 0 0">${esc(e.texto)}</p>` : ''}
       ${e.foto ? `<img src="${esc(e.foto)}" style="max-width:100%;max-height:260px;border-radius:10px;margin-top:10px;object-fit:cover">` : ''}
     </div>`).join('');
   el.innerHTML = `
-    ${secHeader('📓 Diario de la academia', esStaff ? 'Escribí la crónica del día, lo que se trabajó y quiénes vinieron.' : 'La crónica diaria de lo que pasa en el dojo')}
+    ${secHeader('≡ƒôô Diario de la academia', esStaff ? 'Escrib├¡ la cr├│nica del d├¡a, lo que se trabaj├│ y qui├⌐nes vinieron.' : 'La cr├│nica diaria de lo que pasa en el dojo')}
     ${esStaff ? `
     <div class="card">
-      <div class="small mb">${yaHoy ? '✏️ Ya escribiste la crónica de hoy. Podés editarla:' : '📝 Crónica de hoy:'}</div>
-      <input id="diarioTitulo" placeholder="Título (ej: Trabajo de guardias)" value="${yaHoy ? esc(d.diario[0].titulo || '') : ''}" style="width:100%;margin-bottom:8px">
-      <textarea id="diarioTexto" rows="4" placeholder="Contá qué se trabajó hoy, quiénes vinieron, anécdotas..." style="width:100%">${yaHoy ? esc(d.diario[0].texto || '') : ''}</textarea>
-      <button class="btn primary btn-block mt" onclick="guardarDiario()">${yaHoy ? 'Actualizar crónica' : 'Guardar crónica de hoy'}</button>
+      <div class="small mb">${yaHoy ? 'Γ£Å∩╕Å Ya escribiste la cr├│nica de hoy. Pod├⌐s editarla:' : '≡ƒô¥ Cr├│nica de hoy:'}</div>
+      <input id="diarioTitulo" placeholder="T├¡tulo (ej: Trabajo de guardias)" value="${yaHoy ? esc(d.diario[0].titulo || '') : ''}" style="width:100%;margin-bottom:8px">
+      <textarea id="diarioTexto" rows="4" placeholder="Cont├í qu├⌐ se trabaj├│ hoy, qui├⌐nes vinieron, an├⌐cdotas..." style="width:100%">${yaHoy ? esc(d.diario[0].texto || '') : ''}</textarea>
+      <button class="btn primary btn-block mt" onclick="guardarDiario()">${yaHoy ? 'Actualizar cr├│nica' : 'Guardar cr├│nica de hoy'}</button>
     </div>
     ` : ''}
     <div class="feed">
-      ${entradas || '<div class="empty">Todavía no hay entradas en el diario.</div>'}
+      ${entradas || '<div class="empty">Todav├¡a no hay entradas en el diario.</div>'}
     </div>`;
 }
 
 async function guardarDiario() {
   try {
     await api('/api/diario', { method: 'POST', body: { titulo: $('#diarioTitulo').value, texto: $('#diarioTexto').value } });
-    toast('Crónica guardada ✓');
+    toast('Cr├│nica guardada Γ£ô');
     renderDiario($('#sec-diario'));
   } catch (e) { toast(e.message); }
 }
 
 async function borrarDiario(id) {
-  if (!confirm('¿Eliminar esta entrada del diario?')) return;
+  if (!confirm('┬┐Eliminar esta entrada del diario?')) return;
   try {
     await api('/api/diario/' + id, { method: 'DELETE' });
     toast('Entrada eliminada');
@@ -4569,42 +4570,42 @@ async function renderFamilias(el) {
   d.familias.forEach(f => (f.miembros || []).forEach(m => usadas.add(m.id)));
   const libres = alumnos.filter(a => !usadas.has(a.id));
   el.innerHTML = `
-    ${secHeader('👨‍👩‍👧 Grupos familiares', 'Agrupá familiares para cobrar la cuota con descuento a todos los integrantes')}
+    ${secHeader('≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº Grupos familiares', 'Agrup├í familiares para cobrar la cuota con descuento a todos los integrantes')}
     <div class="card">
       <div class="flex space-between" style="align-items:center;gap:8px;margin-bottom:8px">
-        <div class="field" style="flex:1;margin:0"><label>Nombre del grupo</label><input id="famNombre" placeholder="Ej: Familia García"></div>
+        <div class="field" style="flex:1;margin:0"><label>Nombre del grupo</label><input id="famNombre" placeholder="Ej: Familia Garc├¡a"></div>
         <div class="field" style="flex:1;margin:0"><label>Titular (primero)</label><select id="famTitular">
-          <option value="">— elegir —</option>
+          <option value="">ΓÇö elegir ΓÇö</option>
           ${libres.map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')}
         </select></div>
       </div>
-      <button class="btn primary btn-block" onclick="crearFamilia()">👨‍👩‍👧 Crear grupo familiar</button>
+      <button class="btn primary btn-block" onclick="crearFamilia()">≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº Crear grupo familiar</button>
     </div>
     <div class="feed">
       ${d.familias.length ? d.familias.map(f => `
         <div class="post-card">
           <div class="flex space-between" style="align-items:center">
-            <div><b>${esc(f.nombre)}</b> <span class="small" style="color:var(--muted)">· total <b>$${num(f.total)}</b>/mes</span></div>
+            <div><b>${esc(f.nombre)}</b> <span class="small" style="color:var(--muted)">┬╖ total <b>$${num(f.total)}</b>/mes</span></div>
             <div>
-              <button class="btn ghost small" onclick="editarNombreFamilia(${f.id},'${escJs(f.nombre)}')">✏️</button>
-              <button class="btn ghost small" onclick="verFamiliaModal(${f.id},'${escJs(f.nombre)}')">➕</button>
-              <button class="btn bad small" onclick="borrarFamilia(${f.id},'${escJs(f.nombre)}')">🗑</button>
+              <button class="btn ghost small" onclick="editarNombreFamilia(${f.id},'${escJs(f.nombre)}')">Γ£Å∩╕Å</button>
+              <button class="btn ghost small" onclick="verFamiliaModal(${f.id},'${escJs(f.nombre)}')">Γ₧ò</button>
+              <button class="btn bad small" onclick="borrarFamilia(${f.id},'${escJs(f.nombre)}')">≡ƒùæ</button>
             </div>
           </div>
           ${(f.miembros || []).map(m => `
             <div class="flex space-between" style="align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)">
               <span>${avatarHTML(m.foto, m.nombre, 'sm')} <b>${esc(m.nombre)}</b> ${m.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}
-                <span class="small" style="color:var(--muted)">· ${esc(m.relacion)}</span></span>
+                <span class="small" style="color:var(--muted)">┬╖ ${esc(m.relacion)}</span></span>
               <span class="small">$${num(m.cuota_final)}<br>${m.descuento ? '<span style="color:var(--good)">-' + num(m.descuento) + '</span>' : ''}</span>
-              <button class="btn ghost small" onclick="quitarMiembroFamilia(${f.id},${m.id},'${escJs(m.nombre)}')">✕</button>
+              <button class="btn ghost small" onclick="quitarMiembroFamilia(${f.id},${m.id},'${escJs(m.nombre)}')">Γ£ò</button>
             </div>`).join('') || '<div class="empty">Sin miembros</div>'}
-        </div>`).join('') : '<div class="empty">Todavía no hay grupos familiares. Creá el primero arriba.</div>'}
+        </div>`).join('') : '<div class="empty">Todav├¡a no hay grupos familiares. Cre├í el primero arriba.</div>'}
     </div>`;
 }
 
 async function editarNombreFamilia(id, nombre) {
   openModal(`
-    <h3>✏️ Renombrar grupo</h3>
+    <h3>Γ£Å∩╕Å Renombrar grupo</h3>
     <div class="field"><label>Nombre del grupo</label><input id="efNombre" value="${esc(nombre)}"></div>
     <button class="btn primary btn-block" onclick="guardarNombreFamilia(${id})">Guardar</button>
     <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
@@ -4613,13 +4614,13 @@ async function editarNombreFamilia(id, nombre) {
 async function guardarNombreFamilia(id) {
   try {
     await api('/api/familias/' + id, { method: 'PUT', body: { nombre: $('#efNombre').value } });
-    toast('Grupo renombrado ✓');
+    toast('Grupo renombrado Γ£ô');
     closeModal();
     renderFamilias($('#sec-familias'));
   } catch (e) { toast(e.message); }
 }
 async function borrarFamilia(id, nombre) {
-  if (!confirm('¿Eliminar el grupo familiar "' + nombre + '"?')) return;
+  if (!confirm('┬┐Eliminar el grupo familiar "' + nombre + '"?')) return;
   try {
     await api('/api/familias/' + id, { method: 'DELETE' });
     toast('Grupo eliminado');
@@ -4627,7 +4628,7 @@ async function borrarFamilia(id, nombre) {
   } catch (e) { toast(e.message); }
 }
 async function quitarMiembroFamilia(fid, uid, nombre) {
-  if (!confirm('¿Sacar a ' + nombre + ' del grupo?')) return;
+  if (!confirm('┬┐Sacar a ' + nombre + ' del grupo?')) return;
   try {
     await api('/api/familias/' + fid + '/miembros/' + uid, { method: 'DELETE' });
     toast(nombre + ' fue sacado del grupo');
@@ -4636,10 +4637,10 @@ async function quitarMiembroFamilia(fid, uid, nombre) {
 }
 async function crearFamilia() {
   const nombre = $('#famNombre').value.trim();
-  if (!nombre) { toast('Poné un nombre al grupo'); return; }
+  if (!nombre) { toast('Pon├⌐ un nombre al grupo'); return; }
   try {
     await api('/api/familias', { method: 'POST', body: { nombre, titular_id: $('#famTitular').value } });
-    toast('Grupo familiar creado ✓');
+    toast('Grupo familiar creado Γ£ô');
     renderFamilias($('#sec-familias'));
   } catch (e) { toast(e.message); }
 }
@@ -4654,29 +4655,29 @@ async function verFamiliaModal(fid, nombre) {
     a.filter(x => !usadas.has(x.id)).forEach(x => libres.push(x));
   } catch (e) {}
   openModal(`
-    <h3>👨‍👩‍👧 ${esc(nombre)}</h3>
+    <h3>≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº ${esc(nombre)}</h3>
     ${(f.miembros || []).map(m => `
       <div class="flex space-between" style="align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)">
-        <span>${avatarHTML(m.foto, m.nombre, 'sm')} <b>${esc(m.nombre)}</b> <span class="small" style="color:var(--muted)">· ${esc(m.relacion)}</span> ${m.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}</span>
-        <button class="btn ghost small" onclick="quitarMiembroFamilia(${fid},${m.id},'${escJs(m.nombre)}')">✕</button>
+        <span>${avatarHTML(m.foto, m.nombre, 'sm')} <b>${esc(m.nombre)}</b> <span class="small" style="color:var(--muted)">┬╖ ${esc(m.relacion)}</span> ${m.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}</span>
+        <button class="btn ghost small" onclick="quitarMiembroFamilia(${fid},${m.id},'${escJs(m.nombre)}')">Γ£ò</button>
       </div>`).join('')}
     <div class="field mt"><label>Agregar miembro</label><select id="fmUser">
-      <option value="">— elegir alumno —</option>
+      <option value="">ΓÇö elegir alumno ΓÇö</option>
       ${libres.map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')}
     </select></div>
-    <div class="field"><label>Relación</label><select id="fmRel">
+    <div class="field"><label>Relaci├│n</label><select id="fmRel">
       <option>Hijo/a</option><option>Hija</option><option>Pareja</option>
-      <option>Mamá</option><option>Papá</option><option>Hermano/a</option><option>Familiar</option>
+      <option>Mam├í</option><option>Pap├í</option><option>Hermano/a</option><option>Familiar</option>
     </select></div>
-    <button class="btn primary btn-block" onclick="agregarMiembroFamilia(${fid})">➕ Agregar al grupo</button>
+    <button class="btn primary btn-block" onclick="agregarMiembroFamilia(${fid})">Γ₧ò Agregar al grupo</button>
     <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
 }
 async function agregarMiembroFamilia(fid) {
   const uid = $('#fmUser').value;
-  if (!uid) { toast('Elegí un alumno'); return; }
+  if (!uid) { toast('Eleg├¡ un alumno'); return; }
   try {
     await api('/api/familias/' + fid + '/miembros', { method: 'POST', body: { user_id: uid, relacion: $('#fmRel').value } });
-    toast('Miembro agregado ✓');
+    toast('Miembro agregado Γ£ô');
     closeModal();
     renderFamilias($('#sec-familias'));
   } catch (e) { toast(e.message); }
@@ -4706,14 +4707,14 @@ async function renderMiDinero(el) {
         { lbl: `Tatami y academia (${p.tatami}%)`, val: dmap.tatami || 0, color: '#7c6cf0' },
         { lbl: `Administrativo (${p.administrativo}%)`, val: dmap.administrativo || 0, color: '#e0a13a' },
       ];
-      html += `<div class="card"><h3>💼 Cómo se dividió lo cobrado</h3>
+      html += `<div class="card"><h3>≡ƒÆ╝ C├│mo se dividi├│ lo cobrado</h3>
         <div class="home-grid">
           ${buckets.map(b => `<div class="stat-card"><div class="num" style="color:${b.color}">$${num(b.val)}</div><div class="lbl">${b.lbl}</div></div>`).join('')}
         </div>
         <div class="small" style="color:var(--muted);margin-top:8px">
-          Total cobrado ${d.mes}/${d.anio}: $${num(cobrado)} · ${(d.pagos || []).length} partes de profes
+          Total cobrado ${d.mes}/${d.anio}: $${num(cobrado)} ┬╖ ${(d.pagos || []).length} partes de profes
         </div>
-        ${cobrado > 0 && !dmap.tatami ? `<div class="small" style="color:var(--muted)">Tatami y administrativo aparecen desde que se activó el reparto 60/30/10: los pagos anteriores no se dividen.</div>` : ''}
+        ${cobrado > 0 && !dmap.tatami ? `<div class="small" style="color:var(--muted)">Tatami y administrativo aparecen desde que se activ├│ el reparto 60/30/10: los pagos anteriores no se dividen.</div>` : ''}
       </div>`;
     } else {
       html += `<div class="card"><div class="home-grid">
@@ -4722,7 +4723,7 @@ async function renderMiDinero(el) {
     }
     if (esAdmin && (d.por_profesor || []).length) {
       const base = cobrado || tot;
-      html += `<div class="card"><h3>👥 Cuánto le tocó a cada profesor</h3>
+      html += `<div class="card"><h3>≡ƒæÑ Cu├ínto le toc├│ a cada profesor</h3>
         <div style="overflow:auto"><table>
           <tr><th>Profesor</th><th>Total ${d.mes}/${d.anio}</th><th>% de lo cobrado</th></tr>
           ${d.por_profesor.map(pr => {
@@ -4734,23 +4735,23 @@ async function renderMiDinero(el) {
           }).join('')}
         </table></div></div>`;
     }
-    html += `<div class="card"><h3>🧾 Detalle de pagos</h3>
+    html += `<div class="card"><h3>≡ƒº╛ Detalle de pagos</h3>
       <div style="overflow:auto"><table>
-        <tr><th>Fecha</th><th>Alumno</th><th>Actividad</th>${esAdmin ? '<th>Profesor</th>' : ''}<th>Mes</th><th>Método</th><th>${esAdmin ? 'Parte del profesor' : 'Mi parte'}</th></tr>
+        <tr><th>Fecha</th><th>Alumno</th><th>Actividad</th>${esAdmin ? '<th>Profesor</th>' : ''}<th>Mes</th><th>M├⌐todo</th><th>${esAdmin ? 'Parte del profesor' : 'Mi parte'}</th></tr>
         ${(d.pagos || []).length ? d.pagos.map(p => `<tr>
           <td>${esc(p.fecha)}</td>
-          <td>${esc(p.alumno || '—')}</td>
-          <td>${p.actividad ? `<span class="tag">${esc(p.actividad)}</span>` : '—'}</td>
-          ${esAdmin ? `<td>${esc(p.profesor || '—')}</td>` : ''}
+          <td>${esc(p.alumno || 'ΓÇö')}</td>
+          <td>${p.actividad ? `<span class="tag">${esc(p.actividad)}</span>` : 'ΓÇö'}</td>
+          ${esAdmin ? `<td>${esc(p.profesor || 'ΓÇö')}</td>` : ''}
           <td>${p.mes}/${p.anio}</td><td>${esc(p.metodo || '')}</td>
           <td><b style="color:var(--good)">$${num(p.monto)}</b></td></tr>`).join('')
-          : '<tr><td colspan="7" class="empty">Todavía no hay pagos repartidos</td></tr>'}
+          : '<tr><td colspan="7" class="empty">Todav├¡a no hay pagos repartidos</td></tr>'}
       </table></div></div>`;
     el.innerHTML = el.innerHTML + html;
   } catch (e) { toast(e.message); }
 }
 
-const DESTINOS_EXTRA = ['Fondo academia', 'Viaje a competencia', 'Seminario', 'Cuota de un día', 'Equipamiento', 'Otro'];
+const DESTINOS_EXTRA = ['Fondo academia', 'Viaje a competencia', 'Seminario', 'Cuota de un d├¡a', 'Equipamiento', 'Otro'];
 
 async function renderIngresosExtra(el) {
   const esAdmin = USER.role === 'admin';
@@ -4761,12 +4762,12 @@ async function renderIngresosExtra(el) {
     <div class="card">
       <form id="ieForm" class="grid2">
         <div class="field"><label>Monto ($)</label><input type="number" step="0.01" id="ieMonto" required placeholder="0"></div>
-        <div class="field"><label>Concepto</label><input type="text" id="ieConcepto" required placeholder="Ej: Cuota de un día"></div>
+        <div class="field"><label>Concepto</label><input type="text" id="ieConcepto" required placeholder="Ej: Cuota de un d├¡a"></div>
         <div class="field"><label>Destino del dinero</label><select id="ieDestino">${DESTINOS_EXTRA.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>
-        <div class="field"><label>Alumno (opcional)</label><select id="ieAlumno"><option value="">— ninguno —</option></select></div>
-        <div class="field"><label>Método</label><select id="ieMetodo">${METODOS.map(m => `<option>${esc(m)}</option>`).join('')}</select></div>
+        <div class="field"><label>Alumno (opcional)</label><select id="ieAlumno"><option value="">ΓÇö ninguno ΓÇö</option></select></div>
+        <div class="field"><label>M├⌐todo</label><select id="ieMetodo">${METODOS.map(m => `<option>${esc(m)}</option>`).join('')}</select></div>
         <div class="field"><label>Nota (opcional)</label><input type="text" id="ieNota" placeholder="Ej: viaje a Bs.As."></div>
-        <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">🎁 Registrar ingreso al fondo</button></div>
+        <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">≡ƒÄü Registrar ingreso al fondo</button></div>
       </form>
     </div>
     <div id="ieResumen"></div>`;
@@ -4781,27 +4782,27 @@ async function renderIngresosExtra(el) {
           <div class="stat-card"><div class="num" style="color:var(--accent2)">$${num(d.total_all || 0)}</div><div class="lbl">Fondo acumulado</div></div>
         </div>
       </div>
-      ${(d.por_destino || []).length ? `<div class="card"><h3>🎯 Por destino</h3>
+      ${(d.por_destino || []).length ? `<div class="card"><h3>≡ƒÄ» Por destino</h3>
         <div style="overflow:auto"><table><tr><th>Destino</th><th>Total</th></tr>
         ${d.por_destino.map(x => `<tr><td>${esc(x.destino)}</td><td><b>$${num(x.total)}</b></td></tr>`).join('')}
         </table></div></div>` : ''}
-      <div class="card"><h3>📋 Historial</h3>
+      <div class="card"><h3>≡ƒôï Historial</h3>
         <div style="overflow:auto"><table>
-          <tr><th>Fecha</th><th>Concepto</th><th>Destino</th><th>Alumno</th><th>Mes</th><th>Método</th><th>Monto</th>${esAdmin ? '<th></th>' : ''}</tr>
+          <tr><th>Fecha</th><th>Concepto</th><th>Destino</th><th>Alumno</th><th>Mes</th><th>M├⌐todo</th><th>Monto</th>${esAdmin ? '<th></th>' : ''}</tr>
           ${(d.ingresos || []).length ? d.ingresos.map(x => `<tr>
             <td>${esc(x.fecha)}</td><td>${esc(x.concepto)}</td>
-            <td>${esc(x.destino || '—')}</td><td>${esc(x.alumno || '—')}</td>
+            <td>${esc(x.destino || 'ΓÇö')}</td><td>${esc(x.alumno || 'ΓÇö')}</td>
             <td>${x.mes}/${x.anio}</td><td>${esc(x.metodo || '')}</td>
             <td><b>$${num(x.monto)}</b></td>
-            ${esAdmin ? `<td><button class="btn bad small" onclick="borrarIngresoExtra(${x.id})">🗑</button></td>` : ''}
-          </tr>`).join('') : '<tr><td colspan="8" class="empty">Todavía no hay ingresos extra</td></tr>'}
+            ${esAdmin ? `<td><button class="btn bad small" onclick="borrarIngresoExtra(${x.id})">≡ƒùæ</button></td>` : ''}
+          </tr>`).join('') : '<tr><td colspan="8" class="empty">Todav├¡a no hay ingresos extra</td></tr>'}
         </table></div></div>`;
 
     const sel = document.getElementById('ieAlumno');
     if (sel && sel.options.length <= 1) {
       try {
         const a = await api('/api/alumnos');
-        sel.innerHTML = '<option value="">— ninguno —</option>' +
+        sel.innerHTML = '<option value="">ΓÇö ninguno ΓÇö</option>' +
           (a.alumnos || []).map(x => `<option value="${x.id}">${esc(x.nombre)}</option>`).join('');
       } catch (e) {}
     }
@@ -4819,14 +4820,14 @@ async function renderIngresosExtra(el) {
         metodo: document.getElementById('ieMetodo').value,
         nota: document.getElementById('ieNota').value
       } });
-      toast('Ingreso registrado en el fondo ✓');
+      toast('Ingreso registrado en el fondo Γ£ô');
       renderIngresosExtra(el);
     } catch (e) { toast(e.message); }
   });
 }
 
 async function borrarIngresoExtra(id) {
-  if (!confirm('¿Borrar este ingreso del fondo?')) return;
+  if (!confirm('┬┐Borrar este ingreso del fondo?')) return;
   try {
     await api('/api/ingresos_extra/' + id, { method: 'DELETE' });
     toast('Borrado');
@@ -4835,7 +4836,7 @@ async function borrarIngresoExtra(id) {
 }
 
 async function renderDescuentos(el) {
-  el.innerHTML = secHeader('Descuentos') + '<div class="small" style="color:var(--muted);padding:0 4px 10px">Cuánto paga cada alumno: precio por cantidad de actividades y descuento del grupo familiar.</div>';
+  el.innerHTML = secHeader('Descuentos') + '<div class="small" style="color:var(--muted);padding:0 4px 10px">Cu├ínto paga cada alumno: precio por cantidad de actividades y descuento del grupo familiar.</div>';
   try {
     const P = window.NEXO_PRECIOS || [0, 0, 0];
     const cfg = await api('/api/settings').catch(() => ({}));
@@ -4845,24 +4846,24 @@ async function renderDescuentos(el) {
 
     let html = `
     <div class="card">
-      <h3>📐 Precio según actividades</h3>
+      <h3>≡ƒôÉ Precio seg├║n actividades</h3>
       <div class="home-grid">
         <div class="stat-card"><div class="num">$${num(P[0])}</div><div class="lbl">1 actividad</div></div>
         <div class="stat-card"><div class="num">$${num(P[1])}</div><div class="lbl">2 actividades</div></div>
-        <div class="stat-card"><div class="num">$${num(P[2])}</div><div class="lbl">3 o más</div></div>
+        <div class="stat-card"><div class="num">$${num(P[2])}</div><div class="lbl">3 o m├ís</div></div>
       </div>
       <p class="small" style="color:var(--muted)">Se cobra por la cantidad de actividades en las que entrena el alumno, no por la cantidad de profesores.</p>
     </div>
     <div class="card">
-      <h3>👨‍👩‍👧 Descuento familiar</h3>
-      <p class="small" style="color:var(--muted)">2 integrantes: ${d2}% · 3: ${d3}% · 4 o más: ${d4}% (se cambian en Configuración)</p>
+      <h3>≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº Descuento familiar</h3>
+      <p class="small" style="color:var(--muted)">2 integrantes: ${d2}% ┬╖ 3: ${d3}% ┬╖ 4 o m├ís: ${d4}% (se cambian en Configuraci├│n)</p>
     </div>`;
 
     let fam = { familias: [] };
     try { fam = await api('/api/familias'); } catch (e) {}
     const fams = (fam.familias || []).filter(f => (f.miembros || []).length > 1);
     if (fams.length) {
-      html += `<div class="card"><h3>👨‍👩‍👧 Quién está en cada familia</h3>` + fams.map(f => {
+      html += `<div class="card"><h3>≡ƒæ¿ΓÇì≡ƒæ⌐ΓÇì≡ƒæº Qui├⌐n est├í en cada familia</h3>` + fams.map(f => {
         const n = (f.miembros || []).length;
         const pct = n >= 4 ? d4 : n === 3 ? d3 : n === 2 ? d2 : 0;
         const miembros = (f.miembros || []).map(m => {
@@ -4878,11 +4879,11 @@ async function renderDescuentos(el) {
         return `<div style="margin-bottom:18px">
           <div class="flex space-between" style="margin-bottom:6px">
             <b>${esc(f.nombre || 'Familia')}</b>
-            <span class="small" style="color:var(--accent2)">${n} integrantes${pct ? ` · ${pct}% de descuento` : ' · sin descuento'}</span>
+            <span class="small" style="color:var(--accent2)">${n} integrantes${pct ? ` ┬╖ ${pct}% de descuento` : ' ┬╖ sin descuento'}</span>
           </div>${miembros}</div>`;
       }).join('') + `</div>`;
     } else {
-      html += `<div class="card"><div class="empty">Todavía no hay grupos familiares con más de un integrante</div></div>`;
+      html += `<div class="card"><div class="empty">Todav├¡a no hay grupos familiares con m├ís de un integrante</div></div>`;
     }
     el.innerHTML = el.innerHTML + html;
   } catch (e) { toast(e.message); }

@@ -1058,6 +1058,7 @@ def _init_db_body(db):
     promo = c.execute("SELECT value FROM settings WHERE k='_doble_rol_sebastian'").fetchone()
     if not (promo and promo['value']):
         c.execute("UPDATE users SET es_admin=1 WHERE nombre='Sebastian Torres'")
+        c.execute("UPDATE users SET es_admin=1 WHERE role='admin'")
         c.execute(
             "INSERT OR IGNORE INTO settings(k, value) VALUES('_doble_rol_sebastian','1')")
     # admin por defecto

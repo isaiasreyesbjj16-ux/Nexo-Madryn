@@ -7331,6 +7331,60 @@ def api_exportar_pagos():
                       p['registro_por'] or '', p['mes'], p['anio']]
                      for p in rows_pagos])
 
+    # Hoja 3: como se divide cada pago (60% profesores, 30% tatami y academia,
+    # 10% administrativo), con el total del ano por destino.
+    def col_destino_profesor(nombre):
+        return 'Profesor: %s' % nombre
+
+    def _pct(part, total):
+        if not total:
+            return ''
+        return '%d%%' % min(100, round((part or 0) * 100 / total))
+
+    rows_division = []
+    totales = {}
+    for p in rows_pagos:
+        monto_pago = p['monto'] or 0
+        partes = partes_por_pago.get(p['id']) or []
+        dests = destinos_por_pago.get(p['id']) or []
+        if not partes and not dests:
+            rows_division.append([p['id'], p['fecha'], p['mes'], p['anio'], p['alumno'],
+                                  p['concepto'] or '', _m(monto_pago),
+                                  'sin reparto registrado', '', '', ''])
+            continue
+        for x in partes:
+            etiqueta = col_destino_profesor(
+                x['prof_nombre'] or ('Profesor #%s' % x['profesor_id']))
+            m = x['monto'] or 0
+            rows_division.append([p['id'], p['fecha'], p['mes'], p['anio'], p['alumno'],
+                                  p['concepto'] or '', _m(monto_pago), etiqueta,
+                                  x['actividad'] or '', _m(m), _pct(m, monto_pago)])
+            totales[etiqueta] = round(totales.get(etiqueta, 0) + m, 2)
+        for d in dests:
+            etiqueta = DESTINOS_PAGO.get(d['destino'], d['destino'])
+            m = d['monto'] or 0
+            rows_division.append([p['id'], p['fecha'], p['mes'], p['anio'], p['alumno'],
+                                  p['concepto'] or '', _m(monto_pago), etiqueta,
+                                  '', _m(m), _pct(m, monto_pago)])
+            totales[etiqueta] = round(totales.get(etiqueta, 0) + m, 2)
+
+    if totales:
+        rows_division.append([''] * 11)
+        rows_division.append(['TOTAL DEL AÑO', '', '', '', '', '', '',
+                              'Destino', '', 'Monto ($)', '% sobre total'])
+        total_gral = round(sum(totales.values()), 2)
+        for etiqueta in sorted(totales, key=lambda k: -totales[k]):
+            m = totales[etiqueta]
+            rows_division.append(['', '', '', '', '', '', '', etiqueta, '', _m(m),
+                                  _pct(m, total_gral)])
+        rows_division.append(['', '', '', '', '', '', '', 'TOTAL', '', _m(total_gral),
+                              '100%'])
+
+    headers_division = ['Pago ID', 'Fecha', 'Mes', 'Año', 'Alumno', 'Concepto',
+                        'Monto del pago ($)', 'Destino', 'Actividad', 'Monto ($)',
+                        '% del pago']
+    sh3 = sheet_xml(headers_division, rows_division)
+
     shared = (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="0" uniqueCount="0"></sst>'
@@ -7361,6 +7415,7 @@ def api_exportar_pagos():
                 '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
                 '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
                 '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+                '<Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
                 '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
                 '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>'
                 '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
@@ -7371,15 +7426,17 @@ def api_exportar_pagos():
                 '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
                 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
                 '<sheets><sheet name="Resumen anual" sheetId="1" r:id="rId1"/>'
-                '<sheet name="Detalle pagos" sheetId="2" r:id="rId2"/></sheets></workbook>')
+                '<sheet name="Detalle pagos" sheetId="2" r:id="rId2"/>'
+                '<sheet name="División de pagos" sheetId="3" r:id="rId3"/></sheets></workbook>')
 
     def workbook_rels():
         return ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                 '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
                 '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
                 '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>'
-                '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
-                '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
+                '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>'
+                '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+                '<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
                 '</Relationships>')
 
     def core():
@@ -7401,6 +7458,7 @@ def api_exportar_pagos():
         z.writestr('xl/_rels/workbook.xml.rels', workbook_rels())
         z.writestr('xl/worksheets/sheet1.xml', sh1)
         z.writestr('xl/worksheets/sheet2.xml', sh2)
+        z.writestr('xl/worksheets/sheet3.xml', sh3)
         z.writestr('xl/styles.xml', styles)
         z.writestr('xl/sharedStrings.xml', shared)
     buf.seek(0)

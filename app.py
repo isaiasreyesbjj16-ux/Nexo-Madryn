@@ -5729,24 +5729,29 @@ def api_ingresos_extra_delete(eid):
 def api_metricas_pagos():
     anio = to_int(request.args.get('anio')) or _hoy_academy().year
     db = get_db()
-    universo_ids = {r['id'] for r in db.execute(
-        "SELECT id FROM users WHERE role IN ('alumno','profesor') AND activo=1 "
-        "AND cuota_mensual IS NOT NULL").fetchall()}
-    total_alumnos = len(universo_ids)
+    total_alumnos = db.execute(
+        "SELECT COUNT(*) AS n FROM users WHERE role IN ('alumno','profesor') "
+        "AND activo=1 AND cuota_mensual IS NOT NULL").fetchone()['n']
+    # 3 agregados en vez de 3 queries por mes (37 round-trips antes)
+    ingresos_mes = {r['mes']: r['n'] for r in db.execute(
+        'SELECT mes, COALESCE(SUM(monto),0) AS n FROM pagos WHERE anio=? GROUP BY mes',
+        (anio,)).fetchall()}
+    cantidad_mes = {r['mes']: r['n'] for r in db.execute(
+        'SELECT mes, COUNT(*) AS n FROM pagos WHERE anio=? GROUP BY mes',
+        (anio,)).fetchall()}
+    # solo cuentan los que hoy siguen activos y con cuota: si no, dar de baja
+    # a alguien hace que el mes aparezca con mas del 100% pagado.
+    pagaron_mes = {r['mes']: r['n'] for r in db.execute(
+        'SELECT p.mes, COUNT(DISTINCT p.alumno_id) AS n FROM pagos p '
+        'JOIN users u ON u.id=p.alumno_id '
+        "WHERE p.anio=? AND u.role IN ('alumno','profesor') AND u.activo=1 "
+        'AND u.cuota_mensual IS NOT NULL GROUP BY p.mes',
+        (anio,)).fetchall()}
     serie = []
     for mes in range(1, 13):
-        ingresos = db.execute(
-            'SELECT COALESCE(SUM(monto),0) AS n FROM pagos WHERE mes=? AND anio=?',
-            (mes, anio)).fetchone()['n']
-        cantidad = db.execute(
-            'SELECT COUNT(*) AS n FROM pagos WHERE mes=? AND anio=?',
-            (mes, anio)).fetchone()['n']
-        # solo cuentan los que hoy siguen activos y con cuota: si no, dar de baja
-        # a alguien hace que el mes aparezca con mas del 100% pagado.
-        ids_pagaron = {r['alumno_id'] for r in db.execute(
-            'SELECT DISTINCT alumno_id FROM pagos WHERE mes=? AND anio=?',
-            (mes, anio)).fetchall()}
-        cant_pagaron = len(ids_pagaron & universo_ids)
+        ingresos = ingresos_mes.get(mes, 0)
+        cantidad = cantidad_mes.get(mes, 0)
+        cant_pagaron = pagaron_mes.get(mes, 0)
         pct_pagaron = min(100, round(cant_pagaron * 100 / total_alumnos)) if total_alumnos else 0
         serie.append({
             'mes': mes,
@@ -5775,17 +5780,22 @@ def api_chats():
         'SELECT c.* FROM chats c JOIN chat_members m ON m.chat_id=c.id '
         'WHERE m.user_id=? ORDER BY c.id DESC', (u['id'],)).fetchall()
     chats = []
+    # 2 agregados en vez de 1-2 queries por chat
+    miembros = {m['chat_id']: m['n'] for m in db.execute(
+        'SELECT chat_id, COUNT(*) AS n FROM chat_members GROUP BY chat_id').fetchall()}
+    otros = {}
+    for m in db.execute(
+            'SELECT m.chat_id, u.id, u.nombre FROM chat_members m JOIN users u ON u.id=m.user_id '
+            'WHERE m.user_id<>? ORDER BY u.id', (u['id'],)).fetchall():
+        if m['chat_id'] not in otros:
+            otros[m['chat_id']] = m
     for c in rows:
         nombre = c['nombre']
         if c['tipo'] == 'grupo':
-            miembros = db.execute(
-                'SELECT COUNT(*) AS n FROM chat_members WHERE chat_id=?', (c['id'],)).fetchone()['n']
             chats.append({'id': c['id'], 'nombre': nombre or 'Grupo', 'tipo': c['tipo'],
-                          'miembros': miembros})
+                          'miembros': miembros.get(c['id'], 0)})
         else:
-            otro = db.execute(
-                'SELECT u.id, u.nombre FROM users u JOIN chat_members m ON m.user_id=u.id '
-                'WHERE m.chat_id=? AND u.id<>?', (c['id'], u['id'])).fetchone()
+            otro = otros.get(c['id'])
             chats.append({'id': c['id'], 'nombre': (otro['nombre'] if otro else 'Chat'),
                           'tipo': c['tipo']})
     return jsonify({'chats': chats})
@@ -6213,12 +6223,20 @@ def api_muro():
     filas = db.execute(
         'SELECT m.*, us.nombre, us.cinturon '
         'FROM muro m JOIN users us ON us.id=m.user_id ORDER BY m.id DESC LIMIT 100').fetchall()
+    # 2 agregados en vez de 2 queries por post
+    fotos_por_muro = {}
+    for f in db.execute('SELECT muro_id, id FROM muro_fotos ORDER BY id').fetchall():
+        fotos_por_muro.setdefault(f['muro_id'], []).append(f['id'])
+    video_por_muro = {}
+    for v in db.execute('SELECT muro_id, id, url, tipo FROM muro_videos ORDER BY id').fetchall():
+        # "el primero de cada muro", igual que el LIMIT 1 anterior
+        if v['muro_id'] not in video_por_muro:
+            video_por_muro[v['muro_id']] = v
     out = []
     for r in filas:
-        ids = [f['id'] for f in db.execute(
-            'SELECT id FROM muro_fotos WHERE muro_id=?', (r['id'],)).fetchall()]
-        v = db.execute('SELECT id, url, tipo FROM muro_videos WHERE muro_id=? ORDER BY id LIMIT 1', (r['id'],)).fetchone()
-        vd = dict(v) if v else None
+        ids = fotos_por_muro.get(r['id'], [])
+        v = video_por_muro.get(r['id'])
+        vd = {'id': v['id'], 'url': v['url'], 'tipo': v['tipo']} if v else None
         if vd and _is_storage_url(vd['url']):
             vd['url'] = '/api/muro_video/%d' % vd['id']
         out.append({**dict(r), 'foto': '/api/avatar/%d' % r['user_id'],
@@ -6324,17 +6342,21 @@ def api_encuestas():
     u = current_user()
     db = get_db()
     filas = db.execute('SELECT * FROM encuestas ORDER BY id DESC').fetchall()
+    # 2 agregados en vez de (1 + una por opcion) por encuesta
+    mi_votos = {r['encuesta_id']: r['opcion'] for r in db.execute(
+        'SELECT encuesta_id, opcion FROM encuesta_votos WHERE user_id=?', (u['id'],)).fetchall()}
+    votos = {}
+    for r in db.execute(
+            'SELECT encuesta_id, opcion, COUNT(*) AS n FROM encuesta_votos '
+            'GROUP BY encuesta_id, opcion').fetchall():
+        votos.setdefault(r['encuesta_id'], {})[r['opcion']] = r['n']
     out = []
     for r in filas:
         opciones = json.loads(r['opciones']) if r['opciones'] else []
-        mi_voto = db.execute('SELECT opcion FROM encuesta_votos WHERE encuesta_id=? AND user_id=?',
-                             (r['id'], u['id'])).fetchone()
-        conteo = []
-        for i in range(len(opciones)):
-            conteo.append(db.execute('SELECT COUNT(*) AS n FROM encuesta_votos WHERE encuesta_id=? AND opcion=?',
-                                     (r['id'], i)).fetchone()['n'])
+        c = votos.get(r['id'], {})
+        conteo = [c.get(i, 0) for i in range(len(opciones))]
         out.append({**dict(r), 'opciones': opciones, 'conteo': conteo,
-                    'mi_voto': mi_voto['opcion'] if mi_voto else None})
+                    'mi_voto': mi_votos.get(r['id'])})
     return jsonify({'encuestas': out})
 
 
@@ -6383,16 +6405,21 @@ def api_eventos():
     filas = get_db().execute('SELECT * FROM eventos ORDER BY fecha_evento ASC').fetchall()
     db = get_db()
     u = current_user()
+    # 3 agregados en vez de 3 queries por evento
+    asisten = {r['evento_id']: r['n'] for r in db.execute(
+        'SELECT evento_id, COUNT(*) AS n FROM evento_asistencias GROUP BY evento_id').fetchall()}
+    voy_ids = {r['evento_id'] for r in db.execute(
+        'SELECT evento_id FROM evento_asistencias WHERE user_id=?', (u['id'],)).fetchall()}
+    # Ids, no data-URLs: el listado de eventos era todavia mas grande que
+    # el muro (sin LIMIT de eventos) y aca solo se pide lo que se mira.
+    fotos = {}
+    for f in db.execute('SELECT evento_id, id FROM evento_fotos ORDER BY id').fetchall():
+        fotos.setdefault(f['evento_id'], []).append(f['id'])
     out = []
     for r in filas:
-        asisten = db.execute('SELECT COUNT(*) AS n FROM evento_asistencias WHERE evento_id=?', (r['id'],)).fetchone()['n']
-        voy = db.execute('SELECT 1 FROM evento_asistencias WHERE evento_id=? AND user_id=?', (r['id'], u['id'])).fetchone()
-        # Ids, no data-URLs: el listado de eventos era todavia mas grande que
-        # el muro (sin LIMIT de eventos) y aca solo se pide lo que se mira.
-        fotos = [f['id'] for f in db.execute(
-            'SELECT id FROM evento_fotos WHERE evento_id=? ORDER BY id', (r['id'],)).fetchall()]
-        out.append({**dict(r), 'asisten_conf': asisten, 'voy': 1 if voy else 0,
-                    'fotos': ['/api/evento_foto/%d' % i for i in fotos]})
+        out.append({**dict(r), 'asisten_conf': asisten.get(r['id'], 0),
+                    'voy': 1 if r['id'] in voy_ids else 0,
+                    'fotos': ['/api/evento_foto/%d' % i for i in fotos.get(r['id'], [])]})
     return jsonify({'eventos': out})
 
 

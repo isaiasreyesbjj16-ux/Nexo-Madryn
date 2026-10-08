@@ -195,11 +195,11 @@ body {
 .content { max-width: 720px; margin: 0 auto; padding: var(--sp-3) 12px 96px; }
 .sec { display: none; }
 .sec.active { display: block; }
-.sec.active > * { animation: secIn .38s ease both; }
-.sec.active > *:nth-child(2) { animation-delay: .05s; }
-.sec.active > *:nth-child(3) { animation-delay: .1s; }
-.sec.active > *:nth-child(4) { animation-delay: .15s; }
-.sec.active > *:nth-child(5) { animation-delay: .2s; }
+.sec.active > * { animation: secIn .22s ease both; }
+.sec.active > *:nth-child(2) { animation-delay: .03s; }
+.sec.active > *:nth-child(3) { animation-delay: .06s; }
+.sec.active > *:nth-child(4) { animation-delay: .09s; }
+.sec.active > *:nth-child(5) { animation-delay: .12s; }
 .sec-title { font-size: 21px; margin: 4px 0 4px; font-weight: 800; letter-spacing: .3px; }
 .sec-sub { color: var(--muted); margin: 0 0 16px; font-size: 13px; }
 

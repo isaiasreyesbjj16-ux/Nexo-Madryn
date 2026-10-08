@@ -581,9 +581,10 @@ function showSec(name) {
     dinero: renderMiDinero, ingresos_extra: renderIngresosExtra, descuentos: renderDescuentos,
   };
   if (renderers[name]) {
-    // cache corta por seccion: volver atras es instantaneo, sin datos viejos (TTL 20s)
+    // cache corta por seccion: volver atras es instantaneo, sin datos viejos (TTL 60s)
+    // una escritura (api() con method) lo limpia entero, asi que nunca queda "congelado"
     const c = window._secCache && window._secCache[name];
-    if (c && (Date.now() - c.ts) < 20000) { el.innerHTML = c.html; return; }
+    if (c && (Date.now() - c.ts) < 60000) { el.innerHTML = c.html; return; }
     // Sin esto la seccion queda TOTALMENTE en blanco mientras la promesa tarda
     // (ej: Asistencias tardaba segundos). Solo si esta vacia: hay renderers que
     // releen el DOM previo (renderPlanes lee #planSemana).
@@ -1631,14 +1632,19 @@ async function renderBjj() {
 }
 
 async function renderPerfil(el) {
-  const me = await api('/api/me');
+  // Los cuatro GET son independientes: en serie eran 4 idas y vueltas (~1.6s
+  // con la latencia de Render) para pintar una pantalla que no cambia.
+  const soyAlumno = USER.role === 'alumno';
+  const [me, vids, asis, pagos] = await Promise.all([
+    api('/api/me'),
+    api('/api/videos').catch(() => ({ videos: [] })),
+    soyAlumno ? api('/api/mi_asistencia').catch(() => ({ total: 0 })) : Promise.resolve({ total: 0 }),
+    soyAlumno ? api('/api/mis_pagos').catch(() => ({ pagos: [] })) : Promise.resolve({ pagos: [] }),
+  ]);
   const cat = me.categoria || 'adulto';
   const belts = BELTS_POR_CAT[cat] || BELTS_ADULT;
-  const vids = await api('/api/videos').catch(() => ({ videos: [] }));
   let stats = '';
   if (me.role === 'alumno') {
-    const asis = await api('/api/mi_asistencia').catch(() => ({ total: 0 }));
-    const pagos = await api('/api/mis_pagos').catch(() => ({ pagos: [] }));
     stats = `<div class="profile-stats">
       <div class="pstat"><b>${asis.total}</b><span>clases</span></div>
       <div class="pstat"><b>${pagos.pagos.length}</b><span>pagos</span></div>
@@ -2039,8 +2045,11 @@ async function cancelarPausaMi() {
    ===================================================================== */
 async function renderHorarios(el) {
   const R = USER.role;
-  const d = await api('/api/horarios');
-  const profesores = R !== 'alumno' ? (await api('/api/profesores').catch(() => ({ profesores: [] }))).profesores : [];
+  const [d, profResp] = await Promise.all([
+    api('/api/horarios'),
+    R !== 'alumno' ? api('/api/profesores').catch(() => ({ profesores: [] })) : Promise.resolve({ profesores: [] }),
+  ]);
+  const profesores = profResp.profesores;
   PROFESORES_CACHE = profesores;
   const canEdit = R !== 'alumno';
   const cols = DIAS.map((dia, i) => {
@@ -3678,8 +3687,11 @@ async function borrarPlan(id) {
    PROFESORES (admin)
    ===================================================================== */
 async function renderProfesores(el) {
-  const d = await api('/api/profesores');
-  const alum = esAdmin() ? (await api('/api/alumnos').catch(() => ({ alumnos: [] }))).alumnos : [];
+  const [d, alumResp] = await Promise.all([
+    api('/api/profesores'),
+    esAdmin() ? api('/api/alumnos').catch(() => ({ alumnos: [] })) : Promise.resolve({ alumnos: [] }),
+  ]);
+  const alum = alumResp.alumnos;
   el.innerHTML = `
     ${secHeader('Profesores')}
     ${esAdmin() ? `
@@ -4594,8 +4606,11 @@ async function borrarDiario(id) {
    FAMILIAS (grupos familiares)
    ===================================================================== */
 async function renderFamilias(el) {
-  const d = await api('/api/familias').catch(() => ({ familias: [] }));
-  const alumnos = (await api('/api/alumnos').catch(() => ({ alumnos: [] }))).alumnos;
+  const [d, alumResp] = await Promise.all([
+    api('/api/familias').catch(() => ({ familias: [] })),
+    api('/api/alumnos').catch(() => ({ alumnos: [] })),
+  ]);
+  const alumnos = alumResp.alumnos;
   const usadas = new Set();
   d.familias.forEach(f => (f.miembros || []).forEach(m => usadas.add(m.id)));
   const libres = alumnos.filter(a => !usadas.has(a.id));
@@ -4802,8 +4817,12 @@ async function renderIngresosExtra(el) {
     </div>
     <div id="ieResumen"></div>`;
 
+  const selAlum = document.getElementById('ieAlumno');
+  // El select de alumnos se pedia recien despues del resumen: los dos GET en paralelo
+  const alumnosP = (selAlum && selAlum.options.length <= 1)
+    ? api('/api/alumnos').catch(() => null) : Promise.resolve(null);
   try {
-    const d = await api('/api/ingresos_extra');
+    const [d, alum] = await Promise.all([api('/api/ingresos_extra'), alumnosP]);
     const P = window.NEXO_PRECIOS || [0, 0, 0];
     document.getElementById('ieResumen').innerHTML = `
       <div class="card">
@@ -4828,13 +4847,9 @@ async function renderIngresosExtra(el) {
           </tr>`).join('') : '<tr><td colspan="8" class="empty">Todavía no hay ingresos extra</td></tr>'}
         </table></div></div>`;
 
-    const sel = document.getElementById('ieAlumno');
-    if (sel && sel.options.length <= 1) {
-      try {
-        const a = await api('/api/alumnos');
-        sel.innerHTML = '<option value="">— ninguno —</option>' +
-          (a.alumnos || []).map(x => `<option value="${x.id}">${esc(x.nombre)}</option>`).join('');
-      } catch (e) {}
+    if (selAlum && selAlum.options.length <= 1 && alum) {
+      selAlum.innerHTML = '<option value="">— ninguno —</option>' +
+        (alum.alumnos || []).map(x => `<option value="${x.id}">${esc(x.nombre)}</option>`).join('');
     }
   } catch (e) { toast(e.message); }
 
@@ -4869,7 +4884,10 @@ async function renderDescuentos(el) {
   el.innerHTML = secHeader('Descuentos') + '<div class="small" style="color:var(--muted);padding:0 4px 10px">Cuánto paga cada alumno: precio por cantidad de actividades y descuento del grupo familiar.</div>';
   try {
     const P = window.NEXO_PRECIOS || [0, 0, 0];
-    const cfg = await api('/api/settings').catch(() => ({}));
+    const [cfg, fam] = await Promise.all([
+      api('/api/settings').catch(() => ({})),
+      api('/api/familias').catch(() => ({ familias: [] })),
+    ]);
     const d2 = Number((cfg.desc_familiar2 || 0)) || 0;
     const d3 = Number((cfg.desc_familiar3 || 0)) || 0;
     const d4 = Number((cfg.desc_familiar4 || 0)) || 0;
@@ -4889,8 +4907,6 @@ async function renderDescuentos(el) {
       <p class="small" style="color:var(--muted)">2 integrantes: ${d2}% · 3: ${d3}% · 4 o más: ${d4}% (se cambian en Configuración)</p>
     </div>`;
 
-    let fam = { familias: [] };
-    try { fam = await api('/api/familias'); } catch (e) {}
     const fams = (fam.familias || []).filter(f => (f.miembros || []).length > 1);
     if (fams.length) {
       html += `<div class="card"><h3>👨‍👩‍👧 Quién está en cada familia</h3>` + fams.map(f => {

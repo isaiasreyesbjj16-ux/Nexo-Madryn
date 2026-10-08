@@ -584,9 +584,18 @@ function showSec(name) {
     // cache corta por seccion: volver atras es instantaneo, sin datos viejos (TTL 20s)
     const c = window._secCache && window._secCache[name];
     if (c && (Date.now() - c.ts) < 20000) { el.innerHTML = c.html; return; }
+    // Sin esto la seccion queda TOTALMENTE en blanco mientras la promesa tarda
+    // (ej: Asistencias tardaba segundos). Solo si esta vacia: hay renderers que
+    // releen el DOM previo (renderPlanes lee #planSemana).
+    if (!el.innerHTML.trim()) {
+      el.innerHTML = '<div class="card"><div class="small" style="color:var(--muted)" data-cargando>Cargando…</div></div>';
+    }
     const p = renderers[name](el);
     if (p && p.then) {
-      p.then(() => { if (window._secCache) window._secCache[name] = { html: el.innerHTML, ts: Date.now() }; })
+      p.then(() => {
+        // si el renderer no escribio nada, el cache guardaria el "Cargando…"
+        if (window._secCache && !el.querySelector('[data-cargando]')) window._secCache[name] = { html: el.innerHTML, ts: Date.now() };
+      })
        .catch((err) => {
          // Antes el error se comia con .catch(() => {}) y la seccion se quedaba
          // en "Cargando" para siempre, sin dar ninguna pista. Ahora se muestra.

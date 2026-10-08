@@ -4476,6 +4476,25 @@ def api_estadisticas_asistencia():
     """Comparecencia por alumno (% de clases a las que asistió sobre las dictadas) en los últimos 6 meses."""
     meses = _ultimos_meses()
     db = get_db()
+    # Dos agregados en vez de 2 queries por alumno por mes: con 40 alumnos eran
+    # ~490 round-trips a la DB y la seccion se quedaba en blanco varios segundos
+    # (no hay estado de carga mientras la promesa tarda).
+    primer = '%04d-%02d-01' % (meses[0]['anio'], meses[0]['mes'])
+    ultimo = _rango_mes(meses[-1])[1]
+    asist = {}
+    for r in db.execute(
+            "SELECT alumno_id, substr(fecha,1,7) AS ym, COUNT(*) AS n FROM asistencia"
+            " WHERE presente=1 AND fecha>=? AND fecha<?"
+            " GROUP BY alumno_id, substr(fecha,1,7)",
+            (primer, ultimo)).fetchall():
+        asist[(r['alumno_id'], r['ym'])] = r['n']
+    dias = {r['ym']: r['n'] for r in db.execute(
+            "SELECT substr(fecha,1,7) AS ym, COUNT(DISTINCT fecha) AS n FROM asistencia"
+            " WHERE presente=1 AND fecha>=? AND fecha<?"
+            " GROUP BY substr(fecha,1,7)",
+            (primer, ultimo)).fetchall()}
+    ym_mes = ['%04d-%02d' % (m['anio'], m['mes']) for m in meses]
+    dias_con_clases = [dias.get(k, 0) for k in ym_mes]
     rows = db.execute(
         "SELECT %s,"
         "  (SELECT COUNT(*) FROM asistencia a WHERE a.alumno_id=u.id AND a.presente=1) AS total_asist"
@@ -4484,18 +4503,16 @@ def api_estadisticas_asistencia():
         % columnas_de_users('u.')).fetchall()
     alumnos = []
     for r in rows:
-        serie = _serie_asistencia(r['id'], meses)
+        serie = []
+        for k in ym_mes:
+            n, dias_mes = asist.get((r['id'], k), 0), dias.get(k, 0)
+            serie.append({'asist': n, 'dias': dias_mes,
+                          'pct': round(n * 100 / dias_mes) if dias_mes else None})
         d = user_public(r)
         d['total_asist'] = r['total_asist']
         d['en_pausa'] = en_pausa(r)
         d['serie'] = serie
         alumnos.append(d)
-    dias_con_clases = []
-    for mm in meses:
-        primer, ultimo = _rango_mes(mm)
-        dias_con_clases.append(db.execute(
-            'SELECT COUNT(DISTINCT fecha) AS n FROM asistencia WHERE presente=1 AND fecha>=? AND fecha<?',
-            (primer, ultimo)).fetchone()['n'])
     return jsonify({'meses': [mm['label'] for mm in meses],
                     'dias_con_clases': dias_con_clases,
                     'alumnos': alumnos})

@@ -3994,10 +3994,17 @@ def api_asistencia_por_dia():
     alumnos = {r['id']: r for r in db.execute(
         "SELECT %s FROM users WHERE role IN ('alumno','profesor') AND activo=1"
         % columnas_de_users()).fetchall()}
+    asis_n = {r['alumno_id']: r['n'] for r in db.execute(
+        'SELECT alumno_id, COUNT(*) AS n FROM asistencia WHERE presente=1 GROUP BY alumno_id').fetchall()}
     res = []
     for c in clases:
         ids = por_clase.get(c['id'], [])
-        presentes = [user_public(alumnos[i]) for i in ids if i in alumnos]
+        presentes = []
+        for i in ids:
+            if i in alumnos:
+                p = user_public(alumnos[i])
+                p['asistencias'] = asis_n.get(i, 0)
+                presentes.append(p)
         res.append({'id': c['id'], 'hora': c['hora'], 'tipo': c['tipo'], 'nivel': c['nivel'],
                     'profesor': c['profesor_nombre'], 'cantidad': len(presentes), 'presentes': presentes})
     return jsonify({'fecha': fecha, 'dia': DIAS[f.weekday()], 'clases_dictadas': len(res), 'clases': res})

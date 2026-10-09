@@ -3383,10 +3383,11 @@ async function renderAsistencia(el) {
       <div class="flex mb">
         <select id="asClase" style="padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--bg2);color:var(--txt);flex:1">
           <option value="">— Elegí la clase —</option>
-          ${horarios.horarios.map(h => `<option value="${h.id}" data-profe="${h.profesor_id || ''}">${esc(h.dia_nombre)} ${esc(h.hora)} · ${esc(h.tipo || 'Gi')} · ${esc(h.nivel || 'Todos')}</option>`).join('')}
+          ${horarios.horarios.map(h => `<option value="${h.id}" data-profe="${h.profesor_id || ''}" data-profe-nombre="${esc(h.profesor_nombre || '')}">${esc(h.dia_nombre)} ${esc(h.hora)} · ${esc(h.tipo || 'Gi')} · ${esc(h.nivel || 'Todos')}</option>`).join('')}
         </select>
         <input type="date" id="asFecha" value="${hoy}" style="padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--bg2);color:var(--txt)">
       </div>
+      <div class="small" id="asProfeInfo" style="color:var(--muted);margin-bottom:4px"></div>
       <div id="asLista" class="mt">
         <div class="empty">Elegí una clase para marcar los alumnos presentes.</div>
       </div>
@@ -3411,6 +3412,11 @@ async function renderAsistencia(el) {
     const cid = +$('#asClase').value;
     const fecha = $('#asFecha').value;
     const lista = $('#asLista');
+    const opt = $('#asClase').selectedOptions[0];
+    const profe = opt ? (opt.dataset.profeNombre || '') : '';
+    $('#asProfeInfo').innerHTML = cid
+      ? `🥋 Clase con: <b>${esc(profe || 'Sin profesor asignado')}</b>`
+      : '';
     if (!cid) { lista.innerHTML = '<div class="empty">Elegí una clase.</div>'; $('#asGuardar').hidden = true; return; }
     const presentes = await api('/api/asistencia_dia?clase_id=' + cid + '&fecha=' + fecha).catch(() => ({ presentes: [] }));
     const set = new Set(presentes.presentes);
@@ -3462,11 +3468,11 @@ async function verAsistenciaDia() {
     ${d.clases.length ? d.clases.map(c => `
       <div style="padding:8px 0;border-bottom:1px solid var(--line)">
         <div class="flex space-between">
-          <div><b>${esc(c.hora)}</b> · <span class="tag ${slugTipo(c.tipo)}">${esc(c.tipo)}</span> · ${esc(c.nivel)}${c.profesor ? ' · <span class="profe">' + esc(c.profesor) + '</span>' : ''}</div>
+          <div><b>${esc(c.hora)}</b> · <span class="tag ${slugTipo(c.tipo)}">${esc(c.tipo)}</span> · ${esc(c.nivel)} · <span class="profe">${esc(c.profesor || 'Sin profesor')}</span></div>
           <div class="small">✅ ${c.cantidad}</div>
         </div>
         ${c.presentes.length
-          ? `<div class="small" style="margin-top:4px">${c.presentes.map(p => `<span class="tag tag-al-dia">${esc(p.nombre)}</span>`).join(' ')}</div>`
+          ? `<div class="small" style="margin-top:4px">${c.presentes.map(p => `<span class="tag tag-al-dia">${esc(p.nombre)} · 🥋${p.asistencias}</span>`).join(' ')}</div>`
           : '<div class="small" style="color:var(--muted)">Sin asistencias marcadas</div>'}
       </div>`).join('') : '<div class="empty">No hay clases cargadas para este día.</div>'}
   `;

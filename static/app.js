@@ -1378,14 +1378,10 @@ async function renderInicio(el) {
           <button class="chip" onclick="showSec('videos')">🎥 Videos</button>
           <button class="chip" onclick="showSec('mispagos')">🧾 Mi cuota</button>
           <button class="chip" onclick="showSec('mi_asistencia')">✅ Mi asistencia</button>
-          <button class="chip" onclick="showSec('planes')">📋 Planes</button>
           <button class="chip" onclick="showSec('metas')">🎯 Mis metas</button>
           <button class="chip" onclick="showSec('muro')">📢 Muro</button>
-          <button class="chip" onclick="showSec('chat')">💬 Chat</button>
           <button class="chip" onclick="showSec('eventos')">🗓️ Eventos</button>
           <button class="chip" onclick="showSec('torneos')">🏆 Torneos</button>
-          <button class="chip" onclick="showSec('encuestas')">📊 Encuestas</button>
-          <button class="chip" onclick="showSec('diario')">📓 Diario</button>
           <button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>
         </div>
       </div>`;
@@ -1405,18 +1401,13 @@ async function renderInicio(el) {
       `<button class="chip" onclick="showSec('alumnos')">🥋 Alumnos</button>`,
       `<button class="chip" onclick="showSec('asistencia')">✅ Asistencia</button>`,
       `<button class="chip" onclick="showSec('estadisticas')">📊 Asistencias</button>`,
-      `<button class="chip" onclick="showSec('planes')">📋 Planes</button>`,
       `<button class="chip" onclick="showSec('deudores')">⚠️ Deudas</button>`,
       `<button class="chip" onclick="showSec('videos')">🎥 Videos</button>`];
     if (esAdmin()) chips.push(`<button class="chip" onclick="showSec('profesores')">🧑‍🏫 Profesores</button>`, `<button class="chip" onclick="showSec('config')">⚙️ Configuración</button>`);
-    chips.push(`<button class="chip" onclick="showSec('familias')">👨‍👩‍👧 Familias</button>`);
-    chips.push(`<button class="chip" onclick="showSec('diario')">📓 Diario</button>`);
     chips.push(`<button class="chip" onclick="showSec('muro')">📢 Muro</button>`);
-    chips.push(`<button class="chip" onclick="showSec('chat')">💬 Chat</button>`);
     chips.push(`<button class="chip" onclick="showSec('ranking')">🏆 Ranking</button>`);
     chips.push(`<button class="chip" onclick="showSec('eventos')">🗓️ Eventos</button>`);
     chips.push(`<button class="chip" onclick="showSec('torneos')">🏆 Torneos</button>`);
-    chips.push(`<button class="chip" onclick="showSec('encuestas')">📊 Encuestas</button>`);
     chips.push(`<button class="chip" onclick="showSec('historial')">📈 Historial</button>`);
     chips.push(`<button class="chip" onclick="showSec('galeria')">🖼️ Galería</button>`);
     chips.push(`<button class="chip" onclick="abrirMensajeMasivo()">📣 Mandar mensaje</button>`);

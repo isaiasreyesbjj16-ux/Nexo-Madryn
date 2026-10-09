@@ -49,10 +49,6 @@ const escJs = (s) => String(s == null ? '' : s)
   .replace(/>/g, '&gt;');
 const num = (s) => (s == null ? '' : Number(s).toLocaleString('es-AR'));
 const normBelt = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-let CHAT_ACTIVO = null;
-let CHAT_TIMER = null;
-let CHAT_ADJ = null;
-let CHAT_LAST_MSG = 0;
 let deferredPrompt = null;
 let AVISO_AUMENTO = true;
 
@@ -525,9 +521,9 @@ function initDashboard() {
   // abrir sección indicada en la URL (?sec=...) al volver de una notificación push
   const secParam = new URLSearchParams(location.search).get('sec');
   const seccionesValidas = ['inicio', 'perfil', 'horarios', 'pagos', 'mispagos', 'alumnos',
-    'asistencia', 'deudores', 'profesores', 'config', 'mi_asistencia', 'videos', 'chat',
-    'muro', 'galeria', 'ranking', 'metas', 'encuestas', 'eventos', 'historial', 'familias', 'diario',
-    'planes', 'estadisticas', 'dinero', 'ingresos_extra', 'descuentos'];
+    'asistencia', 'estadisticas', 'deudores', 'profesores', 'config', 'mi_asistencia', 'videos',
+    'muro', 'galeria', 'ranking', 'metas', 'eventos', 'torneos', 'historial',
+    'dinero', 'ingresos_extra', 'descuentos'];
   if (secParam && seccionesValidas.includes(secParam)) showSec(secParam);
   history.replaceState(null, '', location.pathname);
   if ('serviceWorker' in navigator) {
@@ -553,7 +549,6 @@ function initDashboard() {
 }
 
 function showSec(name) {
-  if (name !== 'chat' && CHAT_TIMER) { clearInterval(CHAT_TIMER); CHAT_TIMER = null; CHAT_ACTIVO = null; }
   $$('.sec').forEach(s => s.classList.remove('active'));
   let el = $('#sec-' + name);
   if (!el) {
@@ -569,15 +564,12 @@ function showSec(name) {
   const renderers = {
     inicio: renderInicio, perfil: renderPerfil, horarios: renderHorarios,
     pagos: renderPagos, mispagos: renderMisPagos, alumnos: renderAlumnos,
-    asistencia: renderAsistencia, deudores: renderDeudores,
+    asistencia: renderAsistenciaTotal, estadisticas: renderAsistenciaTotal, deudores: renderDeudores,
     profesores: renderProfesores, config: renderConfig,
     mi_asistencia: renderMiAsistencia, videos: renderVideos,
-    chat: renderChat, muro: renderMuro, galeria: renderGaleria,
-    ranking: renderRanking, metas: renderMetas, encuestas: renderEncuestas,
-    eventos: renderEventos, historial: renderHistorial,
-    torneos: renderTorneos,
-    familias: renderFamilias, diario: renderDiario,
-    planes: renderPlanes, estadisticas: renderEstadisticas,
+    muro: renderMuro, galeria: renderGaleria,
+    ranking: renderRanking, metas: renderMetas,
+    eventos: renderEventosTorneos, torneos: renderEventosTorneos, historial: renderHistorial,
     dinero: renderMiDinero, ingresos_extra: renderIngresosExtra, descuentos: renderDescuentos,
   };
   if (renderers[name]) {
@@ -587,7 +579,7 @@ function showSec(name) {
     if (c && (Date.now() - c.ts) < 60000) { el.innerHTML = c.html; return; }
     // Sin esto la seccion queda TOTALMENTE en blanco mientras la promesa tarda
     // (ej: Asistencias tardaba segundos). Solo si esta vacia: hay renderers que
-    // releen el DOM previo (renderPlanes lee #planSemana).
+    // releen el DOM previo.
     if (!el.innerHTML.trim()) {
       el.innerHTML = '<div class="card"><div class="small" style="color:var(--muted)" data-cargando>Cargando…</div></div>';
     }
@@ -1380,8 +1372,7 @@ async function renderInicio(el) {
           <button class="chip" onclick="showSec('mi_asistencia')">✅ Mi asistencia</button>
           <button class="chip" onclick="showSec('metas')">🎯 Mis metas</button>
           <button class="chip" onclick="showSec('muro')">📢 Muro</button>
-          <button class="chip" onclick="showSec('eventos')">🗓️ Eventos</button>
-          <button class="chip" onclick="showSec('torneos')">🏆 Torneos</button>
+          <button class="chip" onclick="showSec('eventos')">🗓️ Eventos y torneos</button>
           <button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>
         </div>
       </div>`;
@@ -1400,14 +1391,12 @@ async function renderInicio(el) {
       `<button class="chip" onclick="showSec('pagos')">💳 Registrar pago</button>`,
       `<button class="chip" onclick="showSec('alumnos')">🥋 Alumnos</button>`,
       `<button class="chip" onclick="showSec('asistencia')">✅ Asistencia</button>`,
-      `<button class="chip" onclick="showSec('estadisticas')">📊 Asistencias</button>`,
       `<button class="chip" onclick="showSec('deudores')">⚠️ Deudas</button>`,
       `<button class="chip" onclick="showSec('videos')">🎥 Videos</button>`];
     if (esAdmin()) chips.push(`<button class="chip" onclick="showSec('profesores')">🧑‍🏫 Profesores</button>`, `<button class="chip" onclick="showSec('config')">⚙️ Configuración</button>`);
     chips.push(`<button class="chip" onclick="showSec('muro')">📢 Muro</button>`);
     chips.push(`<button class="chip" onclick="showSec('ranking')">🏆 Ranking</button>`);
-    chips.push(`<button class="chip" onclick="showSec('eventos')">🗓️ Eventos</button>`);
-    chips.push(`<button class="chip" onclick="showSec('torneos')">🏆 Torneos</button>`);
+    chips.push(`<button class="chip" onclick="showSec('eventos')">🗓️ Eventos y torneos</button>`);
     chips.push(`<button class="chip" onclick="showSec('historial')">📈 Historial</button>`);
     chips.push(`<button class="chip" onclick="showSec('galeria')">🖼️ Galería</button>`);
     chips.push(`<button class="chip" onclick="abrirMensajeMasivo()">📣 Mandar mensaje</button>`);
@@ -2300,7 +2289,7 @@ async function renderTorneos(el) {
   ]);
   TORNEOS_CACHE = d.torneos;
   const tab = (v, lbl) => `<button class="btn ${TORNEOS_VISTA === v ? 'primary' : 'ghost'} small"
-      onclick="TORNEOS_VISTA='${v}';renderTorneos($('#sec-torneos'))">${lbl}</button>`;
+      onclick="TORNEOS_VISTA='${v}';renderTorneos($('#evPaneTorneos'))">${lbl}</button>`;
   el.innerHTML = `
     ${secHeader('🏆 Torneos', 'Calendario manual y ranking de la academia')}
     <div class="flex" style="gap:8px;margin-bottom:12px">
@@ -2353,7 +2342,7 @@ function formTorneo(id) {
         { method: t ? 'PUT' : 'POST', body: body });
       closeModal();
       toast(t ? 'Torneo actualizado' : 'Torneo creado');
-      renderTorneos($('#sec-torneos'));
+      renderTorneos($('#evPaneTorneos'));
     } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = 'Guardar'; }
   });
 }
@@ -2366,7 +2355,7 @@ async function borrarTorneo(id) {
   try {
     await api('/api/torneos/' + id, { method: 'DELETE' });
     toast('Torneo eliminado');
-    renderTorneos($('#sec-torneos'));
+    renderTorneos($('#evPaneTorneos'));
   } catch (e) { toast(e.message); }
 }
 
@@ -2432,7 +2421,7 @@ async function inscribirEnTorneo(torneoId, alumnoId) {
       });
       closeModal();
       toast('Inscripción guardada');
-      renderTorneos($('#sec-torneos'));
+      renderTorneos($('#evPaneTorneos'));
     } catch (e) { toast(e.message); btn.disabled = false; btn.textContent = 'Guardar'; }
   });
 }
@@ -2442,7 +2431,7 @@ async function quitarInscripcion(iid) {
   try {
     await api('/api/torneos/torneo/' + iid, { method: 'DELETE' });
     toast('Inscripción quitada');
-    renderTorneos($('#sec-torneos'));
+    renderTorneos($('#evPaneTorneos'));
   } catch (e) { toast(e.message); }
 }
 
@@ -2506,7 +2495,6 @@ async function renderPagos(el) {
         <div class="field"><label>Año</label><input type="number" id="pAnio" value="${anio}"></div>
         <div class="field" style="grid-column:1/-1"><label>Nota (opcional)</label><input type="text" id="pNota" placeholder="Ej: cuota agosto"></div>
         <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">💳 Registrar pago y notificar</button></div>
-        <div class="field" style="grid-column:1/-1"><button class="btn warn btn-block" type="button" style="margin-top:6px" onclick="abrirPagoFamilia()">👨‍👩‍👧 Pagar familia completa</button></div>
       </form>
     </div>
     <div class="card">
@@ -2612,49 +2600,6 @@ async function renderPagos(el) {
       toast(err.message);
     }
   });
-}
-async function abrirPagoFamilia() {
-  const d = await api('/api/familias').catch(() => ({ familias: [] }));
-  const fams = (d.familias || []).filter(f => f.titular_id);
-  if (!fams.length) { toast('Todavía no hay grupos familiares con titular'); return; }
-  const mes = new Date().getMonth() + 1;
-  openModal(`
-    <h3>👨‍👩‍👧 Pagar familia completa</h3>
-    <p class="small" style="color:var(--muted);margin:0">Registra la cuota (con descuento familiar) de todos los integrantes de una vez. Saltea becados y los que ya pagaron ese mes.</p>
-    <div class="field"><label>Familia</label><select id="pfTitular">
-      <option value="">— elegí la familia —</option>
-      ${fams.map(f => {
-        const t = (f.miembros || []).find(m => m.id === f.titular_id) || {};
-        return `<option value="${f.titular_id}">${esc(t.nombre || '¿?')} · ${esc(f.nombre)} (${(f.miembros || []).length} integrantes · total $${num(f.total)}/mes)</option>`;
-      }).join('')}
-    </select></div>
-    <div class="field"><label>¿A qué profesor(es) le pagan? El 60% se divide entre los marcados; sin marcar, automático por actividades.</label>${profeChecksHTML('pfProfe', PROFESORES_CACHE || [], [])}</div>
-    <div class="grid2">
-      <div class="field"><label>Método</label><select id="pfMetodo">${METODOS.map(m => `<option>${m}</option>`).join('')}</select></div>
-      <div class="field"><label>Mes</label><select id="pfMes">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${i + 1 === mes ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></div>
-    </div>
-    <div class="field"><label>Año</label><input type="number" id="pfAnio" value="${new Date().getFullYear()}"></div>
-    <div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="pfAum" style="width:18px;height:18px"> Sumar aumento (recargo por demora) — desmarcalo si pagaron antes del vencimiento 📅</label></div>
-    <div class="field"><label>Nota (opcional)</label><input type="text" id="pfNota" placeholder="Ej: cuota familiar agosto"></div>
-    <button class="btn primary btn-block mt" onclick="pagarFamilia()">💳 Registrar pago de toda la familia</button>
-    <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
-}
-async function pagarFamilia() {
-  const titular_id = +$('#pfTitular').value;
-  if (!titular_id) { toast('Elegí la familia'); return; }
-  try {
-    const res = await api('/api/pagos/familia', { method: 'POST', body: {
-      titular_id,
-      profesor_ids: profeElegidos('pfProfe'),
-      mes: +$('#pfMes').value,
-      anio: +$('#pfAnio').value,
-      metodo: $('#pfMetodo').value,
-      nota: $('#pfNota').value,
-      aplicar_cargo: $('#pfAum') ? $('#pfAum').checked : false } });
-    toast(`💳 ${res.cantidad} pagos registrados de ${esc(res.familia)} por $${num(res.total)}`);
-    closeModal();
-    renderPagos($('#sec-pagos'));
-  } catch (e) { toast(e.message); }
 }
 async function borrarPago(id) {
   if (!confirm('¿Eliminar este pago?')) return;
@@ -3404,8 +3349,31 @@ async function notificarDeuda(id) {
 }
 
 /* =====================================================================
-   ASISTENCIA (admin / profesor)
+   ASISTENCIA (admin / profesor) — pestanas Tomar / Estadisticas
    ===================================================================== */
+async function renderAsistenciaTotal(el) {
+  el.innerHTML = `
+    <div class="flex" style="gap:8px;margin-bottom:12px">
+      <button class="btn primary" id="aTabMarcar" onclick="asisTab('marcar')">✅ Tomar asistencia</button>
+      <button class="btn ghost" id="aTabStats" onclick="asisTab('stats')">📊 Estadisticas</button>
+    </div>
+    <div id="asisPaneMarcar"></div>
+    <div id="asisPaneStats" hidden></div>`;
+  await renderAsistencia($('#asisPaneMarcar'));
+}
+
+async function asisTab(cual) {
+  const marcar = cual === 'marcar';
+  $('#asisPaneMarcar').hidden = !marcar;
+  $('#asisPaneStats').hidden = marcar;
+  $('#aTabMarcar').className = 'btn ' + (marcar ? 'primary' : 'ghost');
+  $('#aTabStats').className = 'btn ' + (marcar ? 'ghost' : 'primary');
+  if (!marcar && !$('#asisPaneStats').dataset.cargado) {
+    $('#asisPaneStats').dataset.cargado = '1';
+    await renderEstadisticas($('#asisPaneStats'));
+  }
+}
+
 async function renderAsistencia(el) {
   const [horarios, alumnos] = await Promise.all([api('/api/horarios'), api('/api/alumnos')]);
   const hoy = fechaHoyLocal();
@@ -3568,110 +3536,6 @@ async function renderEstadisticas(el) {
           </tr>`).join('') : '<tr><td colspan="' + (d.meses.length + 2) + '" class="empty">Todavía no hay alumnos activos.</td></tr>'}
       </table></div>
     </div>`;
-}
-
-/* =====================================================================
-   PLANES DEL PROFE
-   ===================================================================== */
-function fmtFechaISO(f) {
-  if (!f) return '';
-  const p = String(f).split('-');
-  return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : f;
-}
-
-async function renderPlanes(el) {
-  const R = USER.role;
-  const esStaff = esAdmin() || R === 'profesor';
-  const semanaSel = $('#planSemana') ? $('#planSemana').value : '';
-  const d = await api('/api/planes' + (esStaff && semanaSel ? '?semana=' + semanaSel : ''));
-  el.innerHTML = `
-    ${secHeader('Planes del profe', esStaff ? 'Objetivo o plan de entrenamiento por semana, asignado a categoría y cinturón.' : 'El plan del profe para esta semana, para tu cinturón.')}
-    <div class="card mb">
-      <div class="flex space-between" style="align-items:center">
-        <span class="small">Semana del <b>${fmtFechaISO(d.semana_inicio)}</b> al <b>${fmtFechaISO(d.semana_fin)}</b></span>
-        ${esStaff ? `<div class="flex" style="gap:8px">
-          <input type="date" id="planSemana" class="small" value="${d.semana_inicio}" onchange="renderPlanes($('#sec-planes'))" aria-label="Elegir otra semana">
-          <button class="btn primary" onclick="formPlan()">＋ Crear plan</button>
-        </div>` : ''}
-      </div>
-    </div>
-    <div class="feed">
-      ${d.planes.length ? d.planes.map(p => `
-        <div class="feed-card">
-          <div class="flex space-between" style="align-items:flex-start">
-            <div>
-              <b>${esc(p.titulo)}</b>
-              ${esStaff ? ` <button class="btn ghost small" onclick="formPlan(${p.id})">✏️</button> <button class="btn bad small" onclick="borrarPlan(${p.id})">🗑</button>` : ''}
-              <div class="small" style="margin-top:4px">
-                <span class="tag ${p.categoria === 'todos' ? 'alumno' : p.categoria}">${p.categoria === 'todos' ? 'Todos' : esc(p.categoria)}</span>
-                <span class="tag ${p.cinturon === 'todos' ? 'alumno' : p.cinturon}">${p.cinturon === 'todos' ? 'Todos los cinturones' : esc(p.cinturon)}</span>
-                ${p.autor ? '<span style="color:var(--muted)">· ' + esc(p.autor) + '</span>' : ''}
-              </div>
-            </div>
-            ${R === 'alumno' ? `<button class="btn ${p.hecho ? 'good' : 'ghost'} small" onclick="togglePlanHecho(${p.id})">${p.hecho ? '✓ Lo hice' : 'Marca que lo hiciste'}</button>` : ''}
-          </div>
-          ${p.descripcion ? `<p class="small" style="white-space:pre-wrap;margin:8px 0 0">${esc(p.descripcion)}</p>` : ''}
-        </div>`).join('') : '<div class="empty">Todavía no hay planes para esta semana.</div>'}
-    </div>`;
-}
-
-function formPlan(id) {
-  const esNuevo = !id;
-  const catSel = CATEGORIAS.map(c => `<option value="${c}">${catLabel(c)}</option>`).join('');
-  const cintSel = BELTS_ADULT.concat(BELTS_KIDS).map(b => `<option>${esc(b)}</option>`).join('');
-  const lunesISO = (() => {
-    const dia = new Date();
-    const diff = (dia.getDay() === 0 ? 6 : dia.getDay() - 1);
-    return fechaLocalDe(new Date(dia.getTime() - diff * 86400000));
-  })();
-  openModal(`
-    <h3>${esNuevo ? '➕ Crear plan del profe' : '✏️ Editar plan'}</h3>
-    <form id="planForm" class="grid2">
-      <div class="field" style="grid-column:1/-1"><label>Título (objetivo del plan)</label><input id="plTitulo" required placeholder="Ej: Semana de claves de muñeca"></div>
-      <div class="field" style="grid-column:1/-1"><label>Descripción / qué practicar</label><textarea id="plDesc" rows="4" placeholder="Detallá el plan: técnica, series, lo que se espera lograr..."></textarea></div>
-      <div class="field"><label>Categoría</label><select id="plCat"><option value="todos">Todos</option>${catSel}</select></div>
-      <div class="field"><label>Cinturón</label><select id="plCintur"><option value="todos">Todos</option>${cintSel}</select></div>
-      <div class="field" style="grid-column:1/-1"><label>Semana (comienza el lunes de esa semana)</label><input type="date" id="plFecha" value="${lunesISO}"></div>
-      <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Guardar plan</button></div>
-    </form>`);
-  if (!esNuevo) {
-    const semana = $('#planSemana') ? $('#planSemana').value : '';
-    api('/api/planes' + (semana ? '?semana=' + semana : '')).then(dd => {
-      const p = dd.planes.find(x => x.id === id);
-      if (!p) return;
-      $('#plTitulo').value = p.titulo || '';
-      $('#plDesc').value = p.descripcion || '';
-      $('#plCat').value = p.categoria || 'todos';
-      $('#plCintur').value = p.cinturon || 'todos';
-      $('#plFecha').value = p.fecha || lunesISO;
-    }).catch(() => {});
-  }
-  $('#planForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const body = { titulo: $('#plTitulo').value.trim(), descripcion: $('#plDesc').value,
-      categoria: $('#plCat').value, cinturon: $('#plCintur').value, fecha: $('#plFecha').value };
-    try {
-      if (esNuevo) { await api('/api/planes', { method: 'POST', body }); toast('Plan creado ✓'); }
-      else { await api('/api/planes/' + id, { method: 'PUT', body }); toast('Plan actualizado ✓'); }
-      closeModal(); renderPlanes($('#sec-planes'));
-    } catch (err) { toast(err.message); }
-  });
-}
-
-async function togglePlanHecho(id) {
-  try {
-    await api('/api/planes/' + id + '/hecho', { method: 'POST', body: {} });
-    renderPlanes($('#sec-planes'));
-  } catch (err) { toast(err.message); }
-}
-
-async function borrarPlan(id) {
-  if (!confirm('¿Eliminar este plan?')) return;
-  try {
-    await api('/api/planes/' + id, { method: 'DELETE' });
-    toast('Plan eliminado');
-    renderPlanes($('#sec-planes'));
-  } catch (err) { toast(err.message); }
 }
 
 /* =====================================================================
@@ -3895,185 +3759,6 @@ try { fetch('/api/settings').then(r => r.json()).then(s => {
 }).catch(() => {}); } catch (e) {}
 
 /* =====================================================================
-   CHAT + GRUPOS POR CATEGORÍA
-   ===================================================================== */
-
-async function renderChat(el) {
-  const d = await api('/api/chats').catch(() => ({ chats: [] }));
-  el.innerHTML = `
-    ${secHeader('💬 Chat')}
-    <div class="card">
-      <h3>Grupos por categoría</h3>
-      <p class="small">Podés abrir un chat grupal automático para cada categoría.</p>
-      <div class="chips">
-        <button class="chip" onclick="abrirGrupo('kids')">🧒 Grupo Kids</button>
-        <button class="chip" onclick="abrirGrupo('juveniles')">👦 Grupo Juveniles</button>
-        <button class="chip" onclick="abrirGrupo('adulto')">🧑 Grupo Adultos</button>
-      </div>
-    </div>
-    <div class="card">
-      <h3>Chats directos</h3>
-      <button class="btn primary btn-block" onclick="nuevoChatDirecto()">➕ Nuevo chat</button>
-    </div>
-    <div class="card">
-      <h3>Tus conversaciones</h3>
-      <div id="chatLista">${d.chats.length ? d.chats.map(c =>
-        `<div class="flex space-between" style="padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer" onclick="abrirChatId(${c.id})">
-          <span><b>${esc(c.nombre)}</b> <span class="small" style="color:var(--muted)">${c.tipo === 'grupo' ? '· ' + c.miembros + ' miembros' : ''}</span></span>
-          <span class="small" style="color:var(--accent2)">Abrir →</span>
-        </div>`).join('') : '<div class="empty">Todavía no tenés conversaciones.</div>'}</div>
-    </div>`;
-}
-
-async function abrirGrupo(cat) {
-  try {
-    const r = await api('/api/chats', { method: 'POST', body: { categoria: cat } });
-    abrirChatId(r.id);
-  } catch (e) { toast(e.message); }
-}
-
-async function nuevoChatDirecto() {
-  const d = await api('/api/contactos').catch(() => ({ contactos: [] }));
-  openModal(`
-    <h3>Nuevo chat</h3>
-    <div>
-      ${d.contactos.length ? d.contactos.map(c =>
-        `<div class="flex space-between" style="padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer" onclick="crearDirecto(${c.id})">
-          <span>${avatarHTML(c.foto, c.nombre, 'sm')} <b>${esc(c.nombre)}</b> ${c.cinturon ? beltHTML(c.cinturon) : ''}</span>
-          <span class="small" style="color:var(--accent2)">Abrir →</span>
-        </div>`).join('') : '<div class="empty">No hay contactos disponibles</div>'}
-    </div>
-    <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
-}
-
-async function crearDirecto(uid) {
-  try {
-    const r = await api('/api/chats', { method: 'POST', body: { user_id: uid } });
-    closeModal();
-    abrirChatId(r.id);
-  } catch (e) { toast(e.message); }
-}
-
-async function abrirChatId(cid) {
-  CHAT_ACTIVO = cid;
-  const d = await api('/api/chats/' + cid + '/mensajes').catch((err) => ({ __err: err.message }));
-  if (!d || d.__err) {
-    const msg = 'No pudimos abrir el chat: ' + (d ? d.__err : 'error desconocido');
-    if (window.toastGlobal) console.error(msg);
-    toast(msg);
-    CHAT_ACTIVO = null;
-    return;
-  }
-  const mensajes = (d.mensajes || []).map(m => chatMsgHTML(m)).join('');
-  // Activar la sección de chat sin volver a llamar a renderChat (que reemplazaría
-  // esta conversación por la lista de chats al completar su fetch).
-  $$('.sec').forEach(s => s.classList.remove('active'));
-  let secEl = $('#sec-chat');
-  if (!secEl) {
-    secEl = document.createElement('div');
-    secEl.className = 'sec';
-    secEl.id = 'sec-chat';
-    $('#content').appendChild(secEl);
-  }
-  secEl.classList.add('active');
-  $$('#bottombar .bb-item').forEach(x => x.classList.toggle('active', x.dataset.sec === 'chat'));
-  const el = secEl;
-  el.innerHTML = `
-    ${secHeader('💬 ' + esc(d.chat.nombre || 'Chat'))}
-    <button class="btn ghost small mb" onclick="renderChat($('#sec-chat'))">← Volver a la lista</button>
-    <div class="card">
-      <div id="chatMsgs" style="max-height:55vh;overflow:auto;display:flex;flex-direction:column">${mensajes || '<div class="empty">Decí hola 👋</div>'}</div>
-      <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
-        <input type="file" id="chatFoto" accept="image/*,video/*" style="display:none">
-        <button class="btn ghost" onclick="$('#chatFoto').click()" title="Adjuntar foto o video">📎</button>
-        <input id="chatInput" placeholder="Escribí un mensaje..." style="flex:1">
-        <button class="btn primary" onclick="enviarChat()">Enviar</button>
-      </div>
-      <div id="chatAdjVista" class="mt small" style="display:none;color:var(--muted)"></div>
-    </div>`;
-  const inp = $('#chatInput');
-  const box = $('#chatMsgs'); box.scrollTop = box.scrollHeight;
-  const lastM = (d.mensajes && d.mensajes.length) ? d.mensajes[d.mensajes.length - 1].id : 0;
-  CHAT_LAST_MSG = lastM;
-  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') enviarChat(); });
-  const fInp = $('#chatFoto');
-  if (fInp) fInp.addEventListener('change', () => {
-    const f = fInp.files && fInp.files[0];
-    if (!f) return;
-    if (!/^image\/(png|jpe?g|webp|gif)|^video\/(mp4|webm|quicktime)/.test(f.type)) { toast('Elegí una foto o un video (mp4/webm)'); fInp.value = ''; return; }
-    if (f.size > 25 * 1024 * 1024) { toast('El archivo es muy grande (máx 25MB)'); fInp.value = ''; return; }
-    const r = new FileReader();
-    r.onload = () => {
-      CHAT_ADJ = { data: r.result, tipo: f.type.indexOf('image/') === 0 ? 'imagen' : 'video', nombre: f.name };
-      const v = $('#chatAdjVista');
-      if (v) { v.style.display = ''; v.textContent = '📎 Adjuntado: ' + f.name + (CHAT_ADJ.tipo === 'imagen' ? ' (foto)' : ' (video)'); }
-    };
-    r.readAsDataURL(f);
-  });
-  if (CHAT_TIMER) clearInterval(CHAT_TIMER);
-  CHAT_TIMER = setInterval(() => { if (CHAT_ACTIVO && $('#sec-chat') && !document.hidden) actualizarChatMsgs(); }, 5000);
-}
-
-async function actualizarChatMsgs() {
-  // El servidor devuelve solo los mensajes posteriores a CHAT_LAST_MSG: bajar
-  // los 200 cada 5 segundos significaba releer todos los adjuntos (hasta 25 MB
-  // c/u) de la base aunque no hubiera nada nuevo.
-  const incremental = CHAT_LAST_MSG > 0;
-  const url = '/api/chats/' + CHAT_ACTIVO + '/mensajes'
-    + (incremental ? '?desde=' + CHAT_LAST_MSG : '');
-  const d = await api(url).catch(() => null);
-  if (!d || !$('#chatMsgs')) return;
-  const box = $('#chatMsgs');
-  const msgs = d.mensajes || [];
-  if (incremental) {
-    if (!msgs.length) return; // sin cambios: no re-crear (evita cortar videos)
-    const eraAbajo = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
-    CHAT_LAST_MSG = msgs[msgs.length - 1].id;
-    box.insertAdjacentHTML('beforeend', msgs.map(m => chatMsgHTML(m)).join(''));
-    if (eraAbajo) box.scrollTop = box.scrollHeight;
-    return;
-  }
-  CHAT_LAST_MSG = msgs.length ? msgs[msgs.length - 1].id : 0;
-  const eraAbajo = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
-  box.innerHTML = msgs.map(m => chatMsgHTML(m)).join('') || '<div class="empty">Decí hola 👋</div>';
-  if (eraAbajo) box.scrollTop = box.scrollHeight;
-}
-
-function chatMsgHTML(m) {
-  const adj = m.adjunto ? (m.adjunto_tipo === 'video'
-    ? `<video controls playsinline preload="metadata" style="max-width:100%;max-height:260px;border-radius:10px;margin-top:6px;display:block"><source src="${esc(m.adjunto)}"></video>`
-    : `<img loading="lazy" decoding="async" src="${esc(m.adjunto)}" style="max-width:100%;max-height:260px;border-radius:10px;margin-top:6px;display:block;cursor:pointer" onclick="abrirAdjunto(this.src, 'imagen')">`) : '';
-  const texto = m.mensaje ? `<div class="chat-bubble">${esc(m.mensaje)}</div>` : '';
-  return `<div class="chat-msg ${m.user_id === USER.id ? 'own' : ''}">
-      ${texto}
-      ${adj}
-      <div class="chat-meta">${esc(m.nombre)} · ${esc(m.fecha)}</div>
-    </div>`;
-}
-
-function abrirAdjunto(src, tipo) {
-  const esImagen = tipo === 'imagen' || src.indexOf('data:image/') === 0;
-  openModal(esImagen
-    ? `<img src="${esc(src)}" style="width:100%;border-radius:10px">`
-    : `<video src="${esc(src)}" controls autoplay style="width:100%;border-radius:10px"></video>`);
-}
-
-async function enviarChat() {
-  const inp = $('#chatInput');
-  const msg = inp.value.trim();
-  const adj = CHAT_ADJ;
-  if (!CHAT_ACTIVO || (!msg && !adj)) return;
-  inp.value = '';
-  CHAT_ADJ = null;
-  const v = $('#chatAdjVista');
-  if (v) { v.style.display = 'none'; v.textContent = ''; }
-  try {
-    await api('/api/chats/' + CHAT_ACTIVO + '/mensajes', { method: 'POST', body: { mensaje: msg, adjunto: adj ? adj.data : null, adjunto_tipo: adj ? adj.tipo : null } });
-    actualizarChatMsgs();
-  } catch (e) { toast(e.message); }
-}
-
-/* =====================================================================
    MURO
    ===================================================================== */
 async function renderMuro(el) {
@@ -4254,55 +3939,31 @@ async function borrarMeta(id) {
 }
 
 /* =====================================================================
-   ENCUESTAS
+   EVENTOS Y TORNEOS — pestanas
    ===================================================================== */
-async function renderEncuestas(el) {
-  const d = await api('/api/encuestas').catch(() => ({ encuestas: [] }));
-  const esStaff = USER.role !== 'alumno';
+async function renderEventosTorneos(el) {
   el.innerHTML = `
-    ${secHeader('📊 Encuestas')}
-    ${esStaff ? `<div class="card">
-      <h3>Crear encuesta</h3>
-      <form id="encForm" class="grid2">
-        <div class="field" style="grid-column:1/-1"><label>Pregunta</label><input id="eTitulo"></div>
-        <div class="field" style="grid-column:1/-1"><label>Opciones (una por línea)</label><textarea id="eOpc" style="width:100%;min-height:70px" placeholder="Opción 1&#10;Opción 2&#10;Opción 3"></textarea></div>
-        <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">Publicar encuesta</button></div>
-      </form>
-    </div>` : ''}
-    <div class="card"><h3>Encuestas</h3>
-      ${d.encuestas.length ? d.encuestas.map(e => {
-        const total = e.conteo.reduce((a, b) => a + b, 0);
-        return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
-          <b>${esc(e.titulo)}</b> <span class="small" style="color:var(--muted)">· ${total} voto${total === 1 ? '' : 's'}</span>
-          ${e.opciones.map((o, i) => {
-            const pct = total ? Math.round(e.conteo[i] * 100 / total) : 0;
-            const esMi = e.mi_voto === i;
-            return `<div style="margin-top:6px">
-              <div class="flex space-between"><span class="small">${esMi ? '✓ ' : ''}${esc(o)}</span><span class="small">${e.conteo[i]} · ${pct}%</span></div>
-              <button class="btn ghost small" style="width:100%;margin-top:2px" onclick="votarEncuesta(${e.id},${i})">${esMi ? 'Cambiar voto' : 'Votar'}</button>
-              <div style="height:6px;background:var(--bg);border-radius:4px;margin-top:2px"><div style="height:100%;width:${pct}%;background:var(--red);border-radius:4px"></div></div>
-            </div>`;
-          }).join('')}
-        </div>`;
-      }).join('') : '<div class="empty">No hay encuestas todavía.</div>'}
-    </div>`;
-  if (esStaff) $('#encForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const opciones = $('#eOpc').value.split('\n').map(s => s.trim()).filter(Boolean);
-    try {
-      await api('/api/encuestas', { method: 'POST', body: { titulo: $('#eTitulo').value, opciones } });
-      renderEncuestas($('#sec-encuestas'));
-    } catch (err) { toast(err.message); }
-  });
-}
-async function votarEncuesta(id, op) {
-  try { await api('/api/encuestas/' + id + '/votar', { method: 'POST', body: { opcion: op } }); renderEncuestas($('#sec-encuestas')); }
-  catch (e) { toast(e.message); }
+    <div class="flex" style="gap:8px;margin-bottom:12px">
+      <button class="btn primary" id="eTabEventos" onclick="evTab('eventos')">🗓️ Eventos</button>
+      <button class="btn ghost" id="eTabTorneos" onclick="evTab('torneos')">🏆 Torneos</button>
+    </div>
+    <div id="evPaneEventos"></div>
+    <div id="evPaneTorneos" hidden></div>`;
+  await renderEventos($('#evPaneEventos'));
 }
 
-/* =====================================================================
-   EVENTOS Y ACTIVIDADES
-   ===================================================================== */
+async function evTab(cual) {
+  const ev = cual === 'eventos';
+  $('#evPaneEventos').hidden = !ev;
+  $('#evPaneTorneos').hidden = ev;
+  $('#eTabEventos').className = 'btn ' + (ev ? 'primary' : 'ghost');
+  $('#eTabTorneos').className = 'btn ' + (ev ? 'ghost' : 'primary');
+  if (!ev && !$('#evPaneTorneos').dataset.cargado) {
+    $('#evPaneTorneos').dataset.cargado = '1';
+    await renderTorneos($('#evPaneTorneos'));
+  }
+}
+
 let EVENTOS_CACHE = {};
 async function renderEventos(el) {
   const d = await api('/api/eventos').catch(() => ({ eventos: [] }));
@@ -4366,7 +4027,7 @@ async function renderEventos(el) {
           lugar: $('#vLugar').value, descripcion: $('#vDesc').value, fotos: fotos } });
         fotos = [];
         toast('Evento publicado');
-        renderEventos($('#sec-eventos'));
+        renderEventos($('#evPaneEventos'));
       } catch (err) { toast(err.message); }
     });
   }
@@ -4379,12 +4040,12 @@ function abrirFotoEvento(el) {
   verFoto(ev.fotos[Number(el.getAttribute('data-foto-i'))] || ev.fotos[0]);
 }
 async function asistirEvento(id, voy) {
-  try { await api('/api/eventos/' + id + '/asistir', { method: 'POST', body: { quitar: voy ? 1 : 0 } }); renderEventos($('#sec-eventos')); }
+  try { await api('/api/eventos/' + id + '/asistir', { method: 'POST', body: { quitar: voy ? 1 : 0 } }); renderEventos($('#evPaneEventos')); }
   catch (e) { toast(e.message); }
 }
 async function borrarEvento(id) {
   if (!confirm('¿Eliminar este evento?')) return;
-  try { await api('/api/eventos/' + id, { method: 'DELETE' }); renderEventos($('#sec-eventos')); }
+  try { await api('/api/eventos/' + id, { method: 'DELETE' }); renderEventos($('#evPaneEventos')); }
   catch (e) { toast(e.message); }
 }
 
@@ -4542,184 +4203,6 @@ async function recPaso2(user) {
   } catch (e) { toast(e.message); }
 }
 
-/* =====================================================================
-   DIARIO DE LA ACADEMIA
-   ===================================================================== */
-async function renderDiario(el) {
-  const d = await api('/api/diario').catch(() => ({ diario: [] }));
-  const esStaff = esAdmin() || USER.role === 'profesor';
-  const hoy = d.hoy || fechaHoyLocal();
-  const yaHoy = d.diario[0] && d.diario[0].fecha === hoy;
-  const entradas = d.diario.map(e => `
-    <div class="post-card">
-      <div class="post-head">
-        ${avatarHTML(e.autor_foto, e.autor_nombre, 'sm')} <b>${esc(e.autor_nombre)}</b>
-        <span class="small" style="color:var(--muted)">· ${esc(e.fecha)}</span>
-        ${esStaff ? `<button class="btn ghost small" style="margin-left:auto" onclick="borrarDiario(${e.id})">🗑</button>` : ''}
-      </div>
-      ${e.titulo ? `<h4 style="margin:8px 0 4px">${esc(e.titulo)}</h4>` : ''}
-      ${e.texto ? `<p class="small" style="white-space:pre-wrap;margin:6px 0 0">${esc(e.texto)}</p>` : ''}
-      ${e.foto ? `<img src="${esc(e.foto)}" style="max-width:100%;max-height:260px;border-radius:10px;margin-top:10px;object-fit:cover">` : ''}
-    </div>`).join('');
-  el.innerHTML = `
-    ${secHeader('📓 Diario de la academia', esStaff ? 'Escribí la crónica del día, lo que se trabajó y quiénes vinieron.' : 'La crónica diaria de lo que pasa en el dojo')}
-    ${esStaff ? `
-    <div class="card">
-      <div class="small mb">${yaHoy ? '✏️ Ya escribiste la crónica de hoy. Podés editarla:' : '📝 Crónica de hoy:'}</div>
-      <input id="diarioTitulo" placeholder="Título (ej: Trabajo de guardias)" value="${yaHoy ? esc(d.diario[0].titulo || '') : ''}" style="width:100%;margin-bottom:8px">
-      <textarea id="diarioTexto" rows="4" placeholder="Contá qué se trabajó hoy, quiénes vinieron, anécdotas..." style="width:100%">${yaHoy ? esc(d.diario[0].texto || '') : ''}</textarea>
-      <button class="btn primary btn-block mt" onclick="guardarDiario()">${yaHoy ? 'Actualizar crónica' : 'Guardar crónica de hoy'}</button>
-    </div>
-    ` : ''}
-    <div class="feed">
-      ${entradas || '<div class="empty">Todavía no hay entradas en el diario.</div>'}
-    </div>`;
-}
-
-async function guardarDiario() {
-  try {
-    await api('/api/diario', { method: 'POST', body: { titulo: $('#diarioTitulo').value, texto: $('#diarioTexto').value } });
-    toast('Crónica guardada ✓');
-    renderDiario($('#sec-diario'));
-  } catch (e) { toast(e.message); }
-}
-
-async function borrarDiario(id) {
-  if (!confirm('¿Eliminar esta entrada del diario?')) return;
-  try {
-    await api('/api/diario/' + id, { method: 'DELETE' });
-    toast('Entrada eliminada');
-    renderDiario($('#sec-diario'));
-  } catch (e) { toast(e.message); }
-}
-
-/* =====================================================================
-   FAMILIAS (grupos familiares)
-   ===================================================================== */
-async function renderFamilias(el) {
-  const [d, alumResp] = await Promise.all([
-    api('/api/familias').catch(() => ({ familias: [] })),
-    api('/api/alumnos').catch(() => ({ alumnos: [] })),
-  ]);
-  const alumnos = alumResp.alumnos;
-  const usadas = new Set();
-  d.familias.forEach(f => (f.miembros || []).forEach(m => usadas.add(m.id)));
-  const libres = alumnos.filter(a => !usadas.has(a.id));
-  el.innerHTML = `
-    ${secHeader('👨‍👩‍👧 Grupos familiares', 'Agrupá familiares para cobrar la cuota con descuento a todos los integrantes')}
-    <div class="card">
-      <div class="flex space-between" style="align-items:center;gap:8px;margin-bottom:8px">
-        <div class="field" style="flex:1;margin:0"><label>Nombre del grupo</label><input id="famNombre" placeholder="Ej: Familia García"></div>
-        <div class="field" style="flex:1;margin:0"><label>Titular (primero)</label><select id="famTitular">
-          <option value="">— elegir —</option>
-          ${libres.map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')}
-        </select></div>
-      </div>
-      <button class="btn primary btn-block" onclick="crearFamilia()">👨‍👩‍👧 Crear grupo familiar</button>
-    </div>
-    <div class="feed">
-      ${d.familias.length ? d.familias.map(f => `
-        <div class="post-card">
-          <div class="flex space-between" style="align-items:center">
-            <div><b>${esc(f.nombre)}</b> <span class="small" style="color:var(--muted)">· total <b>$${num(f.total)}</b>/mes</span></div>
-            <div>
-              <button class="btn ghost small" onclick="editarNombreFamilia(${f.id},'${escJs(f.nombre)}')">✏️</button>
-              <button class="btn ghost small" onclick="verFamiliaModal(${f.id},'${escJs(f.nombre)}')">➕</button>
-              <button class="btn bad small" onclick="borrarFamilia(${f.id},'${escJs(f.nombre)}')">🗑</button>
-            </div>
-          </div>
-          ${(f.miembros || []).map(m => `
-            <div class="flex space-between" style="align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)">
-              <span>${avatarHTML(m.foto, m.nombre, 'sm')} <b>${esc(m.nombre)}</b> ${m.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}
-                <span class="small" style="color:var(--muted)">· ${esc(m.relacion)}</span></span>
-              <span class="small">$${num(m.cuota_final)}<br>${m.descuento ? '<span style="color:var(--good)">-' + num(m.descuento) + '</span>' : ''}</span>
-              <button class="btn ghost small" onclick="quitarMiembroFamilia(${f.id},${m.id},'${escJs(m.nombre)}')">✕</button>
-            </div>`).join('') || '<div class="empty">Sin miembros</div>'}
-        </div>`).join('') : '<div class="empty">Todavía no hay grupos familiares. Creá el primero arriba.</div>'}
-    </div>`;
-}
-
-async function editarNombreFamilia(id, nombre) {
-  openModal(`
-    <h3>✏️ Renombrar grupo</h3>
-    <div class="field"><label>Nombre del grupo</label><input id="efNombre" value="${esc(nombre)}"></div>
-    <button class="btn primary btn-block" onclick="guardarNombreFamilia(${id})">Guardar</button>
-    <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
-  $('#efNombre').focus();
-}
-async function guardarNombreFamilia(id) {
-  try {
-    await api('/api/familias/' + id, { method: 'PUT', body: { nombre: $('#efNombre').value } });
-    toast('Grupo renombrado ✓');
-    closeModal();
-    renderFamilias($('#sec-familias'));
-  } catch (e) { toast(e.message); }
-}
-async function borrarFamilia(id, nombre) {
-  if (!confirm('¿Eliminar el grupo familiar "' + nombre + '"?')) return;
-  try {
-    await api('/api/familias/' + id, { method: 'DELETE' });
-    toast('Grupo eliminado');
-    renderFamilias($('#sec-familias'));
-  } catch (e) { toast(e.message); }
-}
-async function quitarMiembroFamilia(fid, uid, nombre) {
-  if (!confirm('¿Sacar a ' + nombre + ' del grupo?')) return;
-  try {
-    await api('/api/familias/' + fid + '/miembros/' + uid, { method: 'DELETE' });
-    toast(nombre + ' fue sacado del grupo');
-    renderFamilias($('#sec-familias'));
-  } catch (e) { toast(e.message); }
-}
-async function crearFamilia() {
-  const nombre = $('#famNombre').value.trim();
-  if (!nombre) { toast('Poné un nombre al grupo'); return; }
-  try {
-    await api('/api/familias', { method: 'POST', body: { nombre, titular_id: $('#famTitular').value } });
-    toast('Grupo familiar creado ✓');
-    renderFamilias($('#sec-familias'));
-  } catch (e) { toast(e.message); }
-}
-async function verFamiliaModal(fid, nombre) {
-  const d = await api('/api/familias');
-  const f = d.familias.find(x => x.id === fid);
-  const libres = [];
-  try {
-    const a = (await api('/api/alumnos')).alumnos;
-    const usadas = new Set();
-    d.familias.forEach(x => (x.miembros || []).forEach(m => usadas.add(m.id)));
-    a.filter(x => !usadas.has(x.id)).forEach(x => libres.push(x));
-  } catch (e) {}
-  openModal(`
-    <h3>👨‍👩‍👧 ${esc(nombre)}</h3>
-    ${(f.miembros || []).map(m => `
-      <div class="flex space-between" style="align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)">
-        <span>${avatarHTML(m.foto, m.nombre, 'sm')} <b>${esc(m.nombre)}</b> <span class="small" style="color:var(--muted)">· ${esc(m.relacion)}</span> ${m.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}</span>
-        <button class="btn ghost small" onclick="quitarMiembroFamilia(${fid},${m.id},'${escJs(m.nombre)}')">✕</button>
-      </div>`).join('')}
-    <div class="field mt"><label>Agregar miembro</label><select id="fmUser">
-      <option value="">— elegir alumno —</option>
-      ${libres.map(a => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')}
-    </select></div>
-    <div class="field"><label>Relación</label><select id="fmRel">
-      <option>Hijo/a</option><option>Hija</option><option>Pareja</option>
-      <option>Mamá</option><option>Papá</option><option>Hermano/a</option><option>Familiar</option>
-    </select></div>
-    <button class="btn primary btn-block" onclick="agregarMiembroFamilia(${fid})">➕ Agregar al grupo</button>
-    <button class="btn ghost btn-block mt" onclick="closeModal()">Cerrar</button>`);
-}
-async function agregarMiembroFamilia(fid) {
-  const uid = $('#fmUser').value;
-  if (!uid) { toast('Elegí un alumno'); return; }
-  try {
-    await api('/api/familias/' + fid + '/miembros', { method: 'POST', body: { user_id: uid, relacion: $('#fmRel').value } });
-    toast('Miembro agregado ✓');
-    closeModal();
-    renderFamilias($('#sec-familias'));
-  } catch (e) { toast(e.message); }
-}
-
-
 
 async function renderMiDinero(el) {
   const soyAdmin = esAdmin();
@@ -4872,56 +4355,15 @@ async function borrarIngresoExtra(id) {
 }
 
 async function renderDescuentos(el) {
-  el.innerHTML = secHeader('Descuentos') + '<div class="small" style="color:var(--muted);padding:0 4px 10px">Cuánto paga cada alumno: precio por cantidad de actividades y descuento del grupo familiar.</div>';
-  try {
-    const P = window.NEXO_PRECIOS || [0, 0, 0];
-    const [cfg, fam] = await Promise.all([
-      api('/api/settings').catch(() => ({})),
-      api('/api/familias').catch(() => ({ familias: [] })),
-    ]);
-    const d2 = Number((cfg.desc_familiar2 || 0)) || 0;
-    const d3 = Number((cfg.desc_familiar3 || 0)) || 0;
-    const d4 = Number((cfg.desc_familiar4 || 0)) || 0;
-
-    let html = `
+  const P = window.NEXO_PRECIOS || [0, 0, 0];
+  el.innerHTML = secHeader('Descuentos') + '<div class="small" style="color:var(--muted);padding:0 4px 10px">Cuanto paga cada alumno segun la cantidad de actividades en las que entrena.</div>' + `
     <div class="card">
-      <h3>📐 Precio según actividades</h3>
+      <h3>Precio segun actividades</h3>
       <div class="home-grid">
         <div class="stat-card"><div class="num">$${num(P[0])}</div><div class="lbl">1 actividad</div></div>
         <div class="stat-card"><div class="num">$${num(P[1])}</div><div class="lbl">2 actividades</div></div>
-        <div class="stat-card"><div class="num">$${num(P[2])}</div><div class="lbl">3 o más</div></div>
+        <div class="stat-card"><div class="num">$${num(P[2])}</div><div class="lbl">3 o mas</div></div>
       </div>
       <p class="small" style="color:var(--muted)">Se cobra por la cantidad de actividades en las que entrena el alumno, no por la cantidad de profesores.</p>
-    </div>
-    <div class="card">
-      <h3>👨‍👩‍👧 Descuento familiar</h3>
-      <p class="small" style="color:var(--muted)">2 integrantes: ${d2}% · 3: ${d3}% · 4 o más: ${d4}% (se cambian en Configuración)</p>
     </div>`;
-
-    const fams = (fam.familias || []).filter(f => (f.miembros || []).length > 1);
-    if (fams.length) {
-      html += `<div class="card"><h3>👨‍👩‍👧 Quién está en cada familia</h3>` + fams.map(f => {
-        const n = (f.miembros || []).length;
-        const pct = n >= 4 ? d4 : n === 3 ? d3 : n === 2 ? d2 : 0;
-        const miembros = (f.miembros || []).map(m => {
-          const acts = (m.actividades || '').split(',').map(s => s.trim()).filter(Boolean);
-          const precio = acts.length >= 3 ? P[2] : acts.length === 2 ? P[1] : acts.length === 1 ? P[0] : 0;
-          const final = pct > 0 ? Math.round(precio * (100 - pct) / 100) : precio;
-          return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
-            <div class="flex space-between"><b>${esc(m.nombre)}</b>
-              <span class="small">${precio ? 'paga' : 'sin cuota'}${precio ? ` <s style="color:var(--muted)">$${num(precio)}</s> <b style="color:var(--good)">$${num(final)}</b>` : ''}</span></div>
-            <div class="small" style="color:var(--muted);margin-top:4px">${acts.length ? acts.map(a => `<span class="tag">${esc(a)}</span>`).join(' ') : '<i>sin actividades cargadas</i>'}</div>
-          </div>`;
-        }).join('');
-        return `<div style="margin-bottom:18px">
-          <div class="flex space-between" style="margin-bottom:6px">
-            <b>${esc(f.nombre || 'Familia')}</b>
-            <span class="small" style="color:var(--accent2)">${n} integrantes${pct ? ` · ${pct}% de descuento` : ' · sin descuento'}</span>
-          </div>${miembros}</div>`;
-      }).join('') + `</div>`;
-    } else {
-      html += `<div class="card"><div class="empty">Todavía no hay grupos familiares con más de un integrante</div></div>`;
-    }
-    el.innerHTML = el.innerHTML + html;
-  } catch (e) { toast(e.message); }
 }

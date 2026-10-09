@@ -580,30 +580,6 @@ CREATE TABLE IF NOT EXISTS video_progress (
     PRIMARY KEY (video_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS chats (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nombre TEXT,
-    tipo TEXT DEFAULT 'grupo',
-    creado_por INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    fecha TEXT
-);
-
-CREATE TABLE IF NOT EXISTS chat_members (
-    chat_id INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    PRIMARY KEY (chat_id, user_id)
-);
-
-CREATE TABLE IF NOT EXISTS chat_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    chat_id INTEGER NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE SET NULL,
-    mensaje TEXT,
-    adjunto TEXT,
-    adjunto_tipo TEXT,
-    fecha TEXT
-);
-
 CREATE TABLE IF NOT EXISTS muro (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -633,22 +609,6 @@ CREATE TABLE IF NOT EXISTS metas (
     objetivo INTEGER DEFAULT 3,
     cumplida INTEGER DEFAULT 0,
     fecha TEXT
-);
-
-CREATE TABLE IF NOT EXISTS encuestas (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    titulo TEXT NOT NULL,
-    opciones TEXT,
-    activa INTEGER DEFAULT 1,
-    fecha TEXT
-);
-
-CREATE TABLE IF NOT EXISTS encuesta_votos (
-    encuesta_id INTEGER NOT NULL REFERENCES encuestas(id) ON DELETE CASCADE,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    opcion INTEGER,
-    PRIMARY KEY (encuesta_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS eventos (
@@ -728,16 +688,6 @@ CREATE TABLE IF NOT EXISTS familia_miembros (
     PRIMARY KEY (familia_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS diario (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    fecha TEXT NOT NULL,
-    titulo TEXT,
-    texto TEXT,
-    foto TEXT,
-    UNIQUE (fecha)
-);
-
 CREATE TABLE IF NOT EXISTS clase_valoraciones (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     clase_id INTEGER NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
@@ -748,26 +698,6 @@ CREATE TABLE IF NOT EXISTS clase_valoraciones (
     UNIQUE (clase_id, alumno_id, fecha)
 );
 
-CREATE TABLE IF NOT EXISTS planes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    titulo TEXT NOT NULL,
-    descripcion TEXT,
-    categoria TEXT DEFAULT 'todos',
-    cinturon TEXT DEFAULT 'todos',
-    fecha TEXT,
-    autor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    activo INTEGER DEFAULT 1,
-    creado TEXT
-);
-
-CREATE TABLE IF NOT EXISTS plan_hecho (
-    plan_id INTEGER NOT NULL REFERENCES planes(id) ON DELETE CASCADE,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    fecha TEXT,
-    PRIMARY KEY (plan_id, user_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_pagos_alumno ON pagos(alumno_id);
 CREATE INDEX IF NOT EXISTS idx_pagos_mes_anio ON pagos(mes, anio);
 CREATE INDEX IF NOT EXISTS idx_asistencia_alumno ON asistencia(alumno_id);
 CREATE INDEX IF NOT EXISTS idx_asistencia_fecha ON asistencia(fecha);
@@ -775,8 +705,6 @@ CREATE INDEX IF NOT EXISTS idx_notif_user ON notificaciones(user_id, leida);
 CREATE INDEX IF NOT EXISTS idx_videos_categoria ON videos(categoria);
 CREATE INDEX IF NOT EXISTS idx_videos_belt ON videos(belt);
 CREATE INDEX IF NOT EXISTS idx_views_user ON video_views(user_id);
-CREATE INDEX IF NOT EXISTS idx_progress_user ON video_progress(user_id);
-CREATE INDEX IF NOT EXISTS idx_chat_messages_chat ON chat_messages(chat_id, id);
 CREATE INDEX IF NOT EXISTS idx_muro_fotos_muro ON muro_fotos(muro_id);
 CREATE INDEX IF NOT EXISTS idx_muro_videos_muro ON muro_videos(muro_id);
 CREATE INDEX IF NOT EXISTS idx_grados_alumno ON grados(alumno_id);
@@ -1006,16 +934,22 @@ def _migrar_columnas(c):
         c.execute('ALTER TABLE videos ADD COLUMN categoria TEXT DEFAULT \'adulto\'')
     if 'actividad' not in v_cols:
         c.execute('ALTER TABLE videos ADD COLUMN actividad TEXT')
-    cm_cols = _columnas_de(c, 'chat_messages')
-    if 'adjunto' not in cm_cols:
-        c.execute('ALTER TABLE chat_messages ADD COLUMN adjunto TEXT')
-    if 'adjunto_tipo' not in cm_cols:
-        c.execute('ALTER TABLE chat_messages ADD COLUMN adjunto_tipo TEXT')
     if 'link' not in _columnas_de(c, 'notificaciones'):
         c.execute('ALTER TABLE notificaciones ADD COLUMN link TEXT DEFAULT \'\'')
 
 
 def _init_db_body(db):
+    # Purga de secciones eliminadas (Planes/Diario/Encuestas/Chat): si una base
+    # vieja las tiene, se borran tablas y datos junto con el codigo nuevo.
+    db.executescript(
+        'DROP TABLE IF EXISTS plan_hecho;\n'
+        'DROP TABLE IF EXISTS planes;\n'
+        'DROP TABLE IF EXISTS diario;\n'
+        'DROP TABLE IF EXISTS encuesta_votos;\n'
+        'DROP TABLE IF EXISTS encuestas;\n'
+        'DROP TABLE IF EXISTS chat_messages;\n'
+        'DROP TABLE IF EXISTS chat_members;\n'
+        'DROP TABLE IF EXISTS chats;')
     # Orden: CREATE TABLE -> ALTER TABLE (columnas nuevas) -> CREATE INDEX.
     db.executescript(_tablas_sql())
     c = db.cursor()
@@ -1318,13 +1252,11 @@ _NOTIF_LINK_POR_TIPO = {
     'pago': 'mispagos',
     'logro': 'perfil',
     'evento': 'eventos',
-    'chat': 'chat',
-    'auto': 'chat',
+    'auto': 'info',
     'familia': 'perfil',
     'examen': 'perfil',
     'video': 'videos',
     'pausa': 'perfil',
-    'plan': 'planes',
 }
 
 
@@ -3212,14 +3144,6 @@ def api_alumnos():
         "  (SELECT COUNT(*) FROM pagos p WHERE p.alumno_id=u.id) AS pagos_totales"
         " FROM users u WHERE u.role IN ('alumno','profesor') ORDER BY u.nombre"
         % columnas_de_users('u.')).fetchall()
-    # mapa alumno -> familia (nombre, titular, relacion) y conteo de miembros
-    fam_map = {}
-    fam_count = {}
-    for fm in db.execute(
-        """SELECT fm.user_id, fm.relacion, f.id AS fam_id, f.nombre AS fam_nombre, f.titular_id
-           FROM familia_miembros fm JOIN familias f ON f.id=fm.familia_id""").fetchall():
-        fam_map[fm['user_id']] = fm
-        fam_count[fm['fam_id']] = fam_count.get(fm['fam_id'], 0) + 1
     hoy = _hoy_academy()
     pagos_mes = _pagos_del_mes(hoy.month, hoy.year)
     alumnos = []
@@ -3233,15 +3157,7 @@ def api_alumnos():
             d['notas_internas'] = r['notas_internas']
         if 'proximo_examen' in r.keys():
             d['proximo_examen'] = r['proximo_examen']
-        fm = fam_map.get(r['id'])
-        if fm:
-            total = fam_count.get(fm['fam_id'], 1)
-            base, desc, final = familia_cuota(dict(r, es_titular=(1 if fm['titular_id'] == r['id'] else 0)), total)
-            d['familia'] = {'id': fm['fam_id'], 'nombre': fm['fam_nombre'],
-                            'relacion': fm['relacion'], 'es_titular': bool(fm['titular_id'] == r['id']),
-                            'cuota': base, 'descuento': desc, 'cuota_final': final}
-        else:
-            d['familia'] = None
+        d['familia'] = None
         alumnos.append(d)
     return jsonify({'alumnos': alumnos})
 
@@ -3600,43 +3516,6 @@ def api_alumno_ficha(uid):
 # Familias (grupos familiares)
 # ---------------------------------------------------------------------------
 
-def _descuento_familiar_pct(total_miembros):
-    """Porcentaje de descuento familiar segun la cantidad de integrantes:
-    2 -> desc_familiar2, 3 -> desc_familiar3, 4 o mas -> desc_familiar4."""
-    d2 = to_float(get_setting('desc_familiar2', '10')) or 0
-    d3 = to_float(get_setting('desc_familiar3', '15')) or 0
-    d4 = to_float(get_setting('desc_familiar4', '20')) or 0
-    if total_miembros >= 4:
-        return d4
-    if total_miembros == 3:
-        return d3
-    if total_miembros == 2:
-        return d2
-    return 0
-
-
-def _escala_descuento():
-    """Escala de descuentos a mostrar en la UI (2, 3, 4 o mas integrantes)."""
-    return [
-        {'integrantes': 2, 'pct': to_float(get_setting('desc_familiar2', '10')) or 0},
-        {'integrantes': 3, 'pct': to_float(get_setting('desc_familiar3', '15')) or 0},
-        {'integrantes': 4, 'pct': to_float(get_setting('desc_familiar4', '20')) or 0},
-    ]
-
-
-def familia_cuota(miembro, total_miembros):
-    """Cuota de un miembro aplicando el descuento familiar a TODOS los integrantes.
-    El porcentaje depende de cuantos integrantes tiene el grupo (2, 3, 4+)."""
-    pct = _descuento_familiar_pct(total_miembros)
-    base = miembro.get('cuota_mensual') or 0
-    desc = 0
-    cuota_final = base
-    if pct > 0:
-        desc = round(base * pct / 100)
-        cuota_final = base - desc
-    return base, desc, cuota_final
-
-
 def familia_de(user_id):
     """Devuelve (familia_id, nombre, titular_id) del usuario o (None,None,None)."""
     row = get_db().execute(
@@ -3648,138 +3527,16 @@ def familia_de(user_id):
     return row['id'], row['nombre'], row['titular_id']
 
 
-@app.route('/api/familias')
-@role_required('admin', 'profesor')
-def api_familias():
-    db = get_db()
-    rows = db.execute('SELECT * FROM familias ORDER BY nombre').fetchall()
-    familias = []
-    for f in rows:
-        miem = db.execute(
-            "SELECT %s, fm.relacion,"
-            "  (CASE WHEN f.titular_id=u.id THEN 1 ELSE 0 END) AS es_titular"
-            " FROM familia_miembros fm"
-            " JOIN users u ON u.id=fm.user_id"
-            " JOIN familias f ON f.id=fm.familia_id"
-            " WHERE fm.familia_id=? ORDER BY es_titular DESC, u.nombre"
-            % columnas_de_users('u.'),
-            (f['id'],)).fetchall()
-        lista = []
-        total = 0
-        for m in miem:
-            base, desc, final = familia_cuota(dict(m), len(miem))
-            total += final
-            lista.append({'id': m['id'], 'nombre': m['nombre'], 'cinturon': m['cinturon'],
-                          'foto': '/api/avatar/%d' % m['id'], 'relacion': m['relacion'],
-                          'es_titular': bool(m['es_titular']), 'cuota': base,
-                          'descuento': desc, 'cuota_final': final})
-        familias.append({'id': f['id'], 'nombre': f['nombre'], 'titular_id': f['titular_id'],
-                         'fecha': f['fecha'], 'miembros': lista, 'total': round(total, 2)})
-    return jsonify({'familias': familias})
-
-
-@app.route('/api/familias', methods=['POST'])
-@role_required('admin', 'profesor')
-def api_familia_crear():
-    data = parse_json()
-    nombre = txt_str(data.get('nombre'))
-    if not nombre:
-        return jsonify({'error': 'Poné un nombre al grupo familiar'}), 400
-    titular_id = to_int(data.get('titular_id'))
-    db = get_db()
-    cur = db.execute('INSERT INTO familias(nombre, fecha) VALUES(?,?)',
-                     (nombre, datetime.now().strftime('%Y-%m-%d %H:%M')))
-    fam_id = cur.lastrowid
-    if titular_id:
-        u = _get_alumno(titular_id)
-        if u:
-            db.execute('INSERT INTO familia_miembros(familia_id, user_id, relacion) VALUES(?,?,?)',
-                       (fam_id, titular_id, 'Titular'))
-            db.execute('UPDATE familias SET titular_id=? WHERE id=?', (titular_id, fam_id))
-    db.commit()
-    if titular_id:
-        try:
-            notify(titular_id, '👨‍👩‍👧 Familia', 'Te agregamos al grupo familiar "%s".' % nombre, 'info', push=True)
-        except Exception:
-            pass
-    return jsonify({'ok': True, 'id': fam_id})
-
-
-@app.route('/api/familias/<int:fam_id>/miembros', methods=['POST'])
-@role_required('admin', 'profesor')
-def api_familia_agregar(fam_id):
-    data = parse_json()
-    uid = to_int(data.get('user_id'))
-    if not uid:
-        return jsonify({'error': 'Falta el alumno'}), 400
-    relacion = (data.get('relacion') or 'Familiar').strip() or 'Familiar'
-    db = get_db()
-    f = db.execute('SELECT * FROM familias WHERE id=?', (fam_id,)).fetchone()
-    if not f:
-        return jsonify({'error': 'Grupo no encontrado'}), 404
-    u = _get_alumno(uid)
-    if not u:
-        return jsonify({'error': 'Alumno no encontrado'}), 404
-    # si el alumno ya está en otra familia, se la cambia
-    db.execute('DELETE FROM familia_miembros WHERE user_id=?', (uid,))
-    db.execute('INSERT INTO familia_miembros(familia_id, user_id, relacion) VALUES(?,?,?)',
-               (fam_id, uid, relacion))
-    if f['titular_id'] is None:
-        db.execute('UPDATE familias SET titular_id=? WHERE id=? AND titular_id IS NULL', (uid, fam_id))
-    db.commit()
-    try:
-        notify(uid, '👨‍👩‍👧 Familia', 'Te incorporamos al grupo familiar "%s".' % f['nombre'], 'info', push=True)
-    except Exception:
-        pass
-    return jsonify({'ok': True})
-
-
-@app.route('/api/familias/<int:fam_id>/miembros/<int:uid>', methods=['DELETE'])
-@role_required('admin', 'profesor')
-def api_familia_quitar(fam_id, uid):
-    db = get_db()
-    db.execute('DELETE FROM familia_miembros WHERE familia_id=? AND user_id=?', (fam_id, uid))
-    # si era titular, pasar a otro miembro o dejar sin titular
-    f = db.execute('SELECT * FROM familias WHERE id=?', (fam_id,)).fetchone()
-    if f and f['titular_id'] == uid:
-        resto = db.execute('SELECT user_id FROM familia_miembros WHERE familia_id=? LIMIT 1', (fam_id,)).fetchone()
-        db.execute('UPDATE familias SET titular_id=? WHERE id=?', (resto['user_id'] if resto else None, fam_id))
-    db.commit()
-    return jsonify({'ok': True})
-
-
-@app.route('/api/familias/<int:fam_id>', methods=['DELETE'])
-@role_required('admin', 'profesor')
-def api_familia_borrar(fam_id):
-    db = get_db()
-    db.execute('DELETE FROM familias WHERE id=?', (fam_id,))
-    db.commit()
-    return jsonify({'ok': True})
-
-
-@app.route('/api/familias/<int:fam_id>', methods=['PUT'])
-@role_required('admin', 'profesor')
-def api_familia_editar(fam_id):
-    data = parse_json()
-    nombre = txt_str(data.get('nombre'))
-    db = get_db()
-    if not db.execute('SELECT id FROM familias WHERE id=?', (fam_id,)).fetchone():
-        return jsonify({'error': 'Grupo no encontrado'}), 404
-    if nombre:
-        db.execute('UPDATE familias SET nombre=? WHERE id=?', (nombre, fam_id))
-    db.commit()
-    return jsonify({'ok': True})
-
-
 @app.route('/api/mi_familia')
 @login_required
 def api_mi_familia():
+    """Grupo familiar del usuario (para el perfil). Sin descuento familiar: cada
+    integrante paga su cuota. El descuento se saco junto con el cobro por familia."""
     u = current_user()
     fam_id, nombre, titular_id = familia_de(u['id'])
-    db = get_db()
     if not fam_id:
-        return jsonify({'familia': None, 'descuento': 0, 'escala': _escala_descuento()})
-    miem = db.execute(
+        return jsonify({'familia': None, 'descuento': 0, 'escala': []})
+    miem = get_db().execute(
         "SELECT %s, fm.relacion,"
         "  (CASE WHEN f.titular_id=u.id THEN 1 ELSE 0 END) AS es_titular"
         " FROM familia_miembros fm"
@@ -3789,15 +3546,14 @@ def api_mi_familia():
         % columnas_de_users('u.'), (fam_id,)).fetchall()
     lista = []
     for m in miem:
-        base, desc, final = familia_cuota(dict(m), len(miem))
+        base = m['cuota_mensual'] or 0
         lista.append({'id': m['id'], 'nombre': m['nombre'], 'cinturon': m['cinturon'],
                       'foto': '/api/avatar/%d' % m['id'], 'relacion': m['relacion'],
                       'es_titular': bool(m['es_titular']), 'cuota': base,
-                      'descuento': desc, 'cuota_final': final})
-    descto = _descuento_familiar_pct(len(miem))
+                      'descuento': 0, 'cuota_final': base})
     return jsonify({'familia': {'id': fam_id, 'nombre': nombre, 'titular_id': titular_id,
                                 'miembros': lista},
-                    'descuento': descto, 'escala': _escala_descuento()})
+                    'descuento': 0, 'escala': []})
 
 
 # ---------------------------------------------------------------------------
@@ -3986,59 +3742,6 @@ def api_familia_hijo_quitar(uid):
 
 
 # ---------------------------------------------------------------------------
-# Diario de la academia
-# ---------------------------------------------------------------------------
-
-@app.route('/api/diario')
-@login_required
-def api_diario():
-    rows = get_db().execute(
-        "SELECT d.*, u.nombre AS autor_nombre, u.id AS autor_id"
-        " FROM diario d JOIN users u ON u.id=d.user_id"
-        " ORDER BY d.fecha DESC, d.id DESC LIMIT 120").fetchall()
-    out = []
-    for r in rows:
-        e = dict(r)
-        # El avatar del autor no viaja en cada entrada: son hasta 120 blobs.
-        e['autor_foto'] = '/api/avatar/%d' % e['autor_id']
-        out.append(e)
-    return jsonify({'diario': out,
-                    'hoy': _hoy_academy().strftime('%Y-%m-%d')})
-
-
-@app.route('/api/diario', methods=['POST'])
-@role_required('admin', 'profesor')
-def api_diario_crear():
-    u = current_user()
-    data = parse_json()
-    titulo = txt_str(data.get('titulo'))
-    texto = txt_str(data.get('texto'))
-    if not titulo and not texto:
-        return jsonify({'error': 'Escribí al menos la crónica del día'}), 400
-    hoy = _hoy_academy().strftime('%Y-%m-%d')
-    db = get_db()
-    exist = db.execute('SELECT id FROM diario WHERE fecha=?', (hoy,)).fetchone()
-    if exist:
-        db.execute('UPDATE diario SET titulo=?, texto=?, user_id=? WHERE id=?',
-                   (titulo, texto, u['id'], exist['id']))
-        did = exist['id']
-    else:
-        cur = db.execute('INSERT INTO diario(user_id, fecha, titulo, texto) VALUES(?,?,?,?)',
-                         (u['id'], hoy, titulo, texto))
-        did = cur.lastrowid
-    db.commit()
-    return jsonify({'ok': True, 'id': did, 'fecha': hoy})
-
-
-@app.route('/api/diario/<int:did>', methods=['DELETE'])
-@role_required('admin', 'profesor')
-def api_diario_borrar(did):
-    get_db().execute('DELETE FROM diario WHERE id=?', (did,))
-    get_db().commit()
-    return jsonify({'ok': True})
-
-
-# ---------------------------------------------------------------------------
 # Pagos
 # ---------------------------------------------------------------------------
 
@@ -4153,98 +3856,6 @@ def api_pagos_create():
     return jsonify({'ok': True, 'base': base, 'cargo': cargo, 'monto': monto,
                     'reparto': [{'profesor': n, 'monto': p, 'actividad': a} for _i, p, a, n in partes],
                     'destinos': [{'destino': d, 'monto': m} for d, m in destinos]})
-
-
-@app.route('/api/pagos/familia', methods=['POST'])
-@role_required('admin', 'profesor')
-def api_pagos_familia():
-    """Registra la cuota (con descuento familiar) de TODOS los integrantes del
-    grupo de un titular, en un solo paso. Saltea becados, profesores y quien
-    ya tiene pago de ese mes/año."""
-    data = parse_json()
-    titular_id = to_int(data.get('titular_id'))
-    mes = to_int(data.get('mes')) or _hoy_academy().month
-    anio = to_int(data.get('anio')) or _hoy_academy().year
-    metodo = (data.get('metodo') or 'Efectivo').strip() or 'Efectivo'
-    nota = txt_str(data.get('nota'))
-    if not titular_id:
-        return jsonify({'error': 'Elegí el titular de la familia'}), 400
-    mes, anio, err = validar_mes_anio(mes, anio)
-    if err:
-        return jsonify({'error': err}), 400
-    db = get_db()
-    ids, err = _leer_profesores(data)
-    if err:
-        return jsonify({'error': err}), 400
-    nombres = _nombres_profes(db, ids)
-    if len(nombres) != len(ids):
-        return jsonify({'error': 'Ese profesor no existe'}), 400
-    profesor_id = ids[0] if ids else None
-    fam = db.execute('SELECT * FROM familias WHERE titular_id=?', (titular_id,)).fetchone()
-    if not fam:
-        return jsonify({'error': 'Ese alumno no es titular de ningún grupo familiar'}), 404
-    miem = db.execute(
-        "SELECT %s, fm.relacion,"
-        "  (CASE WHEN f.titular_id=u.id THEN 1 ELSE 0 END) AS es_titular"
-        " FROM familia_miembros fm"
-        " JOIN users u ON u.id=fm.user_id"
-        " JOIN familias f ON f.id=fm.familia_id"
-        " WHERE fm.familia_id=?"
-        " ORDER BY es_titular DESC, u.nombre" % columnas_de_users('u.'),
-        (fam['id'],)).fetchall()
-    if not miem:
-        return jsonify({'error': 'El grupo no tiene integrantes'}), 404
-    if profesor_id == -1 or profesor_id is None:
-        profesor_id = None
-    who = current_user()
-    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    creados = []
-    total = 0
-    for m in miem:
-        md = dict(m)
-        if md.get('beca'):
-            continue
-        if db.execute('SELECT COUNT(*) AS n FROM pagos WHERE alumno_id=? AND mes=? AND anio=?',
-                      (m['id'], mes, anio)).fetchone()['n']:
-            continue
-        base, desc, final = familia_cuota(md, len(miem))
-        monto = final
-        if monto <= 0:
-            continue
-        _, cargo, monto_final = calcular_demora(monto, mes, anio)
-        if not as_bool(data.get('aplicar_cargo'), default=False):
-            monto_final = monto
-        pago_monto = int(round(monto_final))
-        db.execute(
-            """INSERT INTO pagos(alumno_id, profesor_id, monto, mes, anio, metodo, concepto, nota, fecha, registrado_por)
-               VALUES(?,?,?,?,?,?,?,?,?,?)""",
-            (m['id'], profesor_id, pago_monto, mes, anio, metodo, 'Cuota mensual',
-             nota or ('Familia %s' % fam['nombre']), now, who['id']))
-        pid_pago = db.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
-        _registrar_reparto(db, pid_pago, m['id'], pago_monto, ids or None)
-        total += pago_monto
-        creados.append({'id': m['id'], 'nombre': m['nombre'], 'monto': pago_monto})
-    db.commit()
-    for cr in creados:
-        try:
-            notify(cr['id'], 'Pago registrado',
-                   'Tu pago de $%d por %d/%d fue registrado por %s (cuota familiar).' % (
-                       cr['monto'], mes, anio, who['nombre']),
-                   'pago')
-        except Exception:
-            pass
-    for pid in ids:
-        if pid == who['id']:
-            continue
-        try:
-            profe = db.execute('SELECT nombre FROM users WHERE id=?', (pid,)).fetchone()
-            if profe:
-                notify(pid, 'Recibiste un pago',
-                       'La familia %s te pagó $%d (%s).' % (fam['nombre'], total, metodo),
-                       'pago')
-        except Exception:
-            pass
-    return jsonify({'ok': True, 'cantidad': len(creados), 'total': total, 'familia': fam['nombre']})
 
 
 @app.route('/api/pagos/<int:pid>', methods=['DELETE'])
@@ -5175,7 +4786,7 @@ def api_perfil_update():
         genero = ''
     cat = data.get('categoria', u['categoria'])
     # El alumno podia mandarse una categoria cualquiera y romper los filtros de
-    # videos, cinturones y los chats por categoria.
+    # videos y cinturones.
     if cat not in CATEGORIAS:
         return jsonify({'error': 'Categoría inválida'}), 400
     cinturon = u['cinturon']
@@ -5768,193 +5379,6 @@ def api_metricas_pagos():
 
 
 # ---------------------------------------------------------------------------
-# Chat + grupos por categoria
-# ---------------------------------------------------------------------------
-
-@app.route('/api/chats')
-@login_required
-def api_chats():
-    u = current_user()
-    db = get_db()
-    rows = db.execute(
-        'SELECT c.* FROM chats c JOIN chat_members m ON m.chat_id=c.id '
-        'WHERE m.user_id=? ORDER BY c.id DESC', (u['id'],)).fetchall()
-    chats = []
-    # 2 agregados en vez de 1-2 queries por chat
-    miembros = {m['chat_id']: m['n'] for m in db.execute(
-        'SELECT chat_id, COUNT(*) AS n FROM chat_members GROUP BY chat_id').fetchall()}
-    otros = {}
-    for m in db.execute(
-            'SELECT m.chat_id, u.id, u.nombre FROM chat_members m JOIN users u ON u.id=m.user_id '
-            'WHERE m.user_id<>? ORDER BY u.id', (u['id'],)).fetchall():
-        if m['chat_id'] not in otros:
-            otros[m['chat_id']] = m
-    for c in rows:
-        nombre = c['nombre']
-        if c['tipo'] == 'grupo':
-            chats.append({'id': c['id'], 'nombre': nombre or 'Grupo', 'tipo': c['tipo'],
-                          'miembros': miembros.get(c['id'], 0)})
-        else:
-            otro = otros.get(c['id'])
-            chats.append({'id': c['id'], 'nombre': (otro['nombre'] if otro else 'Chat'),
-                          'tipo': c['tipo']})
-    return jsonify({'chats': chats})
-
-
-@app.route('/api/chats', methods=['POST'])
-@login_required
-def api_chat_crear():
-    u = current_user()
-    data = parse_json()
-    db = get_db()
-    now = datetime.now().strftime('%Y-%m-%d %H:%M')
-    if data.get('categoria') in ('kids', 'juveniles', 'adulto'):
-        cat = data['categoria']
-        try:
-            # reutilizar un chat de grupo existente de esa categoria
-            exist = db.execute(
-                "SELECT id FROM chats WHERE tipo='grupo' AND nombre=? ORDER BY id ASC LIMIT 1",
-                (cat,)).fetchone()
-            if exist:
-                # El grupo ya existia: hay que agregar al usuario actual como
-                # miembro, si no /mensajes le daba 403 y no podia escribir.
-                db.execute('INSERT OR IGNORE INTO chat_members(chat_id, user_id) VALUES(?,?)',
-                           (exist['id'], u['id']))
-                db.commit()
-                return jsonify({'ok': True, 'id': exist['id'], 'nombre': cat, 'tipo': 'grupo'})
-            cur = db.execute(
-                "INSERT INTO chats(nombre, tipo, creado_por, fecha) VALUES(?,?,?,?)",
-                (cat, 'grupo', u['id'], now))
-            chat_id = cur.lastrowid
-            ids = [r['id'] for r in db.execute(
-                "SELECT id FROM users WHERE role in ('admin','profesor') OR (role='alumno' AND categoria=?)",
-                (cat,)).fetchall()]
-            for uid in ids:
-                db.execute('INSERT OR IGNORE INTO chat_members(chat_id, user_id) VALUES(?,?)', (chat_id, uid))
-            db.commit()
-            return jsonify({'ok': True, 'id': chat_id, 'nombre': cat, 'tipo': 'grupo'})
-        except Exception as e:
-            return jsonify({'error': 'Error al crear el grupo: %s' % str(e)}), 500
-    # chat directo
-    otro = to_int(data.get('user_id'))
-    if not otro or otro == u['id']:
-        return jsonify({'error': 'Elegí un contacto válido'}), 400
-    # Sin este check, un user_id inexistente reventaba con 500 al insertar en
-    # chat_members (FK). Solo se puede chatear con alguien que exista y este activo.
-    destino = db.execute('SELECT id FROM users WHERE id=? AND activo=1', (otro,)).fetchone()
-    if not destino:
-        return jsonify({'error': 'El contacto no existe'}), 404
-    exist = db.execute(
-        'SELECT c.id FROM chats c JOIN chat_members m1 ON m1.chat_id=c.id JOIN chat_members m2 ON m2.chat_id=c.id '
-        'WHERE c.tipo=\'directo\' AND m1.user_id=? AND m2.user_id=? '
-        'AND (SELECT COUNT(*) FROM chat_members WHERE chat_id=c.id)=2', (u['id'], otro)).fetchone()
-    if exist:
-        return jsonify({'ok': True, 'id': exist['id'], 'tipo': 'directo'})
-    cur = db.execute("INSERT INTO chats(nombre, tipo, creado_por, fecha) VALUES(?,?,?,?)",
-                     (None, 'directo', u['id'], now))
-    chat_id = cur.lastrowid
-    db.execute('INSERT OR IGNORE INTO chat_members(chat_id, user_id) VALUES(?,?)', (chat_id, u['id']))
-    db.execute('INSERT OR IGNORE INTO chat_members(chat_id, user_id) VALUES(?,?)', (chat_id, otro))
-    db.commit()
-    return jsonify({'ok': True, 'id': chat_id, 'tipo': 'directo'})
-
-
-@app.route('/api/chats/<int:chat_id>/mensajes')
-@login_required
-def api_chat_mensajes(chat_id):
-    u = current_user()
-    db = get_db()
-    miembro = db.execute('SELECT 1 FROM chat_members WHERE chat_id=? AND user_id=?', (chat_id, u['id'])).fetchone()
-    chat = db.execute('SELECT * FROM chats WHERE id=?', (chat_id,)).fetchone()
-    if not chat or not miembro:
-        return jsonify({'error': 'No tenés acceso a este chat'}), 403
-    # Sin us.foto: se habia pedido y nunca se usaba.
-    cols = ('m.id, m.user_id, m.mensaje, (m.adjunto IS NOT NULL) AS tiene_adjunto, '
-            'm.adjunto_tipo, m.fecha, us.nombre')
-    # El poll de la app corre cada 5 segundos. Con ?desde= solo se devuelven los
-    # mensajes nuevos: antes se bajaban los 200 (con sus adjuntos de hasta
-    # 25 MB cada uno) en cada tick aunque no hubiera nada nuevo.
-    desde = to_int(request.args.get('desde')) or 0
-    if desde:
-        filas = db.execute(
-            'SELECT %s FROM chat_messages m JOIN users us ON us.id=m.user_id '
-            'WHERE m.chat_id=? AND m.id>? ORDER BY m.id ASC LIMIT 200' % cols,
-            (chat_id, desde)).fetchall()
-        return jsonify({'mensajes': [_chat_msg_public(r) for r in filas]})
-    filas = db.execute(
-        'SELECT %s FROM chat_messages m JOIN users us ON us.id=m.user_id '
-        'WHERE m.chat_id=? ORDER BY m.id ASC LIMIT 200' % cols, (chat_id,)).fetchall()
-    return jsonify({'mensajes': [_chat_msg_public(r) for r in filas], 'chat': dict(chat)})
-
-
-def _chat_msg_public(r):
-    """El adjunto se pide on-demand: es un data-URL de hasta 25 MB."""
-    d = dict(r)
-    d['adjunto'] = '/api/chat_adjunto/%d' % d['id'] if d.pop('tiene_adjunto') else None
-    return d
-
-
-@app.route('/api/chat_adjunto/<int:mid>')
-@login_required
-def api_chat_adjunto(mid):
-    u = current_user()
-    r = get_db().execute(
-        'SELECT m.adjunto FROM chat_messages m '
-        'JOIN chat_members cm ON cm.chat_id=m.chat_id AND cm.user_id=? '
-        'WHERE m.id=?', (u['id'], mid)).fetchone()
-    if not r or not r['adjunto']:
-        return jsonify({'error': 'Adjunto no encontrado'}), 404
-    return _foto_response(r['adjunto'], default_mime='application/octet-stream')
-
-
-@app.route('/api/chats/<int:chat_id>/mensajes', methods=['POST'])
-@login_required
-def api_chat_enviar(chat_id):
-    u = current_user()
-    data = parse_json()
-    msj = txt_str(data.get('mensaje'))
-    adjunto = txt_str(data.get('adjunto'))
-    adjunto_tipo = txt_str(data.get('adjunto_tipo'))
-    if not msj and not adjunto:
-        return jsonify({'error': 'Escribí un mensaje o adjuntá una foto/video'}), 400
-    # solo permitir imagenes y videos en el adjunto
-    if adjunto and not (adjunto.startswith('data:image/') or adjunto.startswith('data:video/')):
-        return jsonify({'error': 'El adjunto debe ser una imagen o un video'}), 400
-    if len(adjunto) > 25 * 1024 * 1024:
-        return jsonify({'error': 'El archivo es muy grande (máx 25MB)'}), 400
-    db = get_db()
-    chat = db.execute('SELECT * FROM chats WHERE id=?', (chat_id,)).fetchone()
-    if not chat or not db.execute('SELECT 1 FROM chat_members WHERE chat_id=? AND user_id=?', (chat_id, u['id'])).fetchone():
-        return jsonify({'error': 'No tenés acceso a este chat'}), 403
-    now = datetime.now().strftime('%Y-%m-%d %H:%M')
-    db.execute('INSERT INTO chat_messages(chat_id, user_id, mensaje, adjunto, adjunto_tipo, fecha) VALUES(?,?,?,?,?,?)',
-               (chat_id, u['id'], msj or None, adjunto or None, adjunto_tipo or None, now))
-    db.commit()
-    try:
-        txt = adjunto_tipo if not msj else msj
-        for m in db.execute('SELECT user_id FROM chat_members WHERE chat_id=? AND user_id<>?', (chat_id, u['id'])).fetchall():
-            notify(m['user_id'], 'Nuevo mensaje', '%s: %s' % (u['nombre'], txt), 'chat', push=True)
-    except Exception:
-        pass
-    return jsonify({'ok': True})
-
-
-@app.route('/api/contactos')
-@login_required
-def api_contactos():
-    u = current_user()
-    if u['role'] == 'alumno':
-        rows = get_db().execute(
-            "SELECT id, nombre, cinturon FROM users WHERE activo=1 AND id<>? AND role IN ('admin','profesor')",
-            (u['id'],)).fetchall()
-    else:
-        rows = get_db().execute(
-            "SELECT id, nombre, cinturon, categoria FROM users WHERE activo=1 AND id<>? AND role IN ('alumno','profesor')",
-            (u['id'],)).fetchall()
-    return jsonify({'contactos': [dict(r, foto='/api/avatar/%d' % r['id']) for r in rows]})
-
-
-# ---------------------------------------------------------------------------
 # Video progress (no removible hasta terminar)
 # ---------------------------------------------------------------------------
 
@@ -6333,69 +5757,6 @@ def api_muro_video(muro_vid):
 
 
 # ---------------------------------------------------------------------------
-# Encuestas
-# ---------------------------------------------------------------------------
-
-@app.route('/api/encuestas')
-@login_required
-def api_encuestas():
-    u = current_user()
-    db = get_db()
-    filas = db.execute('SELECT * FROM encuestas ORDER BY id DESC').fetchall()
-    # 2 agregados en vez de (1 + una por opcion) por encuesta
-    mi_votos = {r['encuesta_id']: r['opcion'] for r in db.execute(
-        'SELECT encuesta_id, opcion FROM encuesta_votos WHERE user_id=?', (u['id'],)).fetchall()}
-    votos = {}
-    for r in db.execute(
-            'SELECT encuesta_id, opcion, COUNT(*) AS n FROM encuesta_votos '
-            'GROUP BY encuesta_id, opcion').fetchall():
-        votos.setdefault(r['encuesta_id'], {})[r['opcion']] = r['n']
-    out = []
-    for r in filas:
-        opciones = json.loads(r['opciones']) if r['opciones'] else []
-        c = votos.get(r['id'], {})
-        conteo = [c.get(i, 0) for i in range(len(opciones))]
-        out.append({**dict(r), 'opciones': opciones, 'conteo': conteo,
-                    'mi_voto': mi_votos.get(r['id'])})
-    return jsonify({'encuestas': out})
-
-
-@app.route('/api/encuestas', methods=['POST'])
-@role_required('admin', 'profesor')
-def api_encuesta_crear():
-    u = current_user()
-    data = parse_json()
-    titulo = txt_str(data.get('titulo'))
-    opciones = [str(x).strip() for x in (data.get('opciones') or []) if str(x).strip()]
-    if not titulo or len(opciones) < 2:
-        return jsonify({'error': 'Necesitás título y al menos 2 opciones'}), 400
-    now = datetime.now().strftime('%Y-%m-%d %H:%M')
-    cur = get_db().execute('INSERT INTO encuestas(user_id, titulo, opciones, fecha) VALUES(?,?,?,?)',
-                           (u['id'], titulo, json.dumps(opciones), now))
-    get_db().commit()
-    return jsonify({'ok': True, 'id': cur.lastrowid})
-
-
-@app.route('/api/encuestas/<int:eid>/votar', methods=['POST'])
-@login_required
-def api_encuesta_votar(eid):
-    u = current_user()
-    data = parse_json()
-    opcion = to_int(data.get('opcion'))
-    db = get_db()
-    e = db.execute('SELECT * FROM encuestas WHERE id=?', (eid,)).fetchone()
-    if not e:
-        return jsonify({'error': 'Encuesta no encontrada'}), 404
-    n_opts = len(json.loads(e['opciones'])) if e['opciones'] else 0
-    if opcion is None or opcion < 0 or opcion >= n_opts:
-        return jsonify({'error': 'Opción inválida'}), 400
-    db.execute('DELETE FROM encuesta_votos WHERE encuesta_id=? AND user_id=?', (eid, u['id']))
-    db.execute('INSERT INTO encuesta_votos(encuesta_id, user_id, opcion) VALUES(?,?,?)', (eid, u['id'], opcion))
-    db.commit()
-    return jsonify({'ok': True})
-
-
-# ---------------------------------------------------------------------------
 # Eventos y actividades
 # ---------------------------------------------------------------------------
 
@@ -6751,136 +6112,6 @@ def api_push_subscribe():
     except Exception as e:
         return jsonify({'error': 'Error al guardar la suscripción: %s' % e}), 500
     return jsonify({'ok': True})
-
-
-# ---------------------------------------------------------------------------
-# Planes del profe
-# ---------------------------------------------------------------------------
-
-def _semana_actual():
-    hoy = _hoy_academy()
-    lunes = hoy - timedelta(days=hoy.weekday())
-    return lunes, lunes + timedelta(days=6)
-
-
-def _planes_semana(semana=None, user_id=None):
-    """Planes de la semana (por defecto la actual). Para alumno filtra por su categoría/cinturón."""
-    lunes, domingo = _semana_actual()
-    if semana:
-        try:
-            f = datetime.strptime(str(semana), '%Y-%m-%d').date()
-            lunes = f - timedelta(days=f.weekday())
-            domingo = lunes + timedelta(days=6)
-        except Exception:
-            lunes, domingo = _semana_actual()
-    db = get_db()
-    rows = db.execute(
-        """SELECT p.*, u.nombre AS autor_nombre FROM planes p
-           LEFT JOIN users u ON u.id=p.autor_id
-           WHERE p.activo=1 AND p.fecha>=? AND p.fecha<=? ORDER BY p.id DESC""",
-        (lunes.strftime('%Y-%m-%d'), domingo.strftime('%Y-%m-%d'))).fetchall()
-    hechos = set()
-    if user_id:
-        hechos = {r['plan_id'] for r in db.execute(
-            'SELECT plan_id FROM plan_hecho WHERE user_id=?', (user_id,)).fetchall()}
-    planes = []
-    perfil = None
-    if user_id:
-        perfil = get_db().execute('SELECT categoria, cinturon FROM users WHERE id=?', (user_id,)).fetchone()
-    for p in rows:
-        if user_id and perfil:
-            cat_ok = p['categoria'] in ('todos', None, '') or p['categoria'] == perfil['categoria']
-            cint_ok = p['cinturon'] in ('todos', None, '') or p['cinturon'] == perfil['cinturon']
-            if not (cat_ok and cint_ok):
-                continue
-        planes.append({
-            'id': p['id'], 'titulo': p['titulo'], 'descripcion': p['descripcion'],
-            'categoria': p['categoria'], 'cinturon': p['cinturon'], 'fecha': p['fecha'],
-            'autor': p['autor_nombre'], 'hecho': p['id'] in hechos,
-        })
-    return {'semana_inicio': lunes.strftime('%Y-%m-%d'), 'semana_fin': domingo.strftime('%Y-%m-%d'),
-            'planes': planes}
-
-
-@app.route('/api/planes')
-@login_required
-def api_planes():
-    u = current_user()
-    if u['role'] == 'alumno':
-        return jsonify(_planes_semana(user_id=u['id']))
-    semana = request.args.get('semana')
-    return jsonify(_planes_semana(semana=semana))
-
-
-@app.route('/api/planes', methods=['POST'])
-@role_required('admin', 'profesor')
-def api_planes_crear():
-    data = parse_json()
-    titulo = txt_str(data.get('titulo'))
-    if not titulo:
-        return jsonify({'error': 'El título es obligatorio'}), 400
-    lunes, _ = _semana_actual()
-    try:
-        if data.get('fecha'):
-            f = datetime.strptime(str(data['fecha']), '%Y-%m-%d').date()
-            lunes = f - timedelta(days=f.weekday())
-    except Exception:
-        pass
-    get_db().execute(
-        'INSERT INTO planes(titulo, descripcion, categoria, cinturon, fecha, autor_id, creado) VALUES(?,?,?,?,?,?,?)',
-        (titulo, txt_str(data.get('descripcion')),
-         data.get('categoria') or 'todos', data.get('cinturon') or 'todos',
-         lunes.strftime('%Y-%m-%d'), current_user()['id'],
-         datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-    get_db().commit()
-    return jsonify({'ok': True})
-
-
-@app.route('/api/planes/<int:pid>', methods=['PUT'])
-@role_required('admin', 'profesor')
-def api_planes_update(pid):
-    data = parse_json()
-    p = get_db().execute('SELECT * FROM planes WHERE id=?', (pid,)).fetchone()
-    if not p:
-        return jsonify({'error': 'Plan no encontrado'}), 404
-    get_db().execute(
-        'UPDATE planes SET titulo=?, descripcion=?, categoria=?, cinturon=?, fecha=? WHERE id=?',
-        ((data.get('titulo') or p['titulo']), data.get('descripcion', p['descripcion']),
-         data.get('categoria', p['categoria']), data.get('cinturon', p['cinturon']),
-         data.get('fecha', p['fecha']), pid))
-    get_db().commit()
-    return jsonify({'ok': True})
-
-
-@app.route('/api/planes/<int:pid>', methods=['DELETE'])
-@role_required('admin', 'profesor')
-def api_planes_delete(pid):
-    p = get_db().execute('SELECT * FROM planes WHERE id=?', (pid,)).fetchone()
-    if not p:
-        return jsonify({'error': 'Plan no encontrado'}), 404
-    get_db().execute('DELETE FROM planes WHERE id=?', (pid,))
-    get_db().commit()
-    return jsonify({'ok': True})
-
-
-@app.route('/api/planes/<int:pid>/hecho', methods=['POST'])
-@role_required('alumno')
-def api_planes_hecho(pid):
-    u = current_user()
-    db = get_db()
-    # Sin este check, un pid inexistente reventaba con 500 por FK.
-    if not db.execute('SELECT 1 FROM planes WHERE id=?', (pid,)).fetchone():
-        return jsonify({'error': 'Plan no encontrado'}), 404
-    existe = db.execute('SELECT 1 FROM plan_hecho WHERE plan_id=? AND user_id=?', (pid, u['id'])).fetchone()
-    if existe:
-        db.execute('DELETE FROM plan_hecho WHERE plan_id=? AND user_id=?', (pid, u['id']))
-        hecho = False
-    else:
-        db.execute('INSERT INTO plan_hecho(plan_id, user_id, fecha) VALUES(?,?,?)',
-                   (pid, u['id'], datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-        hecho = True
-    db.commit()
-    return jsonify({'ok': True, 'hecho': hecho})
 
 
 # ---------------------------------------------------------------------------

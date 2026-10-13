@@ -521,8 +521,8 @@ function initDashboard() {
   // abrir sección indicada en la URL (?sec=...) al volver de una notificación push
   const secParam = new URLSearchParams(location.search).get('sec');
   const seccionesValidas = ['inicio', 'perfil', 'horarios', 'pagos', 'mispagos', 'alumnos',
-    'asistencia', 'estadisticas', 'deudores', 'profesores', 'config', 'mi_asistencia', 'videos',
-    'muro', 'galeria', 'ranking', 'metas', 'eventos', 'torneos', 'historial',
+    'asistencia', 'estadisticas', 'deudores', 'profesores', 'config',     'mi_asistencia', 'videos',
+    'galeria', 'ranking', 'metas', 'eventos', 'torneos', 'historial',
     'dinero', 'ingresos_extra', 'descuentos'];
   if (secParam && seccionesValidas.includes(secParam)) showSec(secParam);
   history.replaceState(null, '', location.pathname);
@@ -567,7 +567,7 @@ function showSec(name) {
     asistencia: renderAsistenciaTotal, estadisticas: renderAsistenciaTotal, deudores: renderDeudores,
     profesores: renderProfesores, config: renderConfig,
     mi_asistencia: renderMiAsistencia, videos: renderVideos,
-    muro: renderMuro, galeria: renderGaleria,
+    galeria: renderGaleria,
     ranking: renderRanking, metas: renderMetas,
     eventos: renderEventosTorneos, torneos: renderEventosTorneos, historial: renderHistorial,
     dinero: renderMiDinero, ingresos_extra: renderIngresosExtra, descuentos: renderDescuentos,
@@ -1314,8 +1314,9 @@ async function verVideo(vid) {
 async function renderInicio(el) {
   const R = USER.role;
   if (R === 'alumno') {
-    const [me, asis, horarios, vids] = await Promise.all([
-      api('/api/me'), api('/api/mi_asistencia'), api('/api/horarios'), api('/api/videos')]);
+    const [me, asis, horarios, vids, muro] = await Promise.all([
+      api('/api/me'), api('/api/mi_asistencia'), api('/api/horarios'), api('/api/videos'),
+      api('/api/muro').catch(() => ({ muro: [] }))]);
     const c = me.cuota || {};
     const estado = c.estado;
     const tagMap = { al_dia: ['tag-al-dia', 'Al día'], deuda: ['tag-deuda', 'Debe la cuota'], por_vencer: ['tag-por-vencer', 'Por vencer'], becado: ['tag-al-dia', 'Becado'] };
@@ -1365,13 +1366,16 @@ async function renderInicio(el) {
           <div class="feed" style="margin:0;padding:10px 14px 14px">${videos.map(v => videoCardHTML(v, false)).join('')}</div>
         </div>` : ''}
 
+        <div class="small mb" style="color:var(--muted)">📢 Muro</div>
+        ${muroComposerHTML()}
+        ${muroPostsHTML(muro)}
+
         <div class="chips">
           <button class="chip" onclick="showSec('horarios')">📅 Horarios</button>
           <button class="chip" onclick="showSec('videos')">🎥 Videos</button>
           <button class="chip" onclick="showSec('mispagos')">🧾 Mi cuota</button>
           <button class="chip" onclick="showSec('mi_asistencia')">✅ Mi asistencia</button>
           <button class="chip" onclick="showSec('metas')">🎯 Mis metas</button>
-          <button class="chip" onclick="showSec('muro')">📢 Muro</button>
           <button class="chip" onclick="showSec('eventos')">🗓️ Eventos y torneos</button>
           <button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>
         </div>
@@ -1379,10 +1383,11 @@ async function renderInicio(el) {
   } else {
     const promesas = [
       api('/api/estadisticas'), api('/api/horarios'), api('/api/videos'), api('/api/cumpleanios'),
+      api('/api/muro').catch(() => ({ muro: [] })),
       ...(R === 'profesor' ? [api('/api/mi_asistencia')] : [])];
     const r = await Promise.all(promesas);
-    const stats = r[0], horarios = r[1], vids = r[2], cums = r[3];
-    const asis = R === 'profesor' ? r[4] : null;
+    const stats = r[0], horarios = r[1], vids = r[2], cums = r[3], muro = r[4];
+    const asis = R === 'profesor' ? r[5] : null;
     const hoyIdx = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
     const hoyClases = horarios.horarios.filter(h => h.dia === hoyIdx);
     const videos = vids.videos.slice(0, 3);
@@ -1394,7 +1399,6 @@ async function renderInicio(el) {
       `<button class="chip" onclick="showSec('deudores')">⚠️ Deudas</button>`,
       `<button class="chip" onclick="showSec('videos')">🎥 Videos</button>`];
     if (esAdmin()) chips.push(`<button class="chip" onclick="showSec('profesores')">🧑‍🏫 Profesores</button>`, `<button class="chip" onclick="showSec('config')">⚙️ Configuración</button>`);
-    chips.push(`<button class="chip" onclick="showSec('muro')">📢 Muro</button>`);
     chips.push(`<button class="chip" onclick="showSec('ranking')">🏆 Ranking</button>`);
     chips.push(`<button class="chip" onclick="showSec('eventos')">🗓️ Eventos y torneos</button>`);
     chips.push(`<button class="chip" onclick="showSec('historial')">📈 Historial</button>`);
@@ -1428,6 +1432,9 @@ async function renderInicio(el) {
           <div class="post-head" style="padding:10px 14px 0"><b style="color:var(--accent2)">🎥 Últimos videos subidos</b> <button class="btn primary small" onclick="showSec('videos')">Subir video</button></div>
           <div class="feed" style="margin:0;padding:10px 14px 14px">${videos.map(v => videoCardHTML(v, true)).join('')}</div>
         </div>` : `<button class="btn primary btn-block" onclick="showSec('videos')">🎥 Subir el primer video</button>`}
+        <div class="small mb" style="color:var(--muted)">📢 Muro</div>
+        ${muroComposerHTML()}
+        ${muroPostsHTML(muro)}
       </div>`;
   }
 }
@@ -3771,7 +3778,14 @@ async function renderMuro(el) {
   const d = await api('/api/muro').catch(() => ({ muro: [] }));
   el.innerHTML = `
     ${secHeader('📢 Muro de la academia')}
-    <div class="card">
+    ${muroComposerHTML()}
+    ${muroPostsHTML(d)}`;
+}
+
+// Formulario para publicar en el muro. Se usa en el feed de Inicio y en la
+// sección Muro (por si se entra con ?sec=muro).
+function muroComposerHTML() {
+  return `<div class="card">
       <textarea id="muroTexto" placeholder="¿Qué está pasando? Si subís una lucha, contá de quién es: nombres, categoría, premios..." style="width:100%;min-height:70px"></textarea>
       <div class="small" style="color:var(--muted);margin:6px 0">🎥 ¿Subís una lucha? Pegá el link de YouTube o elegí un archivo, y escribí de quién es la lucha arriba.</div>
       <input type="text" id="muroLink" placeholder="Link de YouTube de la lucha (ej: https://youtube.com/watch?v=...)" style="width:100%;margin-bottom:6px">
@@ -3779,9 +3793,14 @@ async function renderMuro(el) {
       <label class="small" style="display:block;color:var(--muted);margin:6px 0 2px">📷 Subir fotos (hasta 5)</label>
       <input type="file" id="muroFoto" accept="image/*" style="margin-bottom:6px">
       <button class="btn primary btn-block mt" onclick="publicarMuro()">Publicar</button>
-    </div>
-    <div id="muroFeed">
-      ${d.muro.length ? d.muro.map(p => `
+    </div>`;
+}
+
+// Publicaciones del muro (sin el formulario).
+function muroPostsHTML(d) {
+  const posts = (d && d.muro) || [];
+  return `<div id="muroFeed">
+      ${posts.length ? posts.map(p => `
         <div class="post-card">
           <div class="post-head">
             ${avatarHTML(p.foto, p.nombre, 'sm')} <b>${esc(p.nombre)}</b> ${p.cinturon ? beltHTML(p.cinturon) : ''}
@@ -3793,6 +3812,14 @@ async function renderMuro(el) {
           ${(p.fotos || []).length ? `<div style="display:flex;flex-wrap:wrap;gap:10px">${p.fotos.slice(0,4).map(f => `<img loading="lazy" decoding="async" src="${esc(f)}" style="max-width:150px;max-height:150px;border-radius:8px;object-fit:cover;cursor:pointer" onclick="verFoto(this.src)">`).join('')}</div>` : ''}
         </div>`).join('') : '<div class="empty">Todavía no hay publicaciones.</div>'}
     </div>`;
+}
+
+// El muro vive en el feed de Inicio; tras publicar o borrar se refresca ahí.
+function refrescarMuro() {
+  const ini = $('#sec-inicio');
+  if (ini) renderInicio(ini).catch(() => {});
+  const m = $('#sec-muro');
+  if (m) renderMuro(m).catch(() => {});
 }
 
 function muroVideoHTML(v) {
@@ -3827,7 +3854,7 @@ async function publicarMuro() {
   try {
     await api('/api/muro', { method: 'POST', body: { texto, fotos: foto ? [foto] : [], video } });
     toast('Publicado ✓');
-    renderMuro($('#sec-muro'));
+    refrescarMuro();
   } catch (e) { toast(e.message); }
 }
 function leerArchivoBase64(file) {
@@ -3865,7 +3892,7 @@ function verFoto(src) {
 }
 async function borrarMuro(id) {
   if (!confirm('¿Eliminar esta publicación?')) return;
-  try { await api('/api/muro/' + id, { method: 'DELETE' }); renderMuro($('#sec-muro')); }
+  try { await api('/api/muro/' + id, { method: 'DELETE' }); refrescarMuro(); }
   catch (e) { toast(e.message); }
 }
 

@@ -860,6 +860,16 @@ async function marcarAsistenciaDirecta() {
   } catch (err) { toast('Error al marcar asistencia'); }
 }
 
+// Marca la asistencia de una clase puntual sin pasar por el QR (un toque).
+async function marcarAsistenciaDirectaClase(claseId) {
+  try {
+    await api('/api/asistencia_directo', { method: 'POST', body: { clase_id: claseId } });
+    toast('¡Asistencia marcada! ✓');
+    renderInicio($('#sec-inicio')).catch(() => {});
+    renderMiAsistencia($('#sec-mi_asistencia')).catch(() => {});
+  } catch (err) { toast(err.message); }
+}
+
 async function desmarcarAsistencia(claseId) {
   if (!confirm('¿Querés desmarcar tu asistencia de hoy? Sirve si la marcaste por error.')) return;
   try {
@@ -1357,7 +1367,7 @@ async function renderInicio(el) {
           ${hoyClases.length ? hoyClases.map(h => `
             <div class="clase-item ${slugTipo(h.tipo)}">
               <span class="hora">${esc(h.hora)}</span> · <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span> · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>
-              <div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">📷 Marcar con QR</button>`}</div>
+              <div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="marcarAsistenciaDirectaClase(${h.id})">✅ Marcar sin QR</button> <button class="btn ghost small" onclick="abrirScannerQR()">📷 Con QR</button>`}</div>
             </div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas. Mirá la sección Horarios.</div>'}
         </div>
 
@@ -1377,7 +1387,7 @@ async function renderInicio(el) {
           <button class="chip" onclick="showSec('mi_asistencia')">✅ Mi asistencia</button>
           <button class="chip" onclick="showSec('metas')">🎯 Mis metas</button>
           <button class="chip" onclick="showSec('eventos')">🗓️ Eventos y torneos</button>
-          <button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>
+          <button class="chip" onclick="marcarAsistenciaDirecta()">✅ Asistencia sin QR</button> <button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>
         </div>
       </div>`;
   } else {
@@ -1405,7 +1415,7 @@ async function renderInicio(el) {
     chips.push(`<button class="chip" onclick="showSec('galeria')">🖼️ Galería</button>`);
     chips.push(`<button class="chip" onclick="abrirMensajeMasivo()">📣 Mandar mensaje</button>`);
     chips.push(`<button class="chip" onclick="window.open('/qr_print','_blank')">📱 QR de asistencia</button>`);
-    if (R === 'profesor') chips.push(`<button class="chip" onclick="showSec('mi_asistencia')">✅ Mi asistencia</button>`, `<button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>`);
+    if (R === 'profesor') chips.push(`<button class="chip" onclick="showSec('mi_asistencia')">✅ Mi asistencia</button>`, `<button class="chip" onclick="marcarAsistenciaDirecta()">✅ Asistencia sin QR</button> <button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>`);
     chips.push(`<button class="chip" onclick="showSec('dinero')">💰 ${esAdmin() ? 'Reparto de dinero' : 'Mi dinero'}</button>`);
     chips.push(`<button class="chip" onclick="showSec('ingresos_extra')">🎁 Ingresos extra</button>`);
     chips.push(`<button class="chip" onclick="showSec('descuentos')">🏷️ Descuentos</button>`);
@@ -1422,7 +1432,7 @@ async function renderInicio(el) {
         <div class="chips">${chips.join('')}</div>
         <div class="feed-card">
           <div class="small mb">📅 Clases de hoy</div>
-          ${hoyClases.length ? hoyClases.map(h => `<div class="clase-item ${slugTipo(h.tipo)}"><span class="hora">${esc(h.hora)}</span> · <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span> · ${esc(h.nivel || 'Todos')} · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>${R === 'profesor' ? `<div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="abrirScannerQR()">📷 Marcar con QR</button>`}</div>` : ''}</div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas.</div>'}
+          ${hoyClases.length ? hoyClases.map(h => `<div class="clase-item ${slugTipo(h.tipo)}"><span class="hora">${esc(h.hora)}</span> · <span class="tag ${slugTipo(h.tipo)}">${esc(h.tipo || 'Gi')}</span> · ${esc(h.nivel || 'Todos')} · <span class="profe">${esc(h.profesor_nombre || 'Sin profesor')}</span>${R === 'profesor' ? `<div style="margin-top:6px">${(asis.hoy || []).includes(h.id) ? '<span class="tag tag-al-dia">✓ Asistencia marcada</span>' : `<button class="btn primary small" onclick="marcarAsistenciaDirectaClase(${h.id})">✅ Marcar sin QR</button> <button class="btn ghost small" onclick="abrirScannerQR()">📷 Con QR</button>`}</div>` : ''}</div>`).join('') : '<div class="small" style="color:var(--muted)">Hoy no hay clases cargadas.</div>'}
         </div>
         ${cums.cumpleanios.length ? `<div class="feed-card">
           <div class="small mb">🎂 Cumpleaños de ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][cums.mes - 1]} <span class="small" style="color:var(--muted)">(${cums.cumpleanios.length})</span></div>

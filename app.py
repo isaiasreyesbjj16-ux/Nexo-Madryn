@@ -3134,10 +3134,66 @@ def api_torneos_ranking():
 # Alumnos (admin / profesor)
 # ---------------------------------------------------------------------------
 
+def _mapa_profes_de_alumnos(db):
+    """{alumno_id: [ids de profesores que le corresponden]}.
+
+    Alimenta el filtro "por profesor" de la pantalla de alumnos. Usa los
+    mismos vinculos que la app ya maneja:
+    - comparten al menos una actividad (criterio del reparto de cuotas);
+    - el alumno asistio a alguna clase dada por ese profesor;
+    - lo eligio al pagar (pagos.profesor_id o avisos_pago.profesor_ids).
+
+    Un profesor nunca se corresponde a si mismo, y se descartan IDs que no
+    son profesores (por si quedo alguna foreign key colgando tras un cambio
+    de rol).
+    """
+    profs = db.execute(
+        "SELECT id, actividades FROM users WHERE role='profesor'").fetchall()
+    prof_ids = {p['id'] for p in profs}
+    if not prof_ids:
+        return {}
+    prof_acts = {
+        p['id']: {a.strip() for a in (p['actividades'] or '').split(',') if a.strip()}
+        for p in profs
+    }
+    mapa = {}
+
+    def suma(aid, pid):
+        if pid in prof_ids and pid != aid:
+            mapa.setdefault(aid, set()).add(pid)
+
+    alumnos = db.execute(
+        "SELECT id, actividades FROM users WHERE role IN ('alumno','profesor')"
+    ).fetchall()
+    for r in alumnos:
+        acts = {a.strip() for a in (r['actividades'] or '').split(',') if a.strip()}
+        if not acts:
+            continue
+        for pid, pa in prof_acts.items():
+            if pid != r['id'] and (acts & pa):
+                suma(r['id'], pid)
+    for r in db.execute(
+            "SELECT DISTINCT c.profesor_id AS pid, a.alumno_id AS aid"
+            " FROM asistencia a JOIN classes c ON c.id=a.clase_id"
+            " WHERE c.profesor_id IS NOT NULL AND a.presente=1").fetchall():
+        suma(r['aid'], r['pid'])
+    for r in db.execute(
+            "SELECT DISTINCT profesor_id AS pid, alumno_id AS aid"
+            " FROM pagos WHERE profesor_id IS NOT NULL").fetchall():
+        suma(r['aid'], r['pid'])
+    for r in db.execute(
+            "SELECT alumno_id AS aid, profesor_ids FROM avisos_pago"
+            " WHERE profesor_ids IS NOT NULL AND profesor_ids != ''").fetchall():
+        for pid in _ids_desde(r['profesor_ids']):
+            suma(r['aid'], pid)
+    return {k: sorted(v) for k, v in mapa.items()}
+
+
 @app.route('/api/alumnos')
 @role_required('admin', 'profesor')
 def api_alumnos():
     db = get_db()
+    mapa_profes = _mapa_profes_de_alumnos(db)
     rows = db.execute(
         "SELECT %s,"
         "  (SELECT COUNT(*) FROM asistencia a WHERE a.alumno_id=u.id AND a.presente=1) AS asistencias,"
@@ -3158,6 +3214,10 @@ def api_alumnos():
         if 'proximo_examen' in r.keys():
             d['proximo_examen'] = r['proximo_examen']
         d['familia'] = None
+        # IDs de profesores que corresponden a este alumno (ver
+        # _mapa_profes_de_alumnos): el front filtra la lista sin volver
+        # a pegarle al servidor.
+        d['profesores'] = mapa_profes.get(r['id'], [])
         alumnos.append(d)
     return jsonify({'alumnos': alumnos})
 

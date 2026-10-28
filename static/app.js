@@ -12,6 +12,8 @@ const catLabel = (c) => esc({ adulto: 'Adulto', juveniles: 'Juveniles', kids: 'K
 const DESTINO_LABEL = { tatami: 'Tatami y academia', administrativo: 'Administrativo' };
 window._secCache = window._secCache || {};
 let filtroAlumnosCat = 'todos';
+// Filtro de alumnos por profesor: 'todos' | 'me' | id del profesor.
+let filtroAlumnosProfe = 'todos';
 const BELTS_POR_CAT = { kids: BELTS_KIDS, juveniles: BELTS_JUV, adulto: BELTS_ADULT };
 const CATS_VIDEOS = ['kids', 'juveniles', 'adulto']; // todas las categorías para staff
 function beltOptionsPorCategoriaConTodos(catSeleccionada, beltSel) {
@@ -3017,6 +3019,12 @@ function bjjBadge(a) {
 async function renderAlumnos(el) {
   const d = await api('/api/alumnos');
   const filtro = filtroAlumnosCat || 'todos';
+  // Filtro por profesor: 'todos' lo deja todo, 'me' usa el profesor logueado
+  // y cualquier otro valor es el id de un profesor. El back ya devolvió en
+  // a.profesores los profes que corresponden a cada alumno.
+  const profeSel = filtroAlumnosProfe || 'todos';
+  const profeId = profeSel === 'todos' ? null : (profeSel === 'me' ? USER.id : +profeSel);
+  const base = profeId ? d.alumnos.filter(a => (a.profesores || []).includes(profeId)) : d.alumnos;
   const catLbl = { adulto: 'Adultos', juveniles: 'Juveniles', kids: 'Kids' };
   const catOf = (a) => (a.categoria === 'juveniles' || a.categoria === 'kids') ? a.categoria : 'adulto';
   const grupos = ['adulto', 'juveniles', 'kids'].filter(c => filtro === 'todos' || c === filtro);
@@ -3051,14 +3059,27 @@ async function renderAlumnos(el) {
     </div>`;
   };
   const cont = (c) => {
-    const lis = d.alumnos.filter(a => catOf(a) === c);
+    const lis = base.filter(a => catOf(a) === c);
     return `<div class="sec-grupo" data-cat="${c}">
       <div class="gr-header">${catLbl[c] || c} <span class="small" style="color:var(--muted)">(${lis.length})</span></div>
       <div class="alum-grid">${lis.map(card).join('') || '<div class="empty">No hay alumnos en esta categoría.</div>'}</div>
     </div>`;
   };
-  const total = d.alumnos.length;
+  const total = base.length;
   const esStaff = esAdmin() || USER.role === 'profesor';
+  // Chips de filtro por profesor: el profesor ve "Todos" y "Mis alumnos";
+  // el admin puede elegir ademas cualquier profesor de la lista.
+  const nProfe = (pid) => d.alumnos.filter(a => (a.profesores || []).includes(pid)).length;
+  const profsDeLista = esAdmin()
+    ? d.alumnos.filter(a => a.role === 'profesor' && a.activo !== 0)
+        .sort((x, y) => (x.nombre || '').localeCompare(y.nombre || ''))
+    : [];
+  const chipsProfe = esStaff ? `
+    <div class="chips" id="alumnoProfes" style="margin-top:8px">
+      <button class="chip ${profeSel === 'todos' ? 'active' : ''}" data-pid="todos">👥 Todos (${d.alumnos.length})</button>
+      ${USER.role === 'profesor' ? `<button class="chip ${profeSel === 'me' ? 'active' : ''}" data-pid="me">🧑‍🏫 Mis alumnos (${nProfe(USER.id)})</button>` : ''}
+      ${profsDeLista.map(p => `<button class="chip ${String(profeSel) === String(p.id) ? 'active' : ''}" data-pid="${p.id}">🧑‍🏫 ${esc(p.nombre)} (${nProfe(p.id)})</button>`).join('')}
+    </div>` : '';
   el.innerHTML = `
     ${secHeader('Alumnos', esStaff ? 'Se registran solos en la pantalla de ingreso, o los creás vos acá' : 'Los alumnos se registran solos en la pantalla de ingreso')}
     ${esStaff ? `<div class="card">
@@ -3075,9 +3096,10 @@ async function renderAlumnos(el) {
       ['juveniles', 'Juveniles'],
       ['kids', 'Kids'],
     ].map(([k, lbl]) => {
-      const n = k === 'todos' ? total : d.alumnos.filter(a => catOf(a) === k).length;
+      const n = k === 'todos' ? total : base.filter(a => catOf(a) === k).length;
       return `<button class="chip ${filtro === k ? 'active' : ''}" data-cat="${k}">${lbl} (${n})</button>`;
     }).join('')}</div>
+    ${chipsProfe}
     <div class="mb">
       <input class="search" style="max-width:100%" id="alumnoBusq" placeholder="🔍 Buscar alumno...">
     </div>
@@ -3085,6 +3107,13 @@ async function renderAlumnos(el) {
   $('#alumnoCats').querySelectorAll('.chip').forEach((b) => {
     b.addEventListener('click', () => {
       filtroAlumnosCat = b.dataset.cat;
+      renderAlumnos($('#sec-alumnos')).catch(() => {});
+    });
+  });
+  const chipsP = $('#alumnoProfes');
+  if (chipsP) chipsP.querySelectorAll('.chip').forEach((b) => {
+    b.addEventListener('click', () => {
+      filtroAlumnosProfe = b.dataset.pid;
       renderAlumnos($('#sec-alumnos')).catch(() => {});
     });
   });

@@ -430,6 +430,11 @@ CREATE TABLE IF NOT EXISTS users (
     -- administracion. No se usa role='admin' para eso: el CHECK de arriba solo
     -- admite un valor y cambiarlo lo sacaria de todas las listas de profesores.
     es_admin INTEGER DEFAULT 0,
+    -- IDs de profesores con los que entrena el alumno (CSV). Es una SELECCION
+    -- MANUAL que se carga en el formulario del alumno y es la unica fuente de
+    -- verdad del filtro "por profesor": no se deduce por modalidad, asistencia
+    -- ni pago. Vacio = sin profesor asignado (no aparece bajo ninguno).
+    entrena_con TEXT,
     creado TEXT
 );
 
@@ -916,7 +921,8 @@ def _migrar_columnas(c):
                      ('pausa_desde', 'TEXT'), ('pausa_hasta', 'TEXT'), ('beca', 'INTEGER DEFAULT 0'),
                       ('actividades', 'TEXT'), ('genero', "TEXT DEFAULT ''"),
                       ('bjj_categoria', "TEXT DEFAULT ''"),
-                      ('es_admin', 'INTEGER DEFAULT 0')]:
+                      ('es_admin', 'INTEGER DEFAULT 0'),
+                      ('entrena_con', 'TEXT')]:
         if col not in cols:
             c.execute('ALTER TABLE users ADD COLUMN %s %s' % (col, ddl))
     if 'recordado' not in _columnas_de(c, 'eventos'):
@@ -1722,6 +1728,7 @@ def user_public(u):
         'pausa_hasta': u['pausa_hasta'] if 'pausa_hasta' in u.keys() else None,
         'en_pausa': en_pausa(u) if 'pausa_desde' in u.keys() else False,
         'beca': u['beca'] if 'beca' in u.keys() else 0,
+        'entrena_con': _ids_desde(u['entrena_con'] if 'entrena_con' in u.keys() else None),
     }
 
 
@@ -3135,84 +3142,31 @@ def api_torneos_ranking():
 # ---------------------------------------------------------------------------
 
 def _mapa_profes_de_alumnos(db):
-    """{alumno_id: [ids de profesores que le corresponden]}.
+    """{alumno_id: [ids de profesores con los que entrena]}.
 
-    Alimenta el filtro "por profesor" de la pantalla de alumnos. El criterio
-    es la MODALIDAD compartida: un alumno aparece solo en los profesores que
-    dan la misma actividad que el (Gi/NoGi/MMA/etc). Asi nunca se mezclan
-    alumnos de Gi con los de NoGi, aunque un alumno de Gi haya asistido
-    alguna vez a una clase del profe de NoGi o lo haya elegido al pagar.
+    Alimenta el filtro "por profesor" de la pantalla de alumnos. La unica
+    fuente de verdad es la SELECCION MANUAL `users.entrena_con` (CSV de ids de
+    profesores) que se carga en el formulario del alumno. No se deduce nada por
+    modalidad, asistencia ni pago: donde no hay seleccion explicita, el alumno
+    no aparece bajo ningun profesor hasta que lo asignen.
 
-    Los alumnos SIN actividad cargada no tienen modalidad que comparar, asi
-    que se asignan como fallback por asistencia a clases del profesor y por
-    quien eligieron al pagar.
-
-    Un profesor nunca se corresponde a si mismo, y se descartan IDs que no
-    son profesores (por si quedo alguna foreign key colgando tras un cambio
-    de rol).
+    Se descartan IDs que no son profesores (por si quedo una foreign key
+    colgando tras un cambio de rol) y un profesor nunca se corresponde a si
+    mismo.
     """
-    profs = db.execute(
-        "SELECT id, actividades, gi_pref FROM users WHERE role='profesor'").fetchall()
-    prof_ids = {p['id'] for p in profs}
+    prof_ids = {r['id'] for r in db.execute(
+        "SELECT id FROM users WHERE role='profesor'").fetchall()}
     if not prof_ids:
         return {}
-
-    def modalidad(row):
-        """Modalidad de un usuario: su 'actividades', o como respaldo su
-        gi_pref (Gi/NoGi) si no tiene actividades cargadas.
-
-        Replica exactamente lo que muestra la ficha en el front
-        (`actividades || gi_pref`), para que un alumno que se ve como "Gi"
-        (porque no cargo actividades pero su gi_pref es Gi) no se enlace como
-        si no tuviera modalidad y termine mezclado en otra lista.
-        """
-        acts = {a.strip() for a in (row['actividades'] or '').split(',') if a.strip()}
-        if acts:
-            return acts
-        gp = row['gi_pref'] if 'gi_pref' in row.keys() else None
-        return {gp} if gp in ('Gi', 'NoGi') else set()
-
-    prof_acts = {p['id']: modalidad(p) for p in profs}
     mapa = {}
-
-    def suma(aid, pid):
-        if pid in prof_ids and pid != aid:
-            mapa.setdefault(aid, set()).add(pid)
-
-    alumnos = db.execute(
-        "SELECT id, actividades, gi_pref FROM users WHERE role IN ('alumno','profesor')"
-    ).fetchall()
-    sin_modalidad = set()
-    for r in alumnos:
-        acts = modalidad(r)
-        if not acts:
-            # Sin actividad ni gi_pref util: todavia no sabemos su modalidad.
-            sin_modalidad.add(r['id'])
-            continue
-        # Modalidad compartida: solo enlaza con profes de esa actividad.
-        for pid, pa in prof_acts.items():
-            if pid != r['id'] and (acts & pa):
-                suma(r['id'], pid)
-
-    if sin_modalidad:
-        for r in db.execute(
-                "SELECT DISTINCT c.profesor_id AS pid, a.alumno_id AS aid"
-                " FROM asistencia a JOIN classes c ON c.id=a.clase_id"
-                " WHERE c.profesor_id IS NOT NULL AND a.presente=1").fetchall():
-            if r['aid'] in sin_modalidad:
-                suma(r['aid'], r['pid'])
-        for r in db.execute(
-                "SELECT DISTINCT profesor_id AS pid, alumno_id AS aid"
-                " FROM pagos WHERE profesor_id IS NOT NULL").fetchall():
-            if r['aid'] in sin_modalidad:
-                suma(r['aid'], r['pid'])
-        for r in db.execute(
-                "SELECT alumno_id AS aid, profesor_ids FROM avisos_pago"
-                " WHERE profesor_ids IS NOT NULL AND profesor_ids != ''").fetchall():
-            if r['aid'] in sin_modalidad:
-                for pid in _ids_desde(r['profesor_ids']):
-                    suma(r['aid'], pid)
-    return {k: sorted(v) for k, v in mapa.items()}
+    for r in db.execute(
+            "SELECT id, entrena_con FROM users WHERE role IN ('alumno','profesor')"
+    ).fetchall():
+        ids = [pid for pid in _ids_desde(r['entrena_con'])
+               if pid in prof_ids and pid != r['id']]
+        if ids:
+            mapa[r['id']] = ids
+    return mapa
 
 
 @app.route('/api/alumnos')
@@ -3272,12 +3226,15 @@ def api_alumnos_create():
     # El INSERT dejaba afuera todo lo que el formulario de alta trae (DNI,
     # direccion, telefonos, ficha medica, pausa), asi que el admin lo cargaba y
     # desaparecia. Se persisten las mismas columnas que usa api_alumnos_update.
+    _prof_ids = {r['id'] for r in get_db().execute(
+        "SELECT id FROM users WHERE role='profesor'").fetchall()}
+    _ec = ','.join(str(i) for i in [pid for pid in _ids_desde(data.get('entrena_con')) if pid in _prof_ids])
     get_db().execute(
         """INSERT INTO users(username, password_hash, role, nombre, edad, peso, cinturon, categoria, gi_pref,
                              actividades, cuota_mensual, nacimiento, genero, creado,
                              tel, tel_2, tel_tutor, dni, direccion, medic_info, emergency_contact,
-                             foto_ok, pausa_desde, pausa_hasta)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                             foto_ok, pausa_desde, pausa_hasta, entrena_con)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (username, generate_password_hash(password), 'alumno', nombre,
          to_int(data.get('edad')), to_float(data.get('peso')),
          data.get('cinturon'), data.get('categoria') or 'adulto',
@@ -3293,7 +3250,8 @@ def api_alumnos_create():
          txt_str(data.get('emergency_contact')) or None,
          1 if data.get('foto_ok') else 0,
          txt_str(data.get('pausa_desde')) or None,
-         txt_str(data.get('pausa_hasta')) or None))
+         txt_str(data.get('pausa_hasta')) or None,
+         _ec))
     get_db().commit()
     new_id = get_db().execute('SELECT last_insert_rowid() AS id').fetchone()['id']
     return jsonify({'ok': True, 'id': new_id, 'username': username, 'password': password})
@@ -3365,6 +3323,13 @@ def api_alumnos_update(uid):
             # asi que se conserva la cuota actual en vez de mandarle un default.
             cm = u['cuota_mensual']
         poner('cuota_mensual', to_float(cm))
+    # Selección manual de profesores con los que entrena (multi-selección).
+    # Se guarda como CSV de ids validados contra los que hoy son profesores.
+    if 'entrena_con' in data:
+        prof_ids = {r['id'] for r in get_db().execute(
+            "SELECT id FROM users WHERE role='profesor'").fetchall()}
+        ids = [pid for pid in _ids_desde(data.get('entrena_con')) if pid in prof_ids]
+        poner('entrena_con', ','.join(str(i) for i in ids))
     if not campos:
         return jsonify({'ok': True})
     vals.append(uid)

@@ -3041,7 +3041,7 @@ async function renderAlumnos(el) {
       <div class="small" style="margin-top:4px">👤 @${esc(a.username || '—')}</div>
       <div class="small" style="margin-top:4px">${beltHTML(a.cinturon)} · ${a.edad != null ? a.edad + ' años' : '—'}</div>
       <div class="small">Actividades: ${(a.actividades || (a.gi_pref === 'Gi' ? 'Gi' : a.gi_pref === 'NoGi' ? 'NoGi' : '')).split(',').filter(Boolean).map(x => `<span class="tag gi">${esc(x.trim())}</span>`).join(' ') || '—'}</div>
-      ${(() => { const ps = (a.profesores || []).map(pid => nombreProfe[pid]).filter(Boolean); return ps.length ? `<div class="small">🧑‍🏫 Entrena con: ${ps.map(n => `<span class="tag">${esc(n)}</span>`).join(' ')}</div>` : ''; })()}
+      ${(() => { const ps = (a.profesores || []).map(pid => nombreProfe[pid]).filter(Boolean); return ps.length ? `<div class="small">🧑‍🏫 Entrena con: ${ps.map(n => `<span class="tag">${esc(n)}</span>`).join(' ')}</div>` : (a.role === 'alumno' ? `<div class="small">🧑‍🏫 Entrena con: <span style="color:var(--muted)">sin asignar</span></div>` : ''); })()}
       ${a.beca ? `<div class="small">🎖 <b>Becado</b> · no paga cuota</div>` : `<div class="small">Cuota: <b>$${num(a.familia ? a.familia.cuota_final : a.cuota_mensual)}</b> · <span class="tag ${cls}">${lbl}</span></div>`}
       ${a.familia ? `<div class="small">👨‍👩‍👧 <b>${esc(a.familia.nombre)}</b> ${a.familia.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}${a.familia.descuento ? `<span class="tag tag-por-vencer">ahorra $${num(a.familia.descuento)}</span>` : ''}</div>` : ''}
       ${a.en_pausa ? `<div class="small"><span class="tag tag-por-vencer">⏸ En pausa${a.pausa_hasta ? ' hasta ' + esc(a.pausa_hasta) : ''}</span></div>` : ''}
@@ -3255,8 +3255,13 @@ async function formAlumno(id) {
   const vacio = { nombre: '', dni: '', direccion: '', edad: '', peso: '', genero: '', tel: '',
     tel_tutor: '', tel_2: '', nacimiento: '', categoria: 'adulto', cinturon: '', actividades: '',
     cuota_mensual: null, pausa_desde: '', pausa_hasta: '', medic_info: '', emergency_contact: '',
-    foto_ok: 0 };
-  const a = esNuevo ? vacio : (await api('/api/alumnos')).alumnos.find(x => x.id === id);
+    foto_ok: 0, entrena_con: [] };
+  const lista = (await api('/api/alumnos')).alumnos;
+  const a = esNuevo ? vacio : lista.find(x => x.id === id);
+  // Profesores activos, para el selector "Entrena con". Se trae de la misma
+  // lista (que ya incluye a los profesores) para no pegarle otra vez al back.
+  const profs = lista.filter(x => x.role === 'profesor' && x.activo !== 0)
+    .sort((x, y) => (x.nombre || '').localeCompare(y.nombre || ''));
   if (!a) { toast('Alumno no encontrado'); return; }
   openModal(`
     <h3>${esNuevo ? 'Nuevo alumno' : 'Editar alumno'}</h3>
@@ -3283,6 +3288,11 @@ async function formAlumno(id) {
         <div class="chips">
           ${TIPOS_ACTIVIDAD.map(ac => `<label class="chip"><input type="checkbox" name="actAct" value="${ac}" ${(a.actividades || '').split(',').map(s => s.trim()).includes(ac) ? 'checked' : ''}><span>${ac}</span></label>`).join('')}
         </div>
+      <div class="field" style="grid-column:1/-1"><label>🧑‍🏫 Entrena con (podés marcar varios)</label>
+        <p class="small" style="margin:0 0 6px;color:var(--muted)">Define con qué profesor entrena. Solo aparece en la lista de ese profesor quien marques acá.</p>
+        <div class="chips">
+          ${profs.map(p => `<label class="chip"><input type="checkbox" name="aEntrena" value="${p.id}" ${(a.entrena_con || []).includes(p.id) ? 'checked' : ''}><span>${esc(p.nombre)}</span></label>`).join('') || '<span class="small" style="color:var(--muted)">Todavía no hay profesores cargados</span>'}
+        </div>
       <div class="field"><label>Cuota mensual ($)</label><input type="number" step="0.01" id="aCuota" value="${a.cuota_mensual != null ? a.cuota_mensual : ''}" disabled></div>
       <div class="field"><label>⏸ Pausa desde (fechas vacías = sin pausa)</label><input type="date" id="aPausaDesde" value="${a.pausa_desde || ''}"></div>
       <div class="field"><label>⏸ Pausa hasta</label><input type="date" id="aPausaHasta" value="${a.pausa_hasta || ''}"></div>
@@ -3305,6 +3315,7 @@ async function formAlumno(id) {
     const body = { nombre: $('#aNombre').value.trim(), edad: $('#aEdad').value, peso: $('#aPeso').value, genero: $('#aGenero').value,
       cinturon: $('#aCinturon').value, categoria: $('#aCat').value,
       actividades: $$('input[name="actAct"]:checked').map(x => x.value),
+      entrena_con: $$('input[name="aEntrena"]:checked').map(x => +x.value),
       tel: $('#aTel').value, nacimiento: $('#aNac').value,
       medic_info: $('#aMedic').value, emergency_contact: $('#aEmer').value,
       tel_tutor: $('#aTutor')?.value || '', tel_2: $('#aTel2')?.value || '',

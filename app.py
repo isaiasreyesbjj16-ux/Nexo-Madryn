@@ -3137,11 +3137,15 @@ def api_torneos_ranking():
 def _mapa_profes_de_alumnos(db):
     """{alumno_id: [ids de profesores que le corresponden]}.
 
-    Alimenta el filtro "por profesor" de la pantalla de alumnos. Usa los
-    mismos vinculos que la app ya maneja:
-    - comparten al menos una actividad (criterio del reparto de cuotas);
-    - el alumno asistio a alguna clase dada por ese profesor;
-    - lo eligio al pagar (pagos.profesor_id o avisos_pago.profesor_ids).
+    Alimenta el filtro "por profesor" de la pantalla de alumnos. El criterio
+    es la MODALIDAD compartida: un alumno aparece solo en los profesores que
+    dan la misma actividad que el (Gi/NoGi/MMA/etc). Asi nunca se mezclan
+    alumnos de Gi con los de NoGi, aunque un alumno de Gi haya asistido
+    alguna vez a una clase del profe de NoGi o lo haya elegido al pagar.
+
+    Los alumnos SIN actividad cargada no tienen modalidad que comparar, asi
+    que se asignan como fallback por asistencia a clases del profesor y por
+    quien eligieron al pagar.
 
     Un profesor nunca se corresponde a si mismo, y se descartan IDs que no
     son profesores (por si quedo alguna foreign key colgando tras un cambio
@@ -3165,27 +3169,36 @@ def _mapa_profes_de_alumnos(db):
     alumnos = db.execute(
         "SELECT id, actividades FROM users WHERE role IN ('alumno','profesor')"
     ).fetchall()
+    sin_modalidad = set()
     for r in alumnos:
         acts = {a.strip() for a in (r['actividades'] or '').split(',') if a.strip()}
         if not acts:
+            # Sin actividad: todavia no sabemos su modalidad.
+            sin_modalidad.add(r['id'])
             continue
+        # Modalidad compartida: solo enlaza con profes de esa actividad.
         for pid, pa in prof_acts.items():
             if pid != r['id'] and (acts & pa):
                 suma(r['id'], pid)
-    for r in db.execute(
-            "SELECT DISTINCT c.profesor_id AS pid, a.alumno_id AS aid"
-            " FROM asistencia a JOIN classes c ON c.id=a.clase_id"
-            " WHERE c.profesor_id IS NOT NULL AND a.presente=1").fetchall():
-        suma(r['aid'], r['pid'])
-    for r in db.execute(
-            "SELECT DISTINCT profesor_id AS pid, alumno_id AS aid"
-            " FROM pagos WHERE profesor_id IS NOT NULL").fetchall():
-        suma(r['aid'], r['pid'])
-    for r in db.execute(
-            "SELECT alumno_id AS aid, profesor_ids FROM avisos_pago"
-            " WHERE profesor_ids IS NOT NULL AND profesor_ids != ''").fetchall():
-        for pid in _ids_desde(r['profesor_ids']):
-            suma(r['aid'], pid)
+
+    if sin_modalidad:
+        for r in db.execute(
+                "SELECT DISTINCT c.profesor_id AS pid, a.alumno_id AS aid"
+                " FROM asistencia a JOIN classes c ON c.id=a.clase_id"
+                " WHERE c.profesor_id IS NOT NULL AND a.presente=1").fetchall():
+            if r['aid'] in sin_modalidad:
+                suma(r['aid'], r['pid'])
+        for r in db.execute(
+                "SELECT DISTINCT profesor_id AS pid, alumno_id AS aid"
+                " FROM pagos WHERE profesor_id IS NOT NULL").fetchall():
+            if r['aid'] in sin_modalidad:
+                suma(r['aid'], r['pid'])
+        for r in db.execute(
+                "SELECT alumno_id AS aid, profesor_ids FROM avisos_pago"
+                " WHERE profesor_ids IS NOT NULL AND profesor_ids != ''").fetchall():
+            if r['aid'] in sin_modalidad:
+                for pid in _ids_desde(r['profesor_ids']):
+                    suma(r['aid'], pid)
     return {k: sorted(v) for k, v in mapa.items()}
 
 

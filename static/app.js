@@ -3028,6 +3028,9 @@ async function renderAlumnos(el) {
   const catLbl = { adulto: 'Adultos', juveniles: 'Juveniles', kids: 'Kids' };
   const catOf = (a) => (a.categoria === 'juveniles' || a.categoria === 'kids') ? a.categoria : 'adulto';
   const grupos = ['adulto', 'juveniles', 'kids'].filter(c => filtro === 'todos' || c === filtro);
+  // id -> nombre de profesor, para mostrar en la ficha con qué profe entrena.
+  const nombreProfe = {};
+  d.alumnos.forEach(x => { if (x.role === 'profesor') nombreProfe[x.id] = x.nombre; });
   const card = (a) => {
     const c = a.cuota;
     const cls = c.estado === 'al_dia' ? 'tag-al-dia' : c.estado === 'por_vencer' ? 'tag-por-vencer' : 'tag-deuda';
@@ -3038,6 +3041,7 @@ async function renderAlumnos(el) {
       <div class="small" style="margin-top:4px">👤 @${esc(a.username || '—')}</div>
       <div class="small" style="margin-top:4px">${beltHTML(a.cinturon)} · ${a.edad != null ? a.edad + ' años' : '—'}</div>
       <div class="small">Actividades: ${(a.actividades || (a.gi_pref === 'Gi' ? 'Gi' : a.gi_pref === 'NoGi' ? 'NoGi' : '')).split(',').filter(Boolean).map(x => `<span class="tag gi">${esc(x.trim())}</span>`).join(' ') || '—'}</div>
+      ${(() => { const ps = (a.profesores || []).map(pid => nombreProfe[pid]).filter(Boolean); return ps.length ? `<div class="small">🧑‍🏫 Entrena con: ${ps.map(n => `<span class="tag">${esc(n)}</span>`).join(' ')}</div>` : ''; })()}
       ${a.beca ? `<div class="small">🎖 <b>Becado</b> · no paga cuota</div>` : `<div class="small">Cuota: <b>$${num(a.familia ? a.familia.cuota_final : a.cuota_mensual)}</b> · <span class="tag ${cls}">${lbl}</span></div>`}
       ${a.familia ? `<div class="small">👨‍👩‍👧 <b>${esc(a.familia.nombre)}</b> ${a.familia.es_titular ? '<span class="tag tag-al-dia">Titular</span>' : ''}${a.familia.descuento ? `<span class="tag tag-por-vencer">ahorra $${num(a.familia.descuento)}</span>` : ''}</div>` : ''}
       ${a.en_pausa ? `<div class="small"><span class="tag tag-por-vencer">⏸ En pausa${a.pausa_hasta ? ' hasta ' + esc(a.pausa_hasta) : ''}</span></div>` : ''}
@@ -3429,7 +3433,7 @@ async function renderAsistencia(el) {
       <div class="flex mb">
         <select id="asClase" style="padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--bg2);color:var(--txt);flex:1">
           <option value="">— Elegí la clase —</option>
-          ${horarios.horarios.map(h => `<option value="${h.id}" data-profe="${h.profesor_id || ''}" data-profe-nombre="${esc(h.profesor_nombre || '')}">${esc(h.dia_nombre)} ${esc(h.hora)} · ${esc(h.tipo || 'Gi')} · ${esc(h.nivel || 'Todos')}</option>`).join('')}
+          ${horarios.horarios.map(h => `<option value="${h.id}" data-profe="${h.profesor_id || ''}" data-profe-nombre="${esc(h.profesor_nombre || '')}" data-tipo="${esc(h.tipo || 'Gi')}">${esc(h.dia_nombre)} ${esc(h.hora)} · ${esc(h.tipo || 'Gi')} · ${esc(h.nivel || 'Todos')}</option>`).join('')}
         </select>
         <input type="date" id="asFecha" value="${hoy}" style="padding:10px;border-radius:9px;border:1px solid var(--line);background:var(--bg2);color:var(--txt)">
       </div>
@@ -3466,13 +3470,28 @@ async function renderAsistencia(el) {
     if (!cid) { lista.innerHTML = '<div class="empty">Elegí una clase.</div>'; $('#asGuardar').hidden = true; return; }
     const presentes = await api('/api/asistencia_dia?clase_id=' + cid + '&fecha=' + fecha).catch(() => ({ presentes: [] }));
     const set = new Set(presentes.presentes);
-    lista.innerHTML = alumnos.alumnos.map(a => `
+    // Filtra la lista por el tipo de la clase elegida: no se muestran todos.
+    // Las clases de modalidad (Gi/NoGi/MMA/...) van con los alumnos de esa
+    // actividad; Kids/Juveniles con los de esa categoría; Abierto con todos.
+    const normAct = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const tipoN = normAct(opt.dataset.tipo || 'Gi');
+    const paraMarcar = alumnos.alumnos.filter(a => {
+      if (tipoN === normAct('abierto')) return true;
+      if (tipoN === normAct('kids')) return a.categoria === 'kids';
+      if (tipoN === normAct('juveniles')) return a.categoria === 'juveniles';
+      const acts = (a.actividades || (a.gi_pref === 'Gi' ? 'Gi' : a.gi_pref === 'NoGi' ? 'NoGi' : ''))
+        .split(',').map(x => normAct(x)).filter(Boolean);
+      if (!acts.length) return true; // sin actividad: se muestra por si asiste
+      return acts.includes(tipoN);
+    });
+    lista.innerHTML = paraMarcar.map(a => `
       <label class="check-row ${set.has(a.id) ? 'presente' : ''}">
         <input type="checkbox" class="asCheck" value="${a.id}" ${set.has(a.id) ? 'checked' : ''} data-nombre="${esc(a.nombre)}">
         ${avatarHTML(a.foto, a.nombre, 'sm')}
         <span class="nom">${esc(a.nombre)}</span>
         <span class="meta">${beltHTML(a.cinturon)} · ${a.edad != null ? a.edad : ''} años · 🥋${a.asistencias}</span>
-      </label>`).join('') || '<div class="empty">No hay alumnos cargados.</div>';
+      </label>`).join('') || '<div class="empty">No hay alumnos de esta clase.</div>';
+    $('#asProfeInfo').innerHTML += ` · <b>${paraMarcar.length}</b> alumnos de esta clase`;
     $('#asGuardar').hidden = false;
     contar();
     $$('.asCheck').forEach(c => c.addEventListener('change', () => {

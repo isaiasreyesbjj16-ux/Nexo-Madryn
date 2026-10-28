@@ -3152,14 +3152,27 @@ def _mapa_profes_de_alumnos(db):
     de rol).
     """
     profs = db.execute(
-        "SELECT id, actividades FROM users WHERE role='profesor'").fetchall()
+        "SELECT id, actividades, gi_pref FROM users WHERE role='profesor'").fetchall()
     prof_ids = {p['id'] for p in profs}
     if not prof_ids:
         return {}
-    prof_acts = {
-        p['id']: {a.strip() for a in (p['actividades'] or '').split(',') if a.strip()}
-        for p in profs
-    }
+
+    def modalidad(row):
+        """Modalidad de un usuario: su 'actividades', o como respaldo su
+        gi_pref (Gi/NoGi) si no tiene actividades cargadas.
+
+        Replica exactamente lo que muestra la ficha en el front
+        (`actividades || gi_pref`), para que un alumno que se ve como "Gi"
+        (porque no cargo actividades pero su gi_pref es Gi) no se enlace como
+        si no tuviera modalidad y termine mezclado en otra lista.
+        """
+        acts = {a.strip() for a in (row['actividades'] or '').split(',') if a.strip()}
+        if acts:
+            return acts
+        gp = row['gi_pref'] if 'gi_pref' in row.keys() else None
+        return {gp} if gp in ('Gi', 'NoGi') else set()
+
+    prof_acts = {p['id']: modalidad(p) for p in profs}
     mapa = {}
 
     def suma(aid, pid):
@@ -3167,13 +3180,13 @@ def _mapa_profes_de_alumnos(db):
             mapa.setdefault(aid, set()).add(pid)
 
     alumnos = db.execute(
-        "SELECT id, actividades FROM users WHERE role IN ('alumno','profesor')"
+        "SELECT id, actividades, gi_pref FROM users WHERE role IN ('alumno','profesor')"
     ).fetchall()
     sin_modalidad = set()
     for r in alumnos:
-        acts = {a.strip() for a in (r['actividades'] or '').split(',') if a.strip()}
+        acts = modalidad(r)
         if not acts:
-            # Sin actividad: todavia no sabemos su modalidad.
+            # Sin actividad ni gi_pref util: todavia no sabemos su modalidad.
             sin_modalidad.add(r['id'])
             continue
         # Modalidad compartida: solo enlaza con profes de esa actividad.

@@ -3626,6 +3626,7 @@ async function renderProfesores(el) {
           <td>${p.cuota_mensual ? '$' + num(p.cuota_mensual) : '<span style="color:var(--warn)">sin cargar</span>'}</td>
           <td><div class="flex" style="gap:6px;flex-wrap:wrap">
             ${esAdmin() ? `<button class="btn ghost small" onclick="cambiarCuotaProfe(${p.id},'${escJs(p.nombre)}',${p.cuota_mensual || 0})">💲</button>` : ''}
+            ${esAdmin() ? `<button class="btn ${p.es_admin ? 'good' : 'ghost'} small" title="${p.es_admin ? 'Quitar permisos de administrador' : 'Dar permisos de administrador (sigue siendo profesor)'}" onclick="toggleAdminProfe(${p.id},${p.es_admin ? 1 : 0},'${escJs(p.nombre)}')">${p.es_admin ? '🛡 Quitar admin' : '🛡 Dar admin'}</button>` : ''}
             <button class="btn bad small" onclick="eliminarProfesor(${p.id},'${escJs(p.nombre)}')">🗑 Eliminar</button></div></td>
         </tr>`).join('') : '<tr><td colspan="8" class="empty">Todavía no hay profesores.</td></tr>'}
     </table></div></div>`;
@@ -3674,6 +3675,18 @@ async function eliminarProfesor(id, nombre) {
   await api('/api/profesores/' + id, { method: 'DELETE' }).catch(e => toast(e.message));
   toast('Profesor eliminado');
   renderProfesores($('#sec-profesores'));
+}
+
+// Alterna el permiso de administrador (es_admin) de un profesor. No cambia su
+// rol: sigue siendo profe para reparto de cuotas, cuota propia y asistencia, y
+// ademas entra al panel de admin.
+async function toggleAdminProfe(id, actual, nombre) {
+  if (!confirm(`¿${actual ? 'Quitar' : 'Dar'} permisos de administrador a ${nombre}?`)) return;
+  try {
+    const r = await api('/api/usuarios/' + id + '/admin', { method: 'POST' });
+    toast(r.es_admin ? `🛡 ${nombre} ahora es administrador` : `🛡 ${nombre} ya no es administrador`);
+    renderProfesores($('#sec-profesores'));
+  } catch (e) { toast(e.message); }
 }
 
 /* =====================================================================

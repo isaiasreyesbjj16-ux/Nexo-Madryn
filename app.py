@@ -2246,19 +2246,32 @@ def _reparto_por_actividades(alumno_id, monto, profesor_manual_id=None):
     Recibe YA la parte que le toca a los profes (el 60% de la cuota, ver
     _registrar_reparto).
 
-    profesor_manual_id acepta un ID (legacy) o la lista completa de IDs que
-    eligio el alumno/staff. Si hay eleccion, el 60% se divide en partes
-    iguales SOLO entre los elegidos (uno elegido = 60% entero), sin mirar
-    las actividades. Recién sin eleccion se reparte entre los que dan sus
-    actividades: Gi+NoGi con dos prof distintos => 50/50 de esos 60%. Si no
-    hay profe que den alguna actividad y tampoco hay eleccion, queda sin
-    reparto. Devuelve [(profesor_id, montoParte, actividad_csv, nombre)].
+    Orden de prioridad:
+    1. profesor_manual_id: la eleccion explicita que hizo el alumno/staff al
+       pagar. El 60% se divide en partes iguales SOLO entre los elegidos (uno
+       elegido = 60% entero), sin mirar nada mas.
+    2. Sin eleccion explicita, se usa la seleccion manual `entrena_con` (con
+       quien entrena el alumno, cargada en su ficha). Si tiene profesores
+       asignados, la cuota va solo a ellos.
+    3. Recien si no tiene `entrena_con` se reparte entre los que dan sus
+       actividades (comportamiento legacy): Gi+NoGi con dos prof distintos =>
+       50/50 de esos 60%. Si tampoco hay, queda sin reparto.
+
+    Devuelve [(profesor_id, montoParte, actividad_csv, nombre)].
     """
     db = get_db()
     elegidos = _ids_desde(profesor_manual_id)
     if elegidos:
         nombres = _nombres_profes(db, elegidos)
         partes = _partes_iguales(elegidos, monto, nombres)
+        if partes:
+            return partes
+    # Sin eleccion al pagar: manda quien entrena con el alumno (entrena_con).
+    fila_ec = db.execute('SELECT entrena_con FROM users WHERE id=?', (alumno_id,)).fetchone()
+    ec_ids = _ids_desde(fila_ec['entrena_con'] if fila_ec and 'entrena_con' in fila_ec.keys() else None)
+    if ec_ids:
+        nombres = _nombres_profes(db, ec_ids)
+        partes = _partes_iguales(ec_ids, monto, nombres)
         if partes:
             return partes
     alumno = db.execute('SELECT actividades FROM users WHERE id=?', (alumno_id,)).fetchone()
@@ -3864,8 +3877,9 @@ def api_pagos_create():
     # profe no podia darse de alta su cuota sin que lo hiciera un admin.
     propio = (not es_admin(who) and alumno_id == who['id'])
     # El staff puede elegir uno o varios profesores: el 60% se divide en partes
-    # iguales SOLO entre los elegidos. Si no elige ninguno (o manda el 0/-1 del
-    # select), el reparto es automatico por actividades, como siempre.
+    # iguales SOLO entre los elegidos. Si no elige ninguno, el reparto usa la
+    # seleccion manual `entrena_con` (con quien entrena el alumno); solo si no
+    # tiene ninguna se cae al reparto automatico por actividades.
     ids, err = _leer_profesores(data)
     if err:
         return jsonify({'error': err}), 400

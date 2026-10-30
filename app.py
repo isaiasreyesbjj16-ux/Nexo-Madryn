@@ -294,6 +294,10 @@ def bjj_categoria(nacimiento, peso, genero, gi=True, anio=None):
 TIPOS_CLASE = ['Gi', 'NoGi', 'Kids', 'Juveniles', 'Abierto',
                'Muay Thai', 'MMA', 'Sipalki']
 ACTIVIDADES = ['Gi', 'NoGi', 'JJ Kids', 'MMA', 'Muay Thai', 'Sipalki', 'Clase personalizada']
+# Gastos comunes de la academia (luz, agua, gas, app, seminarios...). Se cargan
+# en la seccion "Gastos" y se restan de los ingresos del mes para el balance.
+CATEGORIAS_GASTO = ['Luz', 'Agua', 'Gas', 'Alquiler', 'Internet', 'App / Software',
+                    'Seminario', 'Otro']
 METODOS_PAGO = ['Efectivo', 'Transferencia', 'Débito', 'Crédito', 'Otro']
 DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 MESES_NOMBRE = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
@@ -523,6 +527,22 @@ CREATE TABLE IF NOT EXISTS ingresos_extra (
     nota TEXT,
     fecha TEXT,
     registrado_por INTEGER
+);
+
+-- Gastos comunes de la academia (luz, agua, gas, app, seminarios...). No se
+-- reparten: son costos de mantenimiento y se restan de los ingresos del mes
+-- para ver el balance.
+CREATE TABLE IF NOT EXISTS gastos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    monto REAL NOT NULL,
+    concepto TEXT DEFAULT 'Gasto',
+    categoria TEXT DEFAULT 'Otro',
+    mes INTEGER NOT NULL,
+    anio INTEGER NOT NULL,
+    metodo TEXT DEFAULT 'Efectivo',
+    nota TEXT,
+    fecha TEXT,
+    registrado_por INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS asistencia (
@@ -5389,6 +5409,74 @@ def api_ingresos_extra_create():
 @role_required('admin')
 def api_ingresos_extra_delete(eid):
     get_db().execute('DELETE FROM ingresos_extra WHERE id=?', (eid,))
+    get_db().commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/gastos')
+@role_required('admin')
+def api_gastos_list():
+    """Gastos comunes de la academia (luz, agua, gas, app, seminarios...).
+
+    Calcula el total del mes, el acumulado, el desglose por categoria y el
+    BALANCE del mes: cuotas cobradas + ingresos extra - gastos comunes.
+    """
+    hoy = _hoy_academy()
+    mes = to_int(request.args.get('mes')) or hoy.month
+    anio = to_int(request.args.get('anio')) or hoy.year
+    db = get_db()
+    filas = db.execute('SELECT * FROM gastos ORDER BY fecha DESC').fetchall()
+    total_mes = db.execute(
+        'SELECT COALESCE(SUM(monto),0) AS n FROM gastos WHERE mes=? AND anio=?',
+        (mes, anio)).fetchone()['n']
+    total_all = db.execute(
+        'SELECT COALESCE(SUM(monto),0) AS n FROM gastos').fetchone()['n']
+    por_categoria = db.execute(
+        """SELECT COALESCE(categoria,'Otro') AS categoria, COALESCE(SUM(monto),0) AS total
+           FROM gastos GROUP BY categoria ORDER BY total DESC""").fetchall()
+    # Balance del mes: todo lo que entró (cuotas + ingresos extra) menos gastos.
+    cuotas = db.execute(
+        'SELECT COALESCE(SUM(monto),0) AS n FROM pagos WHERE mes=? AND anio=?',
+        (mes, anio)).fetchone()['n']
+    extras = db.execute(
+        'SELECT COALESCE(SUM(monto),0) AS n FROM ingresos_extra WHERE mes=? AND anio=?',
+        (mes, anio)).fetchone()['n']
+    ingresos_mes = cuotas + extras
+    return jsonify({'mes': mes, 'anio': anio, 'total_mes': total_mes,
+                    'total_all': total_all, 'gastos': [dict(f) for f in filas],
+                    'por_categoria': [dict(c) for c in por_categoria],
+                    'ingresos_mes': ingresos_mes,
+                    'balance_mes': ingresos_mes - total_mes})
+
+
+@app.route('/api/gastos', methods=['POST'])
+@role_required('admin')
+def api_gastos_create():
+    data = parse_json()
+    monto = to_float(data.get('monto'))
+    if not monto or monto <= 0:
+        return jsonify({'error': 'El monto es obligatorio'}), 400
+    concepto = txt_str(data.get('concepto')) or 'Gasto'
+    categoria = txt_str(data.get('categoria')) or 'Otro'
+    hoy = _hoy_academy()
+    mes, anio, err = validar_mes_anio(to_int(data.get('mes')) or hoy.month,
+                                      to_int(data.get('anio')) or hoy.year)
+    if err:
+        return jsonify({'error': err}), 400
+    get_db().execute(
+        """INSERT INTO gastos(monto, concepto, categoria, mes, anio, metodo, nota, fecha, registrado_por)
+           VALUES(?,?,?,?,?,?,?,?,?)""",
+        (monto, concepto, categoria, mes, anio, data.get('metodo') or 'Efectivo',
+         txt_str(data.get('nota')) or None,
+         datetime.now().strftime('%Y-%m-%d %H:%M:%S'), current_user()['id']))
+    get_db().commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/gastos/<int:gid>', methods=['DELETE'])
+@role_required('admin')
+def api_gastos_delete(gid):
+    get_db().execute('DELETE FROM gastos WHERE id=?', (gid,))
     get_db().commit()
     return jsonify({'ok': True})
 

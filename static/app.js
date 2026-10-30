@@ -525,7 +525,7 @@ function initDashboard() {
   const seccionesValidas = ['inicio', 'perfil', 'horarios', 'pagos', 'mispagos', 'alumnos',
     'asistencia', 'estadisticas', 'deudores', 'profesores', 'config',     'mi_asistencia', 'videos',
     'galeria', 'ranking', 'metas', 'eventos', 'torneos', 'historial',
-    'dinero', 'ingresos_extra', 'descuentos'];
+    'dinero', 'ingresos_extra', 'gastos', 'descuentos'];
   if (secParam && seccionesValidas.includes(secParam)) showSec(secParam);
   history.replaceState(null, '', location.pathname);
   if ('serviceWorker' in navigator) {
@@ -572,7 +572,7 @@ function showSec(name) {
     galeria: renderGaleria,
     ranking: renderRanking, metas: renderMetas,
     eventos: renderEventosTorneos, torneos: renderEventosTorneos, historial: renderHistorial,
-    dinero: renderMiDinero, ingresos_extra: renderIngresosExtra, descuentos: renderDescuentos,
+    dinero: renderMiDinero, ingresos_extra: renderIngresosExtra, gastos: renderGastos, descuentos: renderDescuentos,
   };
   if (renderers[name]) {
     // cache corta por seccion: volver atras es instantaneo, sin datos viejos (TTL 60s)
@@ -1420,6 +1420,7 @@ async function renderInicio(el) {
     if (R === 'profesor') chips.push(`<button class="chip" onclick="showSec('mi_asistencia')">✅ Mi asistencia</button>`, `<button class="chip" onclick="marcarAsistenciaDirecta()">✅ Asistencia sin QR</button> <button class="chip" onclick="abrirScannerQR()">📷 Escanear QR</button>`);
     chips.push(`<button class="chip" onclick="showSec('dinero')">💰 ${esAdmin() ? 'Reparto de dinero' : 'Mi dinero'}</button>`);
     chips.push(`<button class="chip" onclick="showSec('ingresos_extra')">🎁 Ingresos extra</button>`);
+    if (esAdmin()) chips.push(`<button class="chip" onclick="showSec('gastos')">💸 Gastos comunes</button>`);
     chips.push(`<button class="chip" onclick="showSec('descuentos')">🏷️ Descuentos</button>`);
     el.innerHTML = `
       <div class="feed">
@@ -4386,6 +4387,7 @@ async function renderMiDinero(el) {
 }
 
 const DESTINOS_EXTRA = ['Fondo academia', 'Viaje a competencia', 'Seminario', 'Cuota de un día', 'Equipamiento', 'Otro'];
+const CATEGORIAS_GASTO = ['Luz', 'Agua', 'Gas', 'Alquiler', 'Internet', 'App / Software', 'Seminario', 'Otro'];
 
 async function renderIngresosExtra(el) {
   const soyAdmin = esAdmin();
@@ -4466,6 +4468,79 @@ async function borrarIngresoExtra(id) {
     await api('/api/ingresos_extra/' + id, { method: 'DELETE' });
     toast('Borrado');
     renderIngresosExtra(document.getElementById('sec-ingresos_extra'));
+  } catch (e) { toast(e.message); }
+}
+
+async function renderGastos(el) {
+  el.innerHTML = secHeader('Gastos comunes') + `
+    <div class="small" style="color:var(--muted);padding:0 4px 10px">
+      Costos de mantenimiento de la academia (luz, agua, gas, app, seminarios...). No se reparten: se restan de los ingresos del mes para ver el balance.
+    </div>
+    <div class="card">
+      <form id="gaForm" class="grid2">
+        <div class="field"><label>Monto ($)</label><input type="number" step="0.01" id="gaMonto" required placeholder="0"></div>
+        <div class="field"><label>Concepto</label><input type="text" id="gaConcepto" required placeholder="Ej: Factura de luz"></div>
+        <div class="field"><label>Categoría</label><select id="gaCategoria">${CATEGORIAS_GASTO.map(x => `<option>${esc(x)}</option>`).join('')}</select></div>
+        <div class="field"><label>Método</label><select id="gaMetodo">${METODOS.map(m => `<option>${esc(m)}</option>`).join('')}</select></div>
+        <div class="field"><label>Nota (opcional)</label><input type="text" id="gaNota" placeholder="Ej: vence el 15"></div>
+        <div class="field" style="grid-column:1/-1"><button class="btn primary btn-block" type="submit">💸 Registrar gasto</button></div>
+      </form>
+    </div>
+    <div id="gaResumen"></div>`;
+
+  try {
+    const d = await api('/api/gastos');
+    const bal = d.balance_mes || 0;
+    const balColor = bal >= 0 ? 'var(--accent2)' : '#ff6b6b';
+    document.getElementById('gaResumen').innerHTML = `
+      <div class="card">
+        <div class="home-grid">
+          <div class="stat-card"><div class="num" style="color:#ff9b8f">$${num(d.total_mes || 0)}</div><div class="lbl">Gastos ${d.mes}/${d.anio}</div></div>
+          <div class="stat-card"><div class="num" style="color:#ff9b8f">$${num(d.total_all || 0)}</div><div class="lbl">Gastos acumulados</div></div>
+          <div class="stat-card"><div class="num" style="color:var(--accent2)">$${num(d.ingresos_mes || 0)}</div><div class="lbl">Ingresos ${d.mes}/${d.anio}</div></div>
+          <div class="stat-card"><div class="num" style="color:${balColor}">$${num(bal)}</div><div class="lbl">Balance ${d.mes}/${d.anio}</div></div>
+        </div>
+      </div>
+      ${(d.por_categoria || []).length ? `<div class="card"><h3>📊 Por categoría</h3>
+        <div style="overflow:auto"><table><tr><th>Categoría</th><th>Total</th></tr>
+        ${d.por_categoria.map(x => `<tr><td>${esc(x.categoria)}</td><td><b>$${num(x.total)}</b></td></tr>`).join('')}
+        </table></div></div>` : ''}
+      <div class="card"><h3>📋 Historial</h3>
+        <div style="overflow:auto"><table>
+          <tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Mes</th><th>Método</th><th>Monto</th><th></th></tr>
+          ${(d.gastos || []).length ? d.gastos.map(x => `<tr>
+            <td>${esc(x.fecha)}</td><td>${esc(x.concepto)}</td>
+            <td>${esc(x.categoria || '—')}</td>
+            <td>${x.mes}/${x.anio}</td><td>${esc(x.metodo || '')}</td>
+            <td><b>$${num(x.monto)}</b></td>
+            <td><button class="btn bad small" onclick="borrarGasto(${x.id})">🗑</button></td>
+          </tr>`).join('') : '<tr><td colspan="7" class="empty">Todavía no hay gastos cargados</td></tr>'}
+        </table></div></div>`;
+  } catch (e) { toast(e.message); }
+
+  const f = document.getElementById('gaForm');
+  if (f) f.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    try {
+      await api('/api/gastos', { method: 'POST', body: {
+        monto: +document.getElementById('gaMonto').value,
+        concepto: document.getElementById('gaConcepto').value,
+        categoria: document.getElementById('gaCategoria').value,
+        metodo: document.getElementById('gaMetodo').value,
+        nota: document.getElementById('gaNota').value
+      } });
+      toast('Gasto registrado ✓');
+      renderGastos(el);
+    } catch (e) { toast(e.message); }
+  });
+}
+
+async function borrarGasto(id) {
+  if (!confirm('¿Borrar este gasto?')) return;
+  try {
+    await api('/api/gastos/' + id, { method: 'DELETE' });
+    toast('Borrado');
+    renderGastos(document.getElementById('sec-gastos'));
   } catch (e) { toast(e.message); }
 }
 
